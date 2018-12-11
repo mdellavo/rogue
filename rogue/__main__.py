@@ -4,17 +4,21 @@ import random
 import pygame
 from pygame import locals
 
-from .world import Player, World, Tile
+from .world import Player, World, Tile, NPC
 
 TILESIZE = 32
 WINDOW_SIZE = 20
 TILESHEET = "data/tiles.png"
+TIMEOUT = 250
 
 TILEMAP = {
     "grass1": (15, 9),
     "gnome1": (2, 59),
     "wall1": (10, 4),
+    "orc1": (9, 59),
 }
+
+TICK_EVENT = pygame.USEREVENT
 
 
 def generate_map(size):
@@ -23,7 +27,7 @@ def generate_map(size):
 
     def _tile(x, y):
         if (x, y) in WALLS:
-            return Tile("wall1", blocked=True, blocked_sight=True)
+            return Tile("wall1", blocked=True)
         else:
             return Tile("grass1")
 
@@ -81,18 +85,28 @@ def main():
     image = pygame.image.load(TILESHEET).convert_alpha()
     tileset = TileSet(image, TILEMAP, TILESIZE)
     tiles = generate_map(WINDOW_SIZE)
-    player = Player("gnome1", int(round(WINDOW_SIZE/2)), int(round(WINDOW_SIZE/2)))
-    world = World(tiles, player)
-
+    player = Player("gnome1", random.randint(0, WINDOW_SIZE), random.randint(0, WINDOW_SIZE))
+    npcs = [NPC("orc1", random.randint(0, WINDOW_SIZE), random.randint(0, WINDOW_SIZE)) for _ in range(10)]
+    objects = [player] + npcs
+    world = World(tiles, objects)
     view = MapView(screen, world, tileset, TILESIZE)
+
+    def _tick():
+        world.tick()
+        dirty = view.draw()
+        pygame.display.update(dirty)
+
+    pygame.time.set_timer(TICK_EVENT, TIMEOUT)
 
     running = True
     while running:
+
         for event in pygame.event.get():
-            
             if event.type == locals.KEYDOWN and event.key == locals.K_ESCAPE:
                 running = False
                 break
+            elif event.type == TICK_EVENT:
+                _tick()
             elif event.type == locals.KEYDOWN and event.key == locals.K_w:
                 world.move(player, 0, -1)
             elif event.type == locals.KEYDOWN and event.key == locals.K_s:
@@ -104,9 +118,6 @@ def main():
 
             # print_fov(world, player)
 
-            dirty = view.draw()
-            pygame.display.update(dirty)
-            
     return 0
 
 
