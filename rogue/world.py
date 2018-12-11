@@ -24,19 +24,22 @@ class Tile(object):
         self.blocked_sight = blocked or blocked_sight
 
 
-class Map(object):
+class World(object):
     def __init__(self, tiles, player):
-        self.tiles = tiles
+        self.map = tiles
         self.objects = [player]
+
+    def get_tile(self, x, y):
+        return self.map[y][x]
 
     def move(self, actor, dx, dy):
         x = actor.x + dx
         y = actor.y + dy
 
-        if x < 0 or x >= len(self.tiles[0]) or y < 0 or y >= len(self.tiles):
+        if x < 0 or x >= len(self.map[0]) or y < 0 or y >= len(self.map):
             return False
 
-        tile = self.tiles[x][y]
+        tile = self.get_tile(x, y)
         if tile.blocked:
             return False
 
@@ -53,9 +56,9 @@ class Map(object):
             for i in range(1, actor.view_distance):
                 px = actor.x + int(round(i * ax))
                 py = actor.y + int(round(i * ay))
-                if px < 0 or px >= len(self.tiles[0]) or py < 0 or py >= len(self.tiles):
+                if px < 0 or px >= len(self.map[0]) or py < 0 or py >= len(self.map):
                     continue
-                tile = self.tiles[py][px]
+                tile = self.get_tile(px, py)
                 if tile.blocked_sight:
                     break
                 pos = (px, py)

@@ -4,7 +4,7 @@ import random
 import pygame
 from pygame import locals
 
-from . import world
+from .world import Player, World, Tile
 
 TILESIZE = 32
 WINDOW_SIZE = 20
@@ -23,9 +23,9 @@ def generate_map(size):
 
     def _tile(x, y):
         if (x, y) in WALLS:
-            return world.Tile("wall1", blocked=True, blocked_sight=True)
+            return Tile("wall1", blocked=True, blocked_sight=True)
         else:
-            return world.Tile("grass1")
+            return Tile("grass1")
 
     return [[_tile(w, h) for w in range(size)] for h in range(size)]
 
@@ -43,9 +43,9 @@ class TileSet(object):
 
 
 class MapView(object):
-    def __init__(self, surface, map, tileset, tilesize):
+    def __init__(self, surface, world, tileset, tilesize):
         self.surface = surface
-        self.map = map
+        self.world = world
         self.tileset = tileset
         self.tilesize = tilesize
 
@@ -55,8 +55,8 @@ class MapView(object):
             area = self.tileset.get_tile(key)
             return self.tileset.bitmap, dest, area
 
-        blits = [_blit(tile.key, x, y) for y, row in enumerate(self.map.tiles) for x, tile in enumerate(row)]
-        blits += [_blit(obj.key, obj.x, obj.y) for obj in self.map.objects]
+        blits = [_blit(tile.key, x, y) for y, row in enumerate(self.world.map) for x, tile in enumerate(row)]
+        blits += [_blit(obj.key, obj.x, obj.y) for obj in self.world.objects]
         
         dirty = []
         for src, dst, area in blits:
@@ -66,6 +66,14 @@ class MapView(object):
         return dirty
 
 
+def print_fov(world, player):
+    visible = world.fov(player)
+    fov = [[(" " if (x, y) in visible else "x") for x in range(WINDOW_SIZE)] for y in range(WINDOW_SIZE)]
+    for row in fov:
+        print("".join(row))
+    print()
+
+
 def main():
     width = height = TILESIZE * WINDOW_SIZE
     screen = pygame.display.set_mode((width, height))
@@ -73,10 +81,10 @@ def main():
     image = pygame.image.load(TILESHEET).convert_alpha()
     tileset = TileSet(image, TILEMAP, TILESIZE)
     tiles = generate_map(WINDOW_SIZE)
-    player = world.Player("gnome1", int(round(WINDOW_SIZE/2)), int(round(WINDOW_SIZE/2)))
-    map = world.Map(tiles, player)
+    player = Player("gnome1", int(round(WINDOW_SIZE/2)), int(round(WINDOW_SIZE/2)))
+    world = World(tiles, player)
 
-    view = MapView(screen, map, tileset, TILESIZE)
+    view = MapView(screen, world, tileset, TILESIZE)
 
     running = True
     while running:
@@ -86,19 +94,15 @@ def main():
                 running = False
                 break
             elif event.type == locals.KEYDOWN and event.key == locals.K_w:
-                map.move(player, 0, -1)
+                world.move(player, 0, -1)
             elif event.type == locals.KEYDOWN and event.key == locals.K_s:
-                map.move(player, 0, 1)
+                world.move(player, 0, 1)
             elif event.type == locals.KEYDOWN and event.key == locals.K_a:
-                map.move(player, -1, 0)
+                world.move(player, -1, 0)
             elif event.type == locals.KEYDOWN and event.key == locals.K_d:
-                map.move(player, 1, 0)
+                world.move(player, 1, 0)
 
-            visible = map.fov(player)
-            fov = [[(" " if (x, y) in visible else "x") for x in range(WINDOW_SIZE)] for y in range(WINDOW_SIZE)]
-            for row in fov:
-                print("".join(row))
-            print()
+            # print_fov(world, player)
 
             dirty = view.draw()
             pygame.display.update(dirty)
