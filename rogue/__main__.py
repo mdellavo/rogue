@@ -110,12 +110,12 @@ class MapView(object):
                             area = self.tileset.get_tile(obj.key)
                             self.surface.blit(self.tileset.bitmap, dest, area)
                     else:
-                        self.surface.fill((0, 0, 0, 128), dest)
+                        self.surface.fill((128, 128, 128, 128), dest, pygame.BLEND_RGBA_MULT)
 
 
 def main():
     width = height = TILESIZE * WINDOW_SIZE
-    screen = pygame.display.set_mode((width, height))
+    screen = pygame.display.set_mode((width, height), 0, 32)
 
     image = pygame.image.load(TILESHEET).convert_alpha()
     tileset = TileSet(image, TILEMAP, TILESIZE)
