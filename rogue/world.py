@@ -101,11 +101,12 @@ class World(object):
                 if px < 0 or px >= self.map_width or py < 0 or py >= self.map_height:
                     continue
                 tile = self.get_tile(px, py)
-                if tile.blocked_sight or any(obj.blocks_sight for obj in self.get_objects(px, py)):
-                    break
                 pos = (px, py)
                 if pos not in visible:
                     visible.append(pos)
+                if tile.blocked_sight or any(obj.blocks_sight for obj in self.get_objects(px, py)):
+                    break
+
         return visible
 
     def player_fov(self):

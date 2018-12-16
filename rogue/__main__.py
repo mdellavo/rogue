@@ -27,7 +27,7 @@ def generate_map(size):
 
     def _tile(x, y):
         if (x, y) in WALLS:
-            return Tile("wall1", blocked=True)
+            return Tile("wall1", blocked=True, blocked_sight=True)
         else:
             return Tile("grass1")
 
