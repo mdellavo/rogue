@@ -23,7 +23,7 @@ TICK_EVENT = pygame.USEREVENT
 
 def generate_map(size):
 
-    WALLS = [(random.randint(0, WINDOW_SIZE), random.randint(0, WINDOW_SIZE)) for _ in range(10)]
+    WALLS = [(random.randint(0, size), random.randint(0, size)) for _ in range(10)]
 
     def _tile(x, y):
         if (x, y) in WALLS:
@@ -46,6 +46,18 @@ class TileSet(object):
         return r
 
 
+def print_tiles(tiles):
+
+    def _t(tile):
+        if not tile:
+            return "x"
+        return "o" if tile.blocked else "."
+
+    for row in tiles:
+        print("".join(_t(tile) for tile in row))
+    print()
+
+
 class MapView(object):
     def __init__(self, surface, world, tileset, tilesize):
         self.surface = surface
@@ -53,29 +65,48 @@ class MapView(object):
         self.tileset = tileset
         self.tilesize = tilesize
 
+    @property
+    def visible_width(self):
+        return int(self.surface.get_width() / self.tilesize)
+
+    @property
+    def visible_height(self):
+        return int(self.surface.get_height() / self.tilesize)
+
+    def visible_tiles(self):
+        rv = []
+
+        for y in range(self.visible_height):
+            row = []
+            for x in range(self.visible_width):
+                tile_x = x + self.world.player.x - int(self.visible_width / 2)
+                tile_y = y + self.world.player.y - int(self.visible_height / 2)
+                if tile_x < 0 or tile_x >= self.world.map_width or tile_y < 0 or tile_y >= self.world.map_height:
+                    row.append(None)
+                    continue
+                tile = self.world.get_tile(tile_x, tile_y)
+                row.append(tile)
+            rv.append(row)
+        return rv
+
     def draw(self):
-        def _blit(key, x, y):
-            dest = pygame.Rect(x * self.tilesize, y * self.tilesize, 0, 0)
-            area = self.tileset.get_tile(key)
-            return self.tileset.bitmap, dest, area
 
-        blits = [_blit(tile.key, x, y) for y, row in enumerate(self.world.map) for x, tile in enumerate(row)]
-        blits += [_blit(obj.key, obj.x, obj.y) for obj in self.world.objects]
-        
-        dirty = []
-        for src, dst, area in blits:
-            d = self.surface.blit(src, dst, area)
-            dirty.append(d)
+        self.surface.fill((0, 0, 0))
 
-        return dirty
+        fov = self.world.player_fov()
+        tiles = self.visible_tiles()
+        for y, row in enumerate(tiles):
+            for x, tile in enumerate(row):
+                if tile and tile.explored:
+                    dest = pygame.Rect(x * self.tilesize, y * self.tilesize, 0, 0)
+                    area = self.tileset.get_tile(tile.key)
+                    self.surface.blit(self.tileset.bitmap, dest, area)
 
-
-def print_fov(world, player):
-    visible = world.fov(player)
-    fov = [[(" " if (x, y) in visible else "x") for x in range(WINDOW_SIZE)] for y in range(WINDOW_SIZE)]
-    for row in fov:
-        print("".join(row))
-    print()
+        for obj in self.world.objects:
+            if (obj.x, obj.y) in fov:
+                dest = pygame.Rect(obj.x * self.tilesize, obj.y * self.tilesize, 0, 0)
+                area = self.tileset.get_tile(obj.key)
+                self.surface.blit(self.tileset.bitmap, dest, area)
 
 
 def main():
@@ -85,16 +116,15 @@ def main():
     image = pygame.image.load(TILESHEET).convert_alpha()
     tileset = TileSet(image, TILEMAP, TILESIZE)
     tiles = generate_map(WINDOW_SIZE)
-    player = Player("gnome1", random.randint(0, WINDOW_SIZE), random.randint(0, WINDOW_SIZE))
+    player = Player("gnome1", int(WINDOW_SIZE/2), int(WINDOW_SIZE/2))
     npcs = [NPC("orc1", random.randint(0, WINDOW_SIZE), random.randint(0, WINDOW_SIZE)) for _ in range(10)]
-    objects = [player] + npcs
-    world = World(tiles, objects)
+    world = World(tiles, player, npcs)
     view = MapView(screen, world, tileset, TILESIZE)
 
     def _tick():
         world.tick()
-        dirty = view.draw()
-        pygame.display.update(dirty)
+        view.draw()
+        pygame.display.flip()
 
     pygame.time.set_timer(TICK_EVENT, TIMEOUT)
 
@@ -115,8 +145,6 @@ def main():
                 world.move(player, -1, 0)
             elif event.type == locals.KEYDOWN and event.key == locals.K_d:
                 world.move(player, 1, 0)
-
-            # print_fov(world, player)
 
     return 0
 

@@ -39,12 +39,19 @@ class Tile(object):
     def __init__(self, key, blocked=False, blocked_sight=False):
         self.key = key
         self.blocked = blocked
-        self.blocked_sight = blocked or blocked_sight
+        self.blocked_sight = blocked_sight
+        self.explored = False
+
+    def __repr__(self):
+        return "<Tile({})>".format(self.key)
 
 
 class World(object):
-    def __init__(self, tiles, objects):
+    def __init__(self, tiles, player, objects):
         self.map = tiles
+        self.player = player
+        if player not in objects:
+            objects.append(player)
         self.objects = objects
         self.age = 0
 
@@ -84,7 +91,7 @@ class World(object):
         return True
 
     def fov(self, actor):
-        visible = []
+        visible = [(actor.x, actor.y)]
         for theta in range(361):
             ax = math.cos(math.radians(theta))
             ay = math.sin(math.radians(theta))
@@ -101,3 +108,9 @@ class World(object):
                     visible.append(pos)
         return visible
 
+    def player_fov(self):
+        visible = self.fov(self.player)
+        for x, y in visible:
+            tile = self.get_tile(x, y)
+            tile.explored = True
+        return visible
