@@ -104,10 +104,13 @@ class MapView(object):
                     area = self.tileset.get_tile(tile.key)
                     self.surface.blit(self.tileset.bitmap, dest, area)
 
-                    if pos in object_map:
-                        obj = object_map[pos]
-                        area = self.tileset.get_tile(obj.key)
-                        self.surface.blit(self.tileset.bitmap, dest, area)
+                    if pos in fov:
+                        if pos in object_map:
+                            obj = object_map[pos]
+                            area = self.tileset.get_tile(obj.key)
+                            self.surface.blit(self.tileset.bitmap, dest, area)
+                    else:
+                        self.surface.fill((0, 0, 0, 128), dest)
 
 
 def main():
