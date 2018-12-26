@@ -4,46 +4,60 @@ import random
 import pygame
 from pygame import locals
 
-from .world import Player, World, Tile, NPC
+from .view import TileSet, MapView
+from .world import Player, NPC, World
+from . import procgen
 
-TILESIZE = 32
-WINDOW_SIZE = 20
+MAP_SIZE = 50
+TILESIZE = 64
+WINDOW_SIZE = 10
 TILESHEET = "data/tiles.png"
 TIMEOUT = 250
 
 TILEMAP = {
-    "grass1": (15, 9),
-    "gnome1": (2, 59),
-    "wall1": (10, 4),
-    "orc1": (9, 59),
+    "player": (0, 3),
+    "orc1": (14, 13),
+
+    "grass1": (9, 23),
+    "grass2": (10, 23),
+    "grass3": (11, 23),
+
+    "water1": (15, 23),
+    "water2": (16, 23),
+    "water3": (17, 23),
+
+    "sand1": (12, 23),
+    "sand2": (13, 23),
+    "sand3": (14, 23),
+
+    "mountains1": (117, 23),
+    "mountains2": (118, 23),
+    "mountains3": (119, 23),
 }
 
 TICK_EVENT = pygame.USEREVENT
 
 
-def generate_map(size):
-
-    WALLS = [(random.randint(0, size), random.randint(0, size)) for _ in range(10)]
-
-    def _tile(x, y):
-        if (x, y) in WALLS:
-            return Tile("wall1", blocked=True, blocked_sight=True)
-        else:
-            return Tile("grass1")
-
-    return [[_tile(w, h) for w in range(size)] for h in range(size)]
+def print_cells(cells):
+    for row in cells:
+        print("".join(("#" if cell else " ") for cell in row))
 
 
-class TileSet(object):
-    def __init__(self, bitmap, tilemap, tile_size):
-        self.bitmap = bitmap
-        self.tilemap = tilemap  # XXX build a map of rects
-        self.tile_size = tile_size
+def print_heightmap(heightmap):
 
-    def get_tile(self, key):
-        x, y = self.tilemap[key]
-        r = pygame.Rect(x * self.tile_size, y * self.tile_size, self.tile_size, self.tile_size)
-        return r
+    def _height(height):
+        if height < .2:
+            return " "
+        if height < .4:
+            return "_"
+        if height < .6:
+            return "."
+        if height < .8:
+            return "o"
+        return "O"
+
+    for row in heightmap:
+        print("".join(_height(height) for height in row))
 
 
 def print_tiles(tiles):
@@ -58,72 +72,19 @@ def print_tiles(tiles):
     print()
 
 
-class MapView(object):
-    def __init__(self, surface, world, tileset, tilesize):
-        self.surface = surface
-        self.world = world
-        self.tileset = tileset
-        self.tilesize = tilesize
-
-    @property
-    def visible_width(self):
-        return int(self.surface.get_width() / self.tilesize)
-
-    @property
-    def visible_height(self):
-        return int(self.surface.get_height() / self.tilesize)
-
-    def visible_tiles(self):
-        rv = []
-        for y in range(self.visible_height):
-            row = []
-            for x in range(self.visible_width):
-                tile_x = x + self.world.player.x - int(self.visible_width / 2)
-                tile_y = y + self.world.player.y - int(self.visible_height / 2)
-                if tile_x < 0 or tile_x >= self.world.map_width or tile_y < 0 or tile_y >= self.world.map_height:
-                    row.append(((tile_x, tile_y), None))
-                    continue
-                tile = self.world.get_tile(tile_x, tile_y)
-                row.append(((tile_x, tile_y), tile))
-            rv.append(row)
-        return rv
-
-    def draw(self):
-        self.surface.fill((0, 0, 0))
-        fov = self.world.player_fov()
-        tiles = self.visible_tiles()
-
-        object_map = {(obj.x, obj.y): obj for obj in self.world.objects}
-
-        for y, row in enumerate(tiles):
-            for x, cell in enumerate(row):
-                pos, tile = cell
-
-                if tile and tile.explored:
-                    dest = pygame.Rect(x * self.tilesize, y * self.tilesize, self.tilesize, self.tilesize)
-                    area = self.tileset.get_tile(tile.key)
-                    self.surface.blit(self.tileset.bitmap, dest, area)
-
-                    if pos in fov:
-                        if pos in object_map:
-                            obj = object_map[pos]
-                            area = self.tileset.get_tile(obj.key)
-                            self.surface.blit(self.tileset.bitmap, dest, area)
-                    else:
-                        self.surface.fill((128, 128, 128, 128), dest, pygame.BLEND_RGBA_MULT)
-
-
 def main():
     width = height = TILESIZE * WINDOW_SIZE
     screen = pygame.display.set_mode((width, height), 0, 32)
 
     image = pygame.image.load(TILESHEET).convert_alpha()
     tileset = TileSet(image, TILEMAP, TILESIZE)
-    tiles = generate_map(WINDOW_SIZE)
-    player = Player("gnome1", int(WINDOW_SIZE/2), int(WINDOW_SIZE/2))
-    npcs = [NPC("orc1", random.randint(0, WINDOW_SIZE), random.randint(0, WINDOW_SIZE)) for _ in range(10)]
+    tiles = procgen.generate_map(MAP_SIZE)
+
+    player = Player("player", int(MAP_SIZE/2), int(MAP_SIZE/2))
+    npcs = [NPC("orc1", random.randint(0, MAP_SIZE), random.randint(0, MAP_SIZE)) for _ in range(10)]
     world = World(tiles, player, npcs)
-    view = MapView(screen, world, tileset, TILESIZE)
+
+    view = MapView(screen, world, tileset)
 
     def _tick():
         world.tick()
@@ -141,22 +102,26 @@ def main():
             elif event.type == TICK_EVENT:
                 _tick()
             elif event.type == locals.KEYDOWN and event.key == locals.K_w:
-                world.move(player, 0, -1)
+                world.move(world.player, 0, -1)
             elif event.type == locals.KEYDOWN and event.key == locals.K_s:
-                world.move(player, 0, 1)
+                world.move(world.player, 0, 1)
             elif event.type == locals.KEYDOWN and event.key == locals.K_a:
-                world.move(player, -1, 0)
+                world.move(world.player, -1, 0)
             elif event.type == locals.KEYDOWN and event.key == locals.K_d:
-                world.move(player, 1, 0)
+                world.move(world.player, 1, 0)
 
     return 0
 
 
-if __name__ == "__main__":
+def pygame_start():
     pygame.init()
     try:
         exit_val = main()
     except KeyboardInterrupt:
         exit_val = 0
     pygame.quit()
-    sys.exit(exit_val)
+    return exit_val
+
+
+if __name__ == "__main__":
+    sys.exit(pygame_start())
