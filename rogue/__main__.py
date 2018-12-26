@@ -8,9 +8,9 @@ from .view import TileSet, MapView
 from .world import Player, NPC, World
 from . import procgen
 
-MAP_SIZE = 50
+MAP_SIZE = 100
 TILESIZE = 64
-WINDOW_SIZE = 10
+WINDOW_SIZE = 20
 TILESHEET = "data/tiles.png"
 TIMEOUT = 250
 
