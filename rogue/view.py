@@ -14,40 +14,35 @@ class TileSet(object):
 
 
 class MapView(object):
-    def __init__(self, surface, world, tileset):
-        self.surface = surface
+    def __init__(self, world, player, tileset):
         self.world = world
+        self.player = player
         self.tileset = tileset
 
-    @property
-    def visible_width(self):
-        return int(self.surface.get_width() / self.tileset.tile_size)
-
-    @property
-    def visible_height(self):
-        return int(self.surface.get_height() / self.tileset.tile_size)
-
-    def visible_tiles(self):
+    def visible_tiles(self, area, width, height):
         rv = []
-        for y in range(self.visible_height):
+        for y in range(height):
             row = []
-            for x in range(self.visible_width):
-                tile_x = x + self.world.player.x - int(self.visible_width / 2)
-                tile_y = y + self.world.player.y - int(self.visible_height / 2)
-                if tile_x < 0 or tile_x >= self.world.map_width or tile_y < 0 or tile_y >= self.world.map_height:
+            for x in range(width):
+                tile_x = x + self.player.x - int(width / 2)
+                tile_y = y + self.player.y - int(height / 2)
+                if tile_x < 0 or tile_x >= area.map_width or tile_y < 0 or tile_y >= area.map_height:
                     row.append(((tile_x, tile_y), None))
                     continue
-                tile = self.world.get_tile(tile_x, tile_y)
+                tile = area.get_tile(tile_x, tile_y)
                 row.append(((tile_x, tile_y), tile))
             rv.append(row)
         return rv
 
-    def draw(self):
-        self.surface.fill((0, 0, 0))
-        fov = self.world.player_fov()
-        tiles = self.visible_tiles()
+    def draw(self, surface):
+        surface.fill((0, 0, 0))
+        fov = self.world.explore(self.player)
+        width = int(surface.get_width() / self.tileset.tile_size)
+        height = int(surface.get_height() / self.tileset.tile_size)
+        area = self.world.get_area(self.player)
+        tiles = self.visible_tiles(area, width, height)
 
-        object_map = {(obj.x, obj.y): obj for obj in self.world.objects}
+        object_map = {(obj.x, obj.y): obj for obj in area.objects}
 
         for y, row in enumerate(tiles):
             for x, cell in enumerate(row):
@@ -61,14 +56,14 @@ class MapView(object):
                         self.tileset.tile_size
                     )
                     area = self.tileset.get_tile(tile.key)
-                    self.surface.blit(self.tileset.bitmap, dest, area)
+                    surface.blit(self.tileset.bitmap, dest, area)
 
                     if pos in fov:
                         if pos in object_map:
                             obj = object_map[pos]
                             area = self.tileset.get_tile(obj.key)
-                            self.surface.blit(self.tileset.bitmap, dest, area)
+                            surface.blit(self.tileset.bitmap, dest, area)
                     else:
-                        self.surface.fill((128, 128, 128, 128), dest, pygame.BLEND_RGBA_MULT)
+                        surface.fill((128, 128, 128, 128), dest, pygame.BLEND_RGBA_MULT)
 
 

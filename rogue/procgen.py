@@ -1,7 +1,7 @@
 import random
 import noise
 
-from .world import Tile
+from .world import Tile, NPC, Actor, World, Door, Area
 
 
 def generate_cave(size, iterations=5):
@@ -72,29 +72,36 @@ def generate_map(size, iterations=500, max_radius=5):
 
         n = noise.snoise2(x, y)
 
-        if height < .1:
+        if height < .05:
             return Tile("water1", blocked=True)
-        elif height < .2:
+        elif height < .1:
             return Tile("sand1")
-        elif height < .9:
+        elif height < .5:
             return Tile("grass1")
         else:
-            return Tile("mountains1", blocked=True)
+            return Tile("mountains1", blocked=True, blocked_sight=True)
 
-    return [[_tile(x, y, height) for x, height in enumerate(row)] for y, row in enumerate(heightmap)]
+    tiles = [[_tile(x, y, height) for x, height in enumerate(row)] for y, row in enumerate(heightmap)]
+    for _ in range(NUM_DOORS):
+        dx = random.randrange(0, size)
+        dy = random.randrange(0, size)
+        tiles[dy][dx] = Door("crypt1", [[]])
+
+    return tiles
+
+
+NUM_NPCS = 100
+NUM_DOORS = 100
 
 
 def generate_world(size):
+    area = Area(generate_map(size))
+    for _ in range(NUM_NPCS):
+        npc = NPC("orc1")
+        area.place(npc)
 
-    def _tile(x, y):
-        val = noise.snoise2(x, y)
+    world = World(area)
 
-        if val > .3:
-            return Tile("wall1", blocked=True, blocked_sight=True)
-        else:
-            return Tile("grass1")
-
-    tiles = [[_tile(w, h) for w in range(size)] for h in range(size)]
-    return tiles
+    return world
 
 

@@ -6,9 +6,9 @@ import dataclasses
 @dataclasses.dataclass
 class Object(object):
     key: str
-    x: int
-    y: int
-    blocks: bool = False
+    x: int = None
+    y: int = None
+    blocks: bool = True
     blocks_sight: bool = False
 
     def tick(self, world):
@@ -16,21 +16,21 @@ class Object(object):
 
 
 @dataclasses.dataclass
-class Actor(Object):
-    view_distance: int = 10
-    blocks: bool = True
-
-
-@dataclasses.dataclass
-class Player(Actor):
+class Item(Object):
     pass
 
 
 @dataclasses.dataclass
+class Actor(Object):
+    view_distance: int = 5
+    name: str = None
+
+
+@dataclasses.dataclass
 class NPC(Actor):
-    def tick(self, world):
+    def tick(self, area):
         for _ in range(100):
-            if world.move(self, random.randint(-1, 1), random.randint(-1, 1)):
+            if area.move(self, random.randint(-1, 1), random.randint(-1, 1)):
                 break
 
 
@@ -46,33 +46,52 @@ class Tile(object):
         return "<Tile({})>".format(self.key)
 
 
-class World(object):
-    def __init__(self, tiles, player, objects):
-        self.map = tiles
-        self.player = player
-        if player not in objects:
-            objects.append(player)
-        self.objects = objects
-        self.age = 0
+@dataclasses.dataclass
+class Door(Tile):
+    def __init__(self, key, tiles=None, **kwargs):
+        super(Door, self).__init__(key, **kwargs)
+        self.tiles = tiles
+
+    def get_tiles(self):
+        if not self.tiles:
+            return ValueError("door needs tiles")
+
+
+class Area(object):
+    def __init__(self, tiles):
+        self.tiles = tiles
+        self.objects = []
+        self.time = 0
 
     def get_tile(self, x, y):
-        return self.map[y][x]
+        return self.tiles[y][x]
 
     def get_objects(self, x, y):
         return [obj for obj in self.objects if obj.x == x and obj.y == y]
 
-    @property
-    def map_width(self):
-        return len(self.map[0])
+    def is_tile_free(self, x, y):
+        return not (self.get_tile(x, y).blocked and any(o.blocks for o in self.get_objects(x, y)))
 
-    @property
-    def map_height(self):
-        return len(self.map)
+    def add_object(self, obj, x, y):
+        if self.is_tile_free(x, y):
+            obj.x = x
+            obj.y = y
+            self.objects.append(obj)
+            return True
+        return False
 
     def tick(self):
-        self.age += 1
+        self.time += 1
         for obj in self.objects:
             obj.tick(self)
+
+    def place(self, obj):
+        for _ in range(100):
+            x = random.randrange(0, self.map_width)
+            y = random.randrange(0, self.map_height)
+            if self.add_object(obj, x, y):
+                return
+        raise ValueError("could not place object")
 
     def move(self, actor, dx, dy):
         x = actor.x + dx
@@ -109,9 +128,49 @@ class World(object):
 
         return visible
 
-    def player_fov(self):
-        visible = self.fov(self.player)
+    def explore(self, actor):
+        visible = self.fov(actor)
         for x, y in visible:
             tile = self.get_tile(x, y)
             tile.explored = True
         return visible
+
+    @property
+    def map_width(self):
+        return len(self.tiles[0])
+
+    @property
+    def map_height(self):
+        return len(self.tiles)
+
+
+class World(object):
+    def __init__(self, area):
+        self.areas = [area]
+        self.actor_area = {}
+
+    def add_actor(self, actor):
+        self.actor_area[id(actor)] = self.areas[0]
+        self.areas[0].place(actor)
+
+    def get_area(self, actor):
+        return self.actor_area.get(id(actor))
+
+    def tick(self):
+        for area in self.areas:
+            area.tick()
+
+    def move(self, actor, dx, dy):
+        area = self.get_area(actor)
+        return area.move(actor, dx, dy)
+
+    def fov(self, actor):
+        area = self.get_area(actor)
+        return area.fov(actor)
+
+    def explore(self, actor):
+        area = self.get_area(actor)
+        return area.explore(actor)
+
+    def enter(self, actor):
+        pass
