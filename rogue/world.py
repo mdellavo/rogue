@@ -48,13 +48,13 @@ class Tile(object):
 
 @dataclasses.dataclass
 class Door(Tile):
-    def __init__(self, key, tiles=None, **kwargs):
+    def __init__(self, key, area=None, **kwargs):
         super(Door, self).__init__(key, **kwargs)
-        self.tiles = tiles
+        self.area = area
 
-    def get_tiles(self):
-        if not self.tiles:
-            return ValueError("door needs tiles")
+    def get_area(self, exit_area):
+        if not self.area:
+            return ValueError("door needs area")
 
 
 class Area(object):
@@ -149,9 +149,13 @@ class World(object):
         self.areas = [area]
         self.actor_area = {}
 
-    def add_actor(self, actor):
-        self.actor_area[id(actor)] = self.areas[0]
-        self.areas[0].place(actor)
+    def add_actor(self, actor, area=None):
+        if not area:
+            area = self.areas[0]
+        if area not in self.areas:
+            self.areas.append(area)
+        self.actor_area[id(actor)] = area
+        area.place(actor)
 
     def get_area(self, actor):
         return self.actor_area.get(id(actor))
@@ -173,4 +177,8 @@ class World(object):
         return area.explore(actor)
 
     def enter(self, actor):
-        pass
+        area = self.get_area(actor)
+        pt = area.get_tile(actor.x, actor.y)
+        if isinstance(pt, Door):
+            new_area = pt.get_area(area)
+            self.add_actor(actor, area=new_area)

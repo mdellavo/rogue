@@ -35,6 +35,10 @@ TILEMAP = {
     "mountains3": (119, 23),
 
     "crypt1": (7, 22),
+
+    "grey3": (8, 24),
+
+    "wall3": (2, 22),
 }
 
 TICK_EVENT = pygame.USEREVENT
@@ -119,6 +123,8 @@ def main():
                     world.move(player, -1, 0)
                 elif event.type == locals.KEYDOWN and event.key == locals.K_d:
                     world.move(player, 1, 0)
+                elif event.type == locals.KEYDOWN and event.key == locals.K_PERIOD:
+                    world.enter(player)
     except KeyboardInterrupt:
         pass
 

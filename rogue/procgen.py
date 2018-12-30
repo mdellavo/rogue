@@ -41,7 +41,29 @@ def generate_cave(size, iterations=5):
 
     for i in range(iterations):
         current_step = [[_cell(x, y) for y in range(size)] for x in range(size)]
-    return current_step
+
+    def _tile(cell):
+        return Tile("wall3", blocked=True, blocked_sight=True) if cell else Tile("grey3")
+
+    return [[_tile(cell) for cell in row] for row in current_step]
+
+
+class CaveDoor(Door):
+
+    SIZE = 50
+
+    def get_area(self, exit_area):
+        tiles = generate_cave(self.SIZE)
+
+        while True:
+            dx = random.randrange(0, self.SIZE)
+            dy = random.randrange(0, self.SIZE)
+            tile = tiles[dy][dx]
+            if not tile.blocked:
+                tiles[dy][dx] = Door("crypt1", area=exit_area)
+                break
+
+        return Area(tiles)
 
 
 def generate_map(size, iterations=500, max_radius=5):
@@ -82,10 +104,15 @@ def generate_map(size, iterations=500, max_radius=5):
             return Tile("mountains1", blocked=True, blocked_sight=True)
 
     tiles = [[_tile(x, y, height) for x, height in enumerate(row)] for y, row in enumerate(heightmap)]
-    for _ in range(NUM_DOORS):
+
+    num_doors = 0
+    while num_doors < NUM_DOORS:
         dx = random.randrange(0, size)
         dy = random.randrange(0, size)
-        tiles[dy][dx] = Door("crypt1", [[]])
+        tile = tiles[dy][dx]
+        if not tile.blocked:
+            tiles[dy][dx] = CaveDoor("crypt1")
+            num_doors += 1
 
     return tiles
 
