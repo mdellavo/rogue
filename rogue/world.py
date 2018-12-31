@@ -11,7 +11,7 @@ class Object(object):
     blocks: bool = True
     blocks_sight: bool = False
 
-    def tick(self, world):
+    def tick(self, area):
         pass
 
 
@@ -48,13 +48,15 @@ class Tile(object):
 
 @dataclasses.dataclass
 class Door(Tile):
-    def __init__(self, key, area=None, **kwargs):
+    def __init__(self, key, area=None, position=None, **kwargs):
         super(Door, self).__init__(key, **kwargs)
         self.area = area
+        self.position = position
 
-    def get_area(self, exit_area):
+    def get_area(self, exit_area, exit_position):
         if not self.area:
             return ValueError("door needs area")
+        return self.area, self.position
 
 
 class Area(object):
@@ -155,7 +157,10 @@ class World(object):
         if area not in self.areas:
             self.areas.append(area)
         self.actor_area[id(actor)] = area
-        area.place(actor)
+        return area
+
+    def place_actor(self, actor):
+        self.add_actor(actor).place(actor)
 
     def get_area(self, actor):
         return self.actor_area.get(id(actor))
@@ -180,5 +185,7 @@ class World(object):
         area = self.get_area(actor)
         pt = area.get_tile(actor.x, actor.y)
         if isinstance(pt, Door):
-            new_area = pt.get_area(area)
+            new_area, position = pt.get_area(area, (actor.x, actor.y))
             self.add_actor(actor, area=new_area)
+            x, y = position
+            new_area.add_object(actor, x, y)

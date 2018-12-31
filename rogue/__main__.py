@@ -89,7 +89,7 @@ def main():
     world = procgen.generate_world(MAP_SIZE)
 
     player = Actor("player")
-    world.add_actor(player)
+    world.place_actor(player)
 
     pygame.init()
     screen = pygame.display.set_mode((width, height), 0, 32)

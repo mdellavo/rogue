@@ -52,7 +52,7 @@ class CaveDoor(Door):
 
     SIZE = 50
 
-    def get_area(self, exit_area):
+    def generate_cave(self, exit_area, exit_position):
         tiles = generate_cave(self.SIZE)
 
         while True:
@@ -60,10 +60,15 @@ class CaveDoor(Door):
             dy = random.randrange(0, self.SIZE)
             tile = tiles[dy][dx]
             if not tile.blocked:
-                tiles[dy][dx] = Door("crypt1", area=exit_area)
+                tiles[dy][dx] = Door("crypt1", area=exit_area, position=exit_position)
                 break
 
-        return Area(tiles)
+        return Area(tiles), (dx, dy)
+
+    def get_area(self, exit_area, exit_position):
+        if not self.area:
+            self.area, self.position = self.generate_cave(exit_area, exit_position)
+        return super(CaveDoor, self).get_area(exit_area, exit_position)
 
 
 def generate_map(size, iterations=500, max_radius=5):
