@@ -9,7 +9,7 @@ class Object(object):
     key: str
     x: int = None
     y: int = None
-    blocks: bool = True
+    blocks: bool = False
     blocks_sight: bool = False
     anchored: bool = False
 
@@ -23,6 +23,8 @@ class Actor(Object):
     name: str = None
     inventory: List[Object] = dataclasses.field(default_factory=list)
     max_inventory: int = 20
+    anchored: bool = True
+    blocks: bool = True
 
     def pickup(self, obj):
         if obj in self.inventory:
@@ -82,17 +84,22 @@ class Area(object):
         return len(self.tiles)
 
     def get_tile(self, x, y):
-
         if x < 0 or x >= self.map_width or y < 0 or y >= self.map_height:
             return None
-
         return self.tiles[y][x]
 
     def get_objects(self, x, y):
         return [obj for obj in self.objects if obj.x == x and obj.y == y]
 
     def is_tile_free(self, x, y):
-        return not (self.get_tile(x, y).blocked and any(o.blocks for o in self.get_objects(x, y)))
+        if self.get_tile(x, y).blocked:
+            return False
+
+        objs = self.get_objects(x, y)
+        if objs and any(obj.blocks for obj in objs):
+            return False
+
+        return True
 
     def add_object(self, obj, x, y):
         if obj in self.objects:
@@ -235,6 +242,11 @@ class World(object):
         area = self.get_area(actor)
         objs = area.get_objects(actor.x, actor.y)
         for obj in objs:
+            if obj is actor or obj.anchored:
+                break
             area.remove_object(obj)
             actor.pickup(obj)
 
+
+class Coin(Object):
+    pass

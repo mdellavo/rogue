@@ -1,7 +1,7 @@
 import random
 import noise
 
-from .world import Tile, NPC, Actor, World, Door, Area
+from .world import Tile, NPC, Actor, World, Door, Area, Coin
 
 
 def generate_cave(size, iterations=5):
@@ -124,6 +124,9 @@ def generate_map(size, iterations=500, max_radius=5):
 
 NUM_NPCS = 100
 NUM_DOORS = 100
+NUM_COINS = 100
+
+COIN_KEYS = ["coin1", "coin2", "coin3", "coin4", "coin5"]
 
 
 def generate_world(size):
@@ -131,6 +134,10 @@ def generate_world(size):
     for _ in range(NUM_NPCS):
         npc = NPC("orc1")
         area.place(npc)
+
+    for _ in range(NUM_COINS):
+        c = Coin(random.choice(COIN_KEYS))
+        area.place(c)
 
     world = World(area)
 

@@ -40,6 +40,12 @@ TILEMAP = {
     "grey3": (8, 24),
 
     "wall3": (2, 22),
+
+    "coin1": (7, 7),
+    "coin2": (8, 7),
+    "coin3": (9, 7),
+    "coin4": (10, 7),
+    "coin5": (11, 7),
 }
 
 TICK_EVENT = pygame.USEREVENT
@@ -131,6 +137,8 @@ def main():
                 elif event.type == locals.KEYDOWN and event.key == locals.K_i:
                     rv = world.inspect(player)
                     pprint.pprint(rv)
+                elif event.type == locals.KEYDOWN and event.key == locals.K_n:
+                    pprint.pprint(player.inventory)
 
     except KeyboardInterrupt:
         pass
