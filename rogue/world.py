@@ -1,6 +1,7 @@
 import math
 import random
 import dataclasses
+from typing import List
 
 
 @dataclasses.dataclass
@@ -10,20 +11,30 @@ class Object(object):
     y: int = None
     blocks: bool = True
     blocks_sight: bool = False
+    anchored: bool = False
 
     def tick(self, area):
         pass
 
 
 @dataclasses.dataclass
-class Item(Object):
-    pass
-
-
-@dataclasses.dataclass
 class Actor(Object):
     view_distance: int = 5
     name: str = None
+    inventory: List[Object] = dataclasses.field(default_factory=list)
+    max_inventory: int = 20
+
+    def pickup(self, obj):
+        if obj in self.inventory:
+            raise ValueError("actor already holding obj")
+
+        if len(self.inventory) < self.max_inventory:
+            self.inventory.append(obj)
+
+    def drop(self, obj):
+        if obj not in self.inventory:
+            raise ValueError("actor not holding obj")
+        self.inventory.remove(obj)
 
 
 @dataclasses.dataclass
@@ -41,9 +52,6 @@ class Tile(object):
         self.blocked = blocked
         self.blocked_sight = blocked_sight
         self.explored = False
-
-    def __repr__(self):
-        return "<Tile({})>".format(self.key)
 
 
 @dataclasses.dataclass
@@ -65,7 +73,19 @@ class Area(object):
         self.objects = []
         self.time = 0
 
+    @property
+    def map_width(self):
+        return len(self.tiles[0])
+
+    @property
+    def map_height(self):
+        return len(self.tiles)
+
     def get_tile(self, x, y):
+
+        if x < 0 or x >= self.map_width or y < 0 or y >= self.map_height:
+            return None
+
         return self.tiles[y][x]
 
     def get_objects(self, x, y):
@@ -75,12 +95,20 @@ class Area(object):
         return not (self.get_tile(x, y).blocked and any(o.blocks for o in self.get_objects(x, y)))
 
     def add_object(self, obj, x, y):
+        if obj in self.objects:
+            raise ValueError("obj already in area")
+
         if self.is_tile_free(x, y):
             obj.x = x
             obj.y = y
             self.objects.append(obj)
             return True
         return False
+
+    def remove_object(self, obj):
+        if obj not in self.objects:
+            raise ValueError("obj not in area")
+        self.objects.remove(obj)
 
     def tick(self):
         self.time += 1
@@ -111,6 +139,17 @@ class Area(object):
 
         return True
 
+    def immediate_area(self, actor):
+        immediate = [(actor.x, actor.y)]
+        for dy in (-1, 0, 1):
+            for dx in (-1, 0, 1):
+                x = actor.x + dx
+                y = actor.y + dy
+                if x < 0 or x >= self.map_width or y < 0 or y >= self.map_height:
+                    continue
+                immediate.append((x, y))
+        return immediate
+
     def fov(self, actor):
         visible = [(actor.x, actor.y)]
         for theta in range(361):
@@ -136,14 +175,6 @@ class Area(object):
             tile = self.get_tile(x, y)
             tile.explored = True
         return visible
-
-    @property
-    def map_width(self):
-        return len(self.tiles[0])
-
-    @property
-    def map_height(self):
-        return len(self.tiles)
 
 
 class World(object):
@@ -189,3 +220,21 @@ class World(object):
             self.add_actor(actor, area=new_area)
             x, y = position
             new_area.add_object(actor, x, y)
+            area.remove_object(actor)
+
+    def inspect(self, actor):
+        rv = []
+        area = self.get_area(actor)
+        for x, y in area.immediate_area(actor):
+            tile = area.get_tile(x, y)
+            objs = [obj for obj in area.get_objects(x, y) if obj is not actor]
+            rv.append(((x, y), tile, objs))
+        return rv
+
+    def pickup(self, actor):
+        area = self.get_area(actor)
+        objs = area.get_objects(actor.x, actor.y)
+        for obj in objs:
+            area.remove_object(obj)
+            actor.pickup(obj)
+

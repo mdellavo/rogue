@@ -1,5 +1,6 @@
 import sys
 import logging
+import pprint
 
 import pygame
 from pygame import locals
@@ -125,6 +126,12 @@ def main():
                     world.move(player, 1, 0)
                 elif event.type == locals.KEYDOWN and event.key == locals.K_PERIOD:
                     world.enter(player)
+                elif event.type == locals.KEYDOWN and event.key == locals.K_p:
+                    world.pickup(player)
+                elif event.type == locals.KEYDOWN and event.key == locals.K_i:
+                    rv = world.inspect(player)
+                    pprint.pprint(rv)
+
     except KeyboardInterrupt:
         pass
 
