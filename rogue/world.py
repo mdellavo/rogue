@@ -1,50 +1,6 @@
 import math
 import random
 import dataclasses
-from typing import List
-
-
-@dataclasses.dataclass
-class Object(object):
-    key: str
-    x: int = None
-    y: int = None
-    blocks: bool = False
-    blocks_sight: bool = False
-    anchored: bool = False
-
-    def tick(self, area):
-        pass
-
-
-@dataclasses.dataclass
-class Actor(Object):
-    view_distance: int = 5
-    name: str = None
-    inventory: List[Object] = dataclasses.field(default_factory=list)
-    max_inventory: int = 20
-    anchored: bool = True
-    blocks: bool = True
-
-    def pickup(self, obj):
-        if obj in self.inventory:
-            raise ValueError("actor already holding obj")
-
-        if len(self.inventory) < self.max_inventory:
-            self.inventory.append(obj)
-
-    def drop(self, obj):
-        if obj not in self.inventory:
-            raise ValueError("actor not holding obj")
-        self.inventory.remove(obj)
-
-
-@dataclasses.dataclass
-class NPC(Actor):
-    def tick(self, area):
-        for _ in range(100):
-            if area.move(self, random.randint(-1, 1), random.randint(-1, 1)):
-                break
 
 
 @dataclasses.dataclass
@@ -117,10 +73,10 @@ class Area(object):
             raise ValueError("obj not in area")
         self.objects.remove(obj)
 
-    def tick(self):
+    def tick(self, world):
         self.time += 1
         for obj in self.objects:
-            obj.tick(self)
+            obj.tick(world)
 
     def place(self, obj):
         for _ in range(100):
@@ -200,12 +156,15 @@ class World(object):
     def place_actor(self, actor):
         self.add_actor(actor).place(actor)
 
+    def remove_actor(self, actor):
+        return self.get_area(actor).remove_object(actor)
+
     def get_area(self, actor):
         return self.actor_area.get(id(actor))
 
     def tick(self):
         for area in self.areas:
-            area.tick()
+            area.tick(self)
 
     def move(self, actor, dx, dy):
         area = self.get_area(actor)
@@ -246,7 +205,3 @@ class World(object):
                 break
             area.remove_object(obj)
             actor.pickup(obj)
-
-
-class Coin(Object):
-    pass
