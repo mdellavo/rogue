@@ -162,6 +162,6 @@ async def run_server(world, tileset):
         cors.add(route)
     runner = web.AppRunner(app)
     await runner.setup()
-    site = web.TCPSite(runner, 'localhost', 8080)
+    site = web.TCPSite(runner, '0.0.0.0', 8080)
     log.info("starting server...")
     await site.start()

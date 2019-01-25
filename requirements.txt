@@ -1,4 +1,4 @@
-aiohtto
+aiohttp
 aiohttp_cors
 noise
 msgpack
