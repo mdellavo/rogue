@@ -3,7 +3,7 @@ import './App.css';
 
 import msgpack from 'msgpack-lite'
 
-const API_URL = "http://localhost:8080/";
+const API_URL = process.env.REACT_APP_API;
 
 function decode(data) {
     return msgpack.decode(new Uint8Array(data));
@@ -161,8 +161,6 @@ class CanvasView extends React.Component {
     }
 
     onKeyPress(event) {
-        console.log("event", event.key);
-
         if (event.key === "w")
             this.props.datastore.send({action: "move", direction: [0, -1]});
         else if (event.key === "a")

@@ -150,7 +150,7 @@ async def run_server(world, tileset):
     app["world"] = world
     app["tileset"] = tileset
     cors = aiohttp_cors.setup(app, defaults={
-        "http://localhost:3000": aiohttp_cors.ResourceOptions(
+        "*": aiohttp_cors.ResourceOptions(
             allow_credentials=True,
             expose_headers="*",
             allow_headers="*",

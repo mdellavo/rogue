@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "env-cmd": "^8.0.2",
     "msgpack-lite": "^0.1.26",
     "react": "^16.7.0",
     "react-dom": "^16.7.0"
