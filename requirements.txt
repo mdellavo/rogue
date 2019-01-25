@@ -1,1 +1,4 @@
-pygame
+aiohtto
+aiohttp_cors
+noise
+msgpack
