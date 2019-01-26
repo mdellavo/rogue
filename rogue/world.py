@@ -144,6 +144,7 @@ class World(object):
     def __init__(self, area):
         self.areas = [area]
         self.actor_area = {}
+        self.age = 0
 
     def add_actor(self, actor, area=None):
         if not area:
@@ -165,6 +166,7 @@ class World(object):
     def tick(self):
         for area in self.areas:
             area.tick(self)
+        self.age += 1
 
     def move(self, actor, dx, dy):
         area = self.get_area(actor)

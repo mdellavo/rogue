@@ -6,7 +6,7 @@ import collections
 from .view import TileSet
 from . import procgen, server
 
-TIMEOUT = .25
+TIMEOUT = .1
 MAP_SIZE = 100
 TILESIZE = 64
 
