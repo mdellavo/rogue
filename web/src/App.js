@@ -167,11 +167,6 @@ class InventoryDialog extends Dialog {
     }
 
     render() {
-        const items = this.state.inventory.map((item) =>
-            <div>
-
-            </div>
-        );
 
 
         return (
