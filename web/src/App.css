@@ -1,0 +1,80 @@
+canvas {
+    display: block;
+    margin: auto;
+}
+
+canvas:focus {
+    outline: none;
+}
+
+.toolbar {
+    background: #444;
+    padding: 5px 5px;
+}
+
+.toolbar button {
+    font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New", monospace;
+    font-size: 10pt;
+    color: #eee;
+    text-shadow: #222222;
+    text-decoration: none;
+    background: none;
+    border: none;
+    padding: 5px 5px;
+}
+
+
+.footer {
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+    background: #444;
+    padding: 5px 5px;
+
+    color: #eeeeee;
+    font-size: 10px;
+}
+
+.help {
+    float: right;
+}
+
+.inventory, .player {
+    padding-right: 20px;
+}
+
+.dialog {
+    position: absolute;
+    top: 100px;
+    left: 100px;
+    background: #444;
+    width: 500px;
+    font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New", monospace;
+    font-size: 12pt;
+    color: #eee;
+    text-shadow: #222222;
+}
+
+.dialog-titlebar {
+    padding: 5px 10px;
+    font-size: 18pt;
+}
+
+.dialog-close {
+    float: right;
+    font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New", monospace;
+    background: none;
+    font-size: 18pt;
+    color: #eee;
+    text-shadow: #222222;
+    border: none;
+    font-weight: bold;
+}
+
+.dialog-body {
+    clear: both;
+    margin: auto;
+    padding: 25px;
+    background: #666;
+    height: 100%;
+}

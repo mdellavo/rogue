@@ -18,6 +18,8 @@ class DataStore {
         this.tiles = new Image();
         this.manifest = null;
         this.socket = null;
+        this.responseCallbacks = {};
+        this.requestId = 0;
     }
 
     get tileset() {
@@ -25,12 +27,10 @@ class DataStore {
     }
 
     loadManifest(manifest_url, cb) {
-
         fetch(manifest_url, {
             method: "GET",
             mode: "cors",
             cache: "no-cache",
-
         }).then(response => {
             return response.json();
         }).then(manifest => {
@@ -58,8 +58,18 @@ class DataStore {
         return [tx * tilesize, ty * tilesize, tilesize, tilesize];
     }
 
+    drawTile(ctx, x, y, tile_index) {
+        const [tile_x, tile_y, tile_w, tile_h] = this.getTile(tile_index);
+        ctx.drawImage(
+            this.tiles,
+            tile_x, tile_y, tile_w, tile_h,
+            x, y, tile_w, tile_h
+        )
+    }
+
     connect(view) {
         console.log("connecting to websocket");
+
         this.socket  = new WebSocket(this.manifest.socket_url);
         this.socket.binaryType = "arraybuffer";
 
@@ -67,12 +77,17 @@ class DataStore {
             console.log("socket connected");
             view.onConnected(event);
         });
+
         this.socket.addEventListener('message', (event) => {
             const msg = decode(event.data);
-            // console.log("message", msg);
-            if (msg.frame)
+
+            if (msg._id && this.responseCallbacks[msg._id]) {
+                this.responseCallbacks[msg._id](msg);
+                delete this.responseCallbacks[msg._id];
+            } else if (msg.frame) {
                 view.onFrame(msg.frame);
-        });
+            }
+      });
 
         this.socket.addEventListener('close', (event) => {
             console.log("socket closed");
@@ -85,8 +100,93 @@ class DataStore {
         });
     }
 
-    send(obj) {
+    send(obj, callback) {
+        if (callback) {
+            this.requestId++;
+            obj._id = this.requestId;
+            this.responseCallbacks[obj._id] = callback;
+        }
         this.socket.send(encode(obj));
+    }
+}
+
+
+class Dialog extends React.Component {
+    constructor(props) {
+        super(props);
+        this.handleClose = this.handleClose.bind(this);
+    }
+    render() {
+        return (
+            <div className="dialog">
+                <div className="dialog-titlebar">
+                    <button className="dialog-close" onClick={this.handleClose}>&#10005;</button>
+                    <strong>{this.props.title}</strong>
+                </div>
+                <div className="dialog-body">
+                    {this.props.children}
+                </div>
+            </div>
+        );
+    }
+    handleClose() {
+        this.props.callback();
+    }
+}
+
+class HelpDialog extends Dialog {
+    render() {
+        return (
+            <Dialog title="Help" callback={this.props.callback}>
+                <code>
+                    WASD to move<br/>
+                    . to enter doors<br/>
+                    p to pickup items<br/>
+                </code>
+            </Dialog>
+        );
+    }
+}
+
+class InventoryItem extends React.Component {
+
+}
+
+
+class InventoryDialog extends Dialog {
+
+    constructor(props) {
+        super(props);
+        this.setState({"inventory": []});
+    }
+
+    componentDidMount() {
+        this.props.datastore.send({action: "inventory"}, (msg) => {
+            this.setState({"inventory": msg.inventory});
+        });
+    }
+
+    render() {
+        const items = this.state.inventory.map((item) =>
+            <div>
+
+            </div>
+        );
+
+
+        return (
+            <Dialog title="Inventory" callback={this.props.callback}>
+            </Dialog>
+        );
+    }
+}
+
+class PlayerDialog extends Dialog {
+    render() {
+        return (
+            <Dialog title="Player" callback={this.props.callback}>
+            </Dialog>
+        );
     }
 }
 
@@ -95,6 +195,16 @@ class CanvasView extends React.Component {
         super(props);
         this.onBlur = this.onBlur.bind(this);
         this.onKeyPress = this.onKeyPress.bind(this);
+        
+        this.showPlayerDialog = this.showPlayerDialog.bind(this);
+        this.showInventoryDialog = this.showInventoryDialog.bind(this);
+        this.showHelpDialog = this.showHelpDialog.bind(this);
+
+        this.closePlayerDialog = this.closePlayerDialog.bind(this);
+        this.closeInventoryDialog = this.closeInventoryDialog.bind(this);
+        this.closeHelpDialog = this.closeHelpDialog.bind(this);
+
+        this.state = {showHelp: false, showInventory: false, showPlayer: false};
     }
 
     get canvas() {
@@ -117,9 +227,7 @@ class CanvasView extends React.Component {
     onError() {
 
     }
-
-    onFrame(frame) {
-        const tiles = this.props.datastore.tiles;
+     onFrame(frame) {
         const ctx = this.canvas.getContext("2d");
         const tilesize = this.props.datastore.tileset.tilesize;
 
@@ -131,24 +239,14 @@ class CanvasView extends React.Component {
 
                 if (explored) {
                     if (tile_index >= 0) {
-                        const [tile_x, tile_y, tile_w, tile_h] = this.props.datastore.getTile(tile_index);
-                        ctx.drawImage(
-                            tiles,
-                            tile_x, tile_y, tile_w, tile_h,
-                            target_x, target_y, tilesize, tilesize
-                        )
+                        this.props.datastore.drawTile(ctx, target_x, target_y, tile_index);
                     }
 
                     if (!in_fov) {
                         ctx.fillStyle = "rgba(0, 0, 0, .5)";
                         ctx.fillRect(target_x, target_y, tilesize, tilesize);
                     } else if (obj_index >= 0) {
-                        const [tile_x, tile_y, tile_w, tile_h] = this.props.datastore.getTile(obj_index);
-                        ctx.drawImage(
-                            tiles,
-                            tile_x, tile_y, tile_w, tile_h,
-                            target_x, target_y, tilesize, tilesize
-                        )
+                        this.props.datastore.drawTile(ctx, target_x, target_y, obj_index);
                     }
 
                 } else {
@@ -179,8 +277,63 @@ class CanvasView extends React.Component {
         this.canvas.focus();
     }
 
+    showPlayerDialog(e) {
+        this.setState({showPlayer: true});
+    }
+
+    showInventoryDialog(e) {
+        this.setState({showInventory: true});
+    }
+
+    showHelpDialog(e) {
+        this.setState({showHelp: true});
+    }
+
+    closePlayerDialog(e) {
+        this.setState({showPlayer: false});
+    }
+
+    closeInventoryDialog(e) {
+        this.setState({showInventory: false});
+    }
+
+    closeHelpDialog(e) {
+        this.setState({showHelp: false});
+    }
+
     render() {
-        return <canvas tabIndex="0" ref="canvas" width={640} height={640} onKeyDown={this.onKeyPress} onBlur={this.onBlur}/>
+
+        let helpDialog;
+        if (this.state.showHelp) {
+            helpDialog = <HelpDialog callback={this.closeHelpDialog} datastore={this.props.datastore}/>;
+        }
+
+        let playerDialog;
+        if (this.state.showPlayer) {
+            playerDialog = <PlayerDialog callback={this.closePlayerDialog} datastore={this.props.datastore}/>;
+        }
+
+        let inventoryDialog;
+        if (this.state.showInventory) {
+            inventoryDialog = <InventoryDialog callback={this.closeInventoryDialog} datastore={this.props.datastore}/>;
+        }
+
+        return (
+            <div>
+                <div className="toolbar">
+                    <button className="help" onClick={this.showHelpDialog}>Help</button>
+                    <button className="player" onClick={this.showPlayerDialog}>Player</button>
+                    <button className="inventory" onClick={this.showInventoryDialog}>Inventory</button>
+                </div>
+                <canvas tabIndex="0" ref="canvas" width={704} height={704} onKeyDown={this.onKeyPress} onBlur={this.onBlur}/>
+                <div className="footer">
+                </div>
+
+                {helpDialog}
+                {inventoryDialog}
+                {playerDialog}
+            </div>
+        )
     }
 }
 

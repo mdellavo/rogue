@@ -57,7 +57,7 @@ class Actor(Object):
 @dataclasses.dataclass
 class NPC(Actor):
     def tick(self, world):
-        if not world.age % 10:
+        if not world.age % random.randint(5, 10):
             for _ in range(100):
                 if world.move(self, random.randint(-1, 1), random.randint(-1, 1)):
                     break

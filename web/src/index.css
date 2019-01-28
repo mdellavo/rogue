@@ -6,13 +6,13 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  height: 100%;
+  overflow: hidden
 }
 
 code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New",
-    monospace;
+  font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New", monospace;
 }
-
 
 * {
   margin: 0;
@@ -23,13 +23,4 @@ html, body, #app, #app>div {
   height: 100%;
   width: 100%;
   background: black;
-}
-
-canvas {
-  display: block;
-  margin: auto;
-}
-
-canvas:focus {
-  outline: none;
 }

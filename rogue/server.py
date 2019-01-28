@@ -15,6 +15,7 @@ routes = web.RouteTableDef()
 
 
 QUEUE_SIZE = 100
+FRAME_SIZE = 11
 
 
 class Player(Actor):
@@ -27,31 +28,44 @@ class Player(Actor):
         self.response_queue = asyncio.Queue(QUEUE_SIZE)
 
     def tick(self, world):
-        try:
-            msg = self.input_queue.get_nowait()
-            if not msg:
-                return
-
-            if "action" in msg:
-                self.handleAction(world, msg)
-        except asyncio.QueueEmpty:
-            pass
 
         if self.response_queue.full():
             while not self.response_queue.empty():
                 self.response_queue.get_nowait()
 
+        try:
+            msg = self.input_queue.get_nowait()
+        except asyncio.QueueEmpty:
+            msg = None
+
+        if msg and "action" in msg:
+            response = self.handle_action(world, msg)
+            if response:
+                if "_id" in msg:
+                    response["_id"] = msg["_id"]
+                self.response_queue.put_nowait(response)
+
         frame = self.get_frame(world)
         self.response_queue.put_nowait(frame)
 
-    def handleAction(self, world, msg):
+    def handle_action(self, world, msg):
+        rv = None
         if msg["action"] == "move":
             dx, dy = msg["direction"]
-            world.move(self, dx, dy)
+            rv = world.move(self, dx, dy)
         elif msg["action"] == "pickup":
-            world.pickup(self)
+            rv = world.pickup(self)
         elif msg["action"] == "enter":
-            world.enter(self)
+            rv = world.enter(self)
+        elif msg["action"] == "inventory":
+            def _inv(obj):
+                return {
+                    "idx": self.tilemap.get_index(obj.key),
+                    "type": type(obj).__name__
+                }
+            rv = {"inventory": [_inv(obj) for obj in self.inventory]}
+
+        return rv
 
     def visible_tiles(self, area, width, height):
         rv = []
@@ -69,7 +83,7 @@ class Player(Actor):
         return rv
 
     def get_frame(self, world):
-        width = height = 10
+        width = height = FRAME_SIZE
 
         fov = world.explore(self)
         area = world.get_area(self)
