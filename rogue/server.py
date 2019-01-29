@@ -118,7 +118,6 @@ async def get_root(request):
             "tilesize": request.app["tileset"].tilesize,
             "tilemap": request.app["tileset"].get_indexed_map(),
         },
-        "tiles_url": "{}://{}/tiles".format(request.scheme, request.host),
         "socket_url": "ws://{}/session".format(request.host),
     })
 

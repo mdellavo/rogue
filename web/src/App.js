@@ -4,6 +4,7 @@ import './App.css';
 import msgpack from 'msgpack-lite'
 
 const API_URL = process.env.REACT_APP_API;
+const TILES_URL = "/tiles.png";
 
 function decode(data) {
     return msgpack.decode(new Uint8Array(data));
@@ -48,8 +49,8 @@ class DataStore {
             console.log("tiles loaded");
             cb.onLoaded()
         }, false);
-        console.log("loading tiles", this.manifest.tiles_url);
-        this.tiles.src = this.manifest.tiles_url;
+        console.log("loading tiles", TILES_URL);
+        this.tiles.src = TILES_URL;
     }
 
     getTile(tile_index) {
