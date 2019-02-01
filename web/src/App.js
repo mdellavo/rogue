@@ -59,15 +59,6 @@ class DataStore {
         return [tx * tilesize, ty * tilesize, tilesize, tilesize];
     }
 
-    drawTile(ctx, x, y, tile_index) {
-        const [tile_x, tile_y, tile_w, tile_h] = this.getTile(tile_index);
-        ctx.drawImage(
-            this.tiles,
-            tile_x, tile_y, tile_w, tile_h,
-            x, y, tile_w, tile_h
-        )
-    }
-
     connect(view) {
         console.log("connecting to websocket");
 
@@ -112,6 +103,40 @@ class DataStore {
 }
 
 
+class GfxUtil {
+
+    static drawTile(datastore, ctx, x, y, tile_index) {
+        const [tile_x, tile_y, tile_w, tile_h] = datastore.getTile(tile_index);
+        ctx.drawImage(
+            datastore.tiles,
+            tile_x, tile_y, tile_w, tile_h,
+            x, y, tile_w, tile_h
+        )
+    }
+
+    static getTile(datastore, tile_index) {
+        const [tile_x, tile_y, tile_w, tile_h] = datastore.getTile(tile_index);
+
+        const canvas = document.createElement('canvas');
+        canvas.width = tile_w;
+        canvas.height = tile_h;
+
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(
+            datastore.tiles,
+            tile_x, tile_y, tile_w, tile_h,
+            0, 0, tile_w, tile_h
+        );
+        return canvas.toDataURL("image/png");
+    }
+
+    static fillTile(datastore, ctx, x, y, color) {
+        const tilesize = datastore.tileset.tilesize;
+        ctx.fillStyle = color;
+        ctx.fillRect(x, y, tilesize, tilesize);
+    }
+}
+
 class Dialog extends React.Component {
     constructor(props) {
         super(props);
@@ -150,7 +175,16 @@ class HelpDialog extends Dialog {
 }
 
 class InventoryItem extends React.Component {
-
+    render() {
+        return (
+            <div className="inventory-item">
+                <img alt={this.props.type} src={this.props.dataURL}/>
+                <p className="inventory-item-name">
+                    {this.props.type}
+                </p>
+            </div>
+        );
+    }
 }
 
 
@@ -158,7 +192,7 @@ class InventoryDialog extends Dialog {
 
     constructor(props) {
         super(props);
-        this.setState({"inventory": []});
+        this.state = {"inventory": []}
     }
 
     componentDidMount() {
@@ -168,10 +202,14 @@ class InventoryDialog extends Dialog {
     }
 
     render() {
-
+        const items = this.state.inventory.map((item) => {
+            return <InventoryItem key={item.idx} type={item.type} dataURL={GfxUtil.getTile(this.props.datastore, item.idx)}/>
+        });
 
         return (
             <Dialog title="Inventory" callback={this.props.callback}>
+                {items}
+                <div className="clear"></div>
             </Dialog>
         );
     }
@@ -235,19 +273,17 @@ class CanvasView extends React.Component {
 
                 if (explored) {
                     if (tile_index >= 0) {
-                        this.props.datastore.drawTile(ctx, target_x, target_y, tile_index);
+                        GfxUtil.drawTile(this.props.datastore, ctx, target_x, target_y, tile_index);
                     }
 
                     if (!in_fov) {
-                        ctx.fillStyle = "rgba(0, 0, 0, .5)";
-                        ctx.fillRect(target_x, target_y, tilesize, tilesize);
+                        GfxUtil.fillTile(this.props.datastore, ctx, target_x, target_y, "rgba(0, 0, 0, .5)");
                     } else if (obj_index >= 0) {
-                        this.props.datastore.drawTile(ctx, target_x, target_y, obj_index);
+                        GfxUtil.drawTile(this.props.datastore, ctx, target_x, target_y, obj_index);
                     }
 
                 } else {
-                    ctx.fillStyle = 'black';
-                    ctx.fillRect(target_x, target_y, tilesize, tilesize);
+                    GfxUtil.fillTile(this.props.datastore, ctx, target_x, target_y, "black");
                 }
 
             }

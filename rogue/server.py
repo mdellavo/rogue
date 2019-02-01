@@ -16,6 +16,8 @@ routes = web.RouteTableDef()
 
 QUEUE_SIZE = 100
 FRAME_SIZE = 11
+HEARTBEAT = 5
+RECV_TIMEOUT = 10
 
 
 class Player(Actor):
@@ -58,6 +60,7 @@ class Player(Actor):
         elif msg["action"] == "enter":
             rv = world.enter(self)
         elif msg["action"] == "inventory":
+
             def _inv(obj):
                 return {
                     "idx": self.tilemap.get_index(obj.key),
@@ -129,7 +132,7 @@ async def get_tiles(request):
 
 @routes.get("/session")
 async def session(request):
-    ws = web.WebSocketResponse()
+    ws = web.WebSocketResponse(receive_timeout=RECV_TIMEOUT, heartbeat=HEARTBEAT)
     await ws.prepare(request)
     log.debug('websocket connection started')
 
@@ -137,23 +140,42 @@ async def session(request):
     request.app["world"].place_actor(player)
 
     async def _writer():
-        while True:
-            response = await player.response_queue.get()
-            await ws.send_bytes(msgpack.packb(response))
+        try:
+            while not ws.closed:
+                response = await player.response_queue.get()
+                if response is None:
+                    break
+                await ws.send_bytes(msgpack.packb(response))
+        except asyncio.CancelledError:
+            log.error("cancelling writer")
+            return
+        log.info("writer stopping")
 
-    async def _reader():
-        async for msg in ws:
-            if msg.type == aiohttp.WSMsgType.BINARY:
-                obj = msgpack.unpackb(msg.data, raw=False)
-                player.input_queue.put_nowait(obj)
-            elif msg.type == aiohttp.WSMsgType.ERROR:
-                log.error('ws connection closed with exception %s', ws.exception())
+    writer = asyncio.create_task(_writer())
 
-    await asyncio.gather(_reader(), _writer())
+    async for msg in ws:
+        if msg.type == aiohttp.WSMsgType.BINARY:
+            obj = msgpack.unpackb(msg.data, raw=False)
+            player.input_queue.put_nowait(obj)
+        elif msg.type == aiohttp.WSMsgType.ERROR:
+            log.error('ws connection closed with exception %s', ws.exception())
 
-    log.debug('websocket connection closed')
+    player.response_queue.put_nowait(None)
+
+    for i in range(2):
+        try:
+            await asyncio.wait_for(writer, timeout=RECV_TIMEOUT)
+        except asyncio.TimeoutError:
+            log.exception("error closing writer")
+            writer.cancel()
+        except asyncio.CancelledError:
+            pass
+
+    await ws.close()
 
     request.app["world"].remove_actor(player)
+
+    log.debug('websocket connection closed')
 
     return ws
 

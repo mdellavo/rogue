@@ -74,7 +74,23 @@ canvas:focus {
 .dialog-body {
     clear: both;
     margin: auto;
-    padding: 25px;
+    padding: 10px;
     background: #666;
     height: 100%;
+}
+
+.clear {
+    clear: both;
+}
+
+.inventory-item {
+    float: left;
+}
+
+.inventory-item p  {
+    text-align: center;
+}
+
+.inventory-item img {
+    margin: auto;
 }
