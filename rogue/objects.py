@@ -29,15 +29,37 @@ class Coin(Object):
     pass
 
 
+class ActorState(enum.Enum):
+    ALIVE = 1
+    UNCONSCIOUS = 2
+    DEAD = 3
+
 @dataclasses.dataclass
 class Actor(Object):
-    view_distance: int = 5
-    parts: List[BodyPart] = dataclasses.field(default_factory=list)
     name: str = None
-    inventory: List[Object] = dataclasses.field(default_factory=list)
-    max_inventory: int = 20
+
     anchored: bool = True
     blocks: bool = True
+
+    parts: List[BodyPart] = dataclasses.field(default_factory=list)
+    inventory: List[Object] = dataclasses.field(default_factory=list)
+
+    view_distance: int = 5
+    strength: int = 5
+    armor_class: int = 10
+    health: int = 50
+    hit_points: int = health
+
+    max_inventory: int = 20
+
+    @property
+    def alive(self):
+        if self.hit_points > 0:
+            return ActorState.ALIVE
+        elif self.hit_points <= 0 and abs(self.hit_points) < self.health:
+            return ActorState.UNCONSCIOUS
+        else:
+            return ActorState.DEAD
 
     def pickup(self, obj):
         if obj in self.inventory:

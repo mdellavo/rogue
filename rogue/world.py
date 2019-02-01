@@ -2,6 +2,8 @@ import math
 import random
 import dataclasses
 
+from .objects import Actor
+
 
 @dataclasses.dataclass
 class Tile(object):
@@ -207,3 +209,29 @@ class World(object):
                 break
             area.remove_object(obj)
             actor.pickup(obj)
+
+    def surrounding_actors(self, actor):
+        area = self.get_area(actor)
+        rv = []
+        for x, y in area.immediate_area(actor):
+            rv.extend([obj for obj in area.get_objects(x, y) if obj is not actor and isinstance(obj, Actor)])
+        return rv
+
+    def melee_attack(self, actor, target=None):
+        if not target:
+            targets = self.surrounding_actors(actor)
+            if targets:
+                target = target[0]
+
+        if not target:
+            return
+
+        attack = random.randint(0, 20)
+        if attack <= 1:
+            return
+
+        damage = actor.strength + attack
+        if attack < 19:
+            damage -= target.armor_class
+
+        target.hit_points -= damage
