@@ -1,3 +1,7 @@
+body {
+    font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New", monospace;
+}
+
 canvas {
     display: block;
     margin: auto;
@@ -5,6 +9,15 @@ canvas {
 
 canvas:focus {
     outline: none;
+}
+
+.splash {
+    margin: auto;
+    padding-top: 100px;
+    text-align: center;
+    font-size: 24px;
+    font-weight: bold;
+    color: #eeeeee;
 }
 
 .toolbar {
@@ -93,4 +106,14 @@ canvas:focus {
 
 .inventory-item img {
     margin: auto;
+}
+
+.notices {
+    position: absolute;
+    bottom: 0;
+    padding: 10px;
+    color: #cccccc;
+    font-size: 8pt;
+    background: #00000088;
+    width: 100%;
 }

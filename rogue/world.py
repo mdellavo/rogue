@@ -191,6 +191,9 @@ class World(object):
             x, y = position
             new_area.add_object(actor, x, y)
             area.remove_object(actor)
+            actor.notice("you have entered {}".format(new_area))
+        else:
+            actor.notice("there is no door here")
 
     def inspect(self, actor):
         rv = []
@@ -203,12 +206,16 @@ class World(object):
 
     def pickup(self, actor):
         area = self.get_area(actor)
-        objs = area.get_objects(actor.x, actor.y)
+        objs = [obj for obj in area.get_objects(actor.x, actor.y) if not (obj is actor or obj.anchored)]
+
+        if not objs:
+            actor.notice("there is nothing to pickup")
+            return
+
         for obj in objs:
-            if obj is actor or obj.anchored:
-                break
             area.remove_object(obj)
             actor.pickup(obj)
+            actor.notice("you picked up {}".format(obj))
 
     def surrounding_actors(self, actor):
         area = self.get_area(actor)
@@ -217,21 +224,34 @@ class World(object):
             rv.extend([obj for obj in area.get_objects(x, y) if obj is not actor and isinstance(obj, Actor)])
         return rv
 
-    def melee_attack(self, actor, target=None):
+    def melee(self, actor, target=None):
         if not target:
             targets = self.surrounding_actors(actor)
             if targets:
-                target = target[0]
+                target = targets[0]
 
         if not target:
+            actor.notice("there is nothing to attack")
             return
 
         attack = random.randint(0, 20)
         if attack <= 1:
+            actor.notice("you missed {}".format(target))
             return
 
         damage = actor.strength + attack
-        if attack < 19:
+
+        critical = attack >= 10
+        if not critical:
             damage -= target.armor_class
 
+        if damage < 0:
+            actor.notice("you did no damage")
+
         target.hit_points -= damage
+
+        if critical:
+            actor.notice("critical hit on {} for {} damage!!!".format(target, damage))
+        else:
+            actor.notice("hit on {} for {} damage!".format(target, damage))
+

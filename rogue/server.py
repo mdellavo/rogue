@@ -29,6 +29,11 @@ class Player(Actor):
         self.input_queue = asyncio.Queue(QUEUE_SIZE)
         self.response_queue = asyncio.Queue(QUEUE_SIZE)
 
+    def notice(self, msg, **kwargs):
+        obj = kwargs
+        obj["notice"] = msg
+        self.response_queue.put_nowait(obj)
+
     def tick(self, world):
 
         if self.response_queue.full():
@@ -67,7 +72,8 @@ class Player(Actor):
                     "type": type(obj).__name__
                 }
             rv = {"inventory": [_inv(obj) for obj in self.inventory]}
-
+        elif msg["action"] == "melee":
+            rv = world.melee(self)
         return rv
 
     def visible_tiles(self, area, width, height):

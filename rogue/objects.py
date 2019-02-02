@@ -34,6 +34,7 @@ class ActorState(enum.Enum):
     UNCONSCIOUS = 2
     DEAD = 3
 
+
 @dataclasses.dataclass
 class Actor(Object):
     name: str = None
@@ -60,6 +61,9 @@ class Actor(Object):
             return ActorState.UNCONSCIOUS
         else:
             return ActorState.DEAD
+
+    def notice(self, msg, **kwargs):
+        pass
 
     def pickup(self, obj):
         if obj in self.inventory:

@@ -78,6 +78,8 @@ class DataStore {
                 delete this.responseCallbacks[msg._id];
             } else if (msg.frame) {
                 view.onFrame(msg.frame);
+            } else if (msg.notice) {
+                view.onNotice(msg);
             }
       });
 
@@ -168,6 +170,7 @@ class HelpDialog extends Dialog {
                     WASD to move<br/>
                     . to enter doors<br/>
                     p to pickup items<br/>
+                    f to melee attach<br/>
                 </code>
             </Dialog>
         );
@@ -202,8 +205,8 @@ class InventoryDialog extends Dialog {
     }
 
     render() {
-        const items = this.state.inventory.map((item) => {
-            return <InventoryItem key={item.idx} type={item.type} dataURL={GfxUtil.getTile(this.props.datastore, item.idx)}/>
+        const items = this.state.inventory.map((item, i) => {
+            return <InventoryItem key={i} type={item.type} dataURL={GfxUtil.getTile(this.props.datastore, item.idx)}/>
         });
 
         return (
@@ -238,7 +241,7 @@ class CanvasView extends React.Component {
         this.closeInventoryDialog = this.closeInventoryDialog.bind(this);
         this.closeHelpDialog = this.closeHelpDialog.bind(this);
 
-        this.state = {showHelp: false, showInventory: false, showPlayer: false};
+        this.state = {showHelp: false, showInventory: false, showPlayer: false, notices: []};
     }
 
     get canvas() {
@@ -290,6 +293,15 @@ class CanvasView extends React.Component {
         }
     }
 
+    onNotice(event) {
+        const notices = this.state.notices;
+        notices.unshift(event);
+        while(notices.length > 10) {
+            notices.pop();
+        }
+        this.setState({notices: notices});
+    }
+
     onKeyPress(event) {
         if (event.key === "w")
             this.props.datastore.send({action: "move", direction: [0, -1]});
@@ -303,6 +315,8 @@ class CanvasView extends React.Component {
             this.props.datastore.send({action: "pickup"});
         else if (event.key === ".")
             this.props.datastore.send({action: "enter"});
+        else if (event.key === "f")
+            this.props.datastore.send({action: "melee"});
     }
 
     onBlur() {
@@ -350,6 +364,14 @@ class CanvasView extends React.Component {
             inventoryDialog = <InventoryDialog callback={this.closeInventoryDialog} datastore={this.props.datastore}/>;
         }
 
+        const notices = this.state.notices.map((notice, i) => {
+            return (
+                <div key={i}>
+                    {notice.notice}
+                </div>
+            );
+        });
+
         return (
             <div>
                 <div className="toolbar">
@@ -357,7 +379,13 @@ class CanvasView extends React.Component {
                     <button className="player" onClick={this.showPlayerDialog}>Player</button>
                     <button className="inventory" onClick={this.showInventoryDialog}>Inventory</button>
                 </div>
+
                 <canvas tabIndex="0" ref="canvas" width={704} height={704} onKeyDown={this.onKeyPress} onBlur={this.onBlur}/>
+
+                <div className="notices">
+                    {notices}
+                </div>
+
                 <div className="footer">
                 </div>
 
@@ -371,15 +399,15 @@ class CanvasView extends React.Component {
 
 function ErrorView() {
     return (
-        <div className="error">
-            An error - shit
+        <div className="splash error">
+            Could not connect!!!
         </div>
     );
 }
 
 function LoadingView() {
     return (
-        <div className="loading">
+        <div className="splash loading">
             Loading....
         </div>
     );
