@@ -61,7 +61,7 @@ class Area(object):
 
     def add_object(self, obj, x, y):
         if obj in self.objects:
-            raise ValueError("obj already in area")
+            return
 
         if self.is_tile_free(x, y):
             obj.x = x
@@ -72,7 +72,7 @@ class Area(object):
 
     def remove_object(self, obj):
         if obj not in self.objects:
-            raise ValueError("obj not in area")
+            return
         self.objects.remove(obj)
 
     def tick(self, world):
@@ -259,3 +259,4 @@ class World(object):
 
         if target.hit_points <= 0:
             target.die()
+            self.remove_actor(target)
