@@ -104,9 +104,6 @@ class NPC(Actor):
 
     def tick(self, world):
 
-        if self.hit_points <= 0:
-            return
-
         if self.target:
             world.melee(self)
             self.target = None

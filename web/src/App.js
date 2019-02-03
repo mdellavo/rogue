@@ -169,12 +169,14 @@ class HelpDialog extends Dialog {
     render() {
         return (
             <Dialog title="Help" callback={this.props.callback}>
-                <code>
-                    WASD to move<br/>
-                    . to enter doors<br/>
-                    p to pickup items<br/>
-                    f to melee attack<br/>
-                </code>
+                <code><pre>
+                    <strong>W/A/S/D</strong> - to move<br/>
+                    <strong>.</strong>       - to enter doors<br/>
+                    <strong>p</strong>       - to pickup items<br/>
+                    <strong>f</strong>       - to attack surrounding<br/>
+                    <strong>i</strong>       - to show/hide inventory<br/>
+                    <strong>h</strong>       - to show/hide help<br/>
+                </pre></code>
             </Dialog>
         );
     }
@@ -244,7 +246,7 @@ class CanvasView extends React.Component {
         this.closeInventoryDialog = this.closeInventoryDialog.bind(this);
         this.closeHelpDialog = this.closeHelpDialog.bind(this);
 
-        this.state = {showHelp: false, showInventory: false, showPlayer: false, notices: [], connected: false, error: false};
+        this.state = {showHelp: true, showInventory: false, showPlayer: false, notices: [], connecting: true, connected: false, error: false};
     }
 
     get canvas() {
@@ -257,7 +259,7 @@ class CanvasView extends React.Component {
     }
 
     onConnected() {
-        this.setState({connected: true});
+        this.setState({connected: true, connecting: false});
     }
 
     onDisconnected() {
@@ -321,41 +323,56 @@ class CanvasView extends React.Component {
             this.props.datastore.send({action: "enter"});
         else if (event.key === "f")
             this.props.datastore.send({action: "melee"});
+        else if (event.key === "i")
+            if (this.state.showInventory)
+                this.closeInventoryDialog();
+            else
+                this.showInventoryDialog();
+        else if (event.key === "h")
+            if (this.state.showHelp)
+                this.closeHelpDialog();
+            else
+                this.showHelpDialog();
     }
 
     onBlur() {
         this.canvas.focus();
     }
 
-    showPlayerDialog(e) {
+    showPlayerDialog() {
         this.setState({showPlayer: true});
     }
 
-    showInventoryDialog(e) {
+    showInventoryDialog() {
         this.setState({showInventory: true});
     }
 
-    showHelpDialog(e) {
+    showHelpDialog() {
         this.setState({showHelp: true});
     }
 
-    closePlayerDialog(e) {
+    closePlayerDialog() {
         this.setState({showPlayer: false});
     }
 
-    closeInventoryDialog(e) {
+    closeInventoryDialog() {
         this.setState({showInventory: false});
     }
 
-    closeHelpDialog(e) {
+    closeHelpDialog() {
         this.setState({showHelp: false});
     }
 
     render() {
 
         let status;
-
-        if (this.state.error) {
+        if (this.state.connecting) {
+            status = (
+                <div class="splash">
+                    Connecting...
+                </div>
+            );
+        } else if (this.state.error) {
             status = (
                 <div class="splash">
                     ERROR!!!
