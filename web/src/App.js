@@ -95,6 +95,9 @@ class DataStore {
     }
 
     send(obj, callback) {
+        if (this.socket.readyState !== 1) {
+            return;
+        }
         if (callback) {
             this.requestId++;
             obj._id = this.requestId;
@@ -241,7 +244,7 @@ class CanvasView extends React.Component {
         this.closeInventoryDialog = this.closeInventoryDialog.bind(this);
         this.closeHelpDialog = this.closeHelpDialog.bind(this);
 
-        this.state = {showHelp: false, showInventory: false, showPlayer: false, notices: []};
+        this.state = {showHelp: false, showInventory: false, showPlayer: false, notices: [], connected: false, error: false};
     }
 
     get canvas() {
@@ -254,16 +257,17 @@ class CanvasView extends React.Component {
     }
 
     onConnected() {
-
+        this.setState({connected: true});
     }
 
     onDisconnected() {
-
+        this.setState({connected: false});
     }
 
     onError() {
-
+        this.setState({connected: false, error: true});
     }
+
      onFrame(frame) {
         const ctx = this.canvas.getContext("2d");
         const tilesize = this.props.datastore.tileset.tilesize;
@@ -349,6 +353,22 @@ class CanvasView extends React.Component {
 
     render() {
 
+        let status;
+
+        if (this.state.error) {
+            status = (
+                <div class="splash">
+                    ERROR!!!
+                </div>
+            );
+        } else if (!this.state.connected) {
+            status = (
+                <div className="splash disconnected">
+                    DISCONNECTED!!!
+                </div>
+            );
+        }
+
         let helpDialog;
         if (this.state.showHelp) {
             helpDialog = <HelpDialog callback={this.closeHelpDialog} datastore={this.props.datastore}/>;
@@ -379,6 +399,8 @@ class CanvasView extends React.Component {
                     <button className="player" onClick={this.showPlayerDialog}>Player</button>
                     <button className="inventory" onClick={this.showInventoryDialog}>Inventory</button>
                 </div>
+
+                {status}
 
                 <canvas tabIndex="0" ref="canvas" width={704} height={704} onKeyDown={this.onKeyPress} onBlur={this.onBlur}/>
 
