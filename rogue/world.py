@@ -2,7 +2,7 @@ import math
 import random
 import dataclasses
 
-from .objects import Actor
+from .objects import Actor, ActorState
 
 
 @dataclasses.dataclass
@@ -241,17 +241,21 @@ class World(object):
 
         damage = actor.strength + attack
 
-        critical = attack >= 10
+        critical = attack >= 19
         if not critical:
             damage -= target.armor_class
 
         if damage < 0:
             actor.notice("you did no damage")
+            return
 
         target.hit_points -= damage
+        target.hurt(actor, damage)
 
         if critical:
             actor.notice("critical hit on {} for {} damage!!!".format(target, damage))
         else:
             actor.notice("hit on {} for {} damage!".format(target, damage))
 
+        if target.hit_points <= 0:
+            target.die()

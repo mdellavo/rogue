@@ -2,6 +2,9 @@ import enum
 import random
 import dataclasses
 from typing import List
+import logging
+
+log = logging.getLogger(__name__)
 
 
 class BodyPart(enum.Enum):
@@ -23,6 +26,9 @@ class Object(object):
 
     def tick(self, world):
         pass
+
+    def __str__(self):
+        return type(self).__name__
 
 
 class Coin(Object):
@@ -62,6 +68,12 @@ class Actor(Object):
         else:
             return ActorState.DEAD
 
+    def hurt(self, actor, damage):
+        pass
+
+    def die(self):
+        pass
+
     def notice(self, msg, **kwargs):
         pass
 
@@ -82,7 +94,23 @@ class Actor(Object):
 
 @dataclasses.dataclass
 class NPC(Actor):
+
+    def __init__(self, *args, **kwargs):
+        super(NPC, self).__init__(*args, **kwargs)
+        self.target = None
+
+    def hurt(self, actor, damage):
+        self.target = actor
+
     def tick(self, world):
+
+        if self.hit_points <= 0:
+            return
+
+        if self.target:
+            world.melee(self)
+            self.target = None
+
         if not world.age % random.randint(5, 10):
             for _ in range(100):
                 if world.move(self, random.randint(-1, 1), random.randint(-1, 1)):

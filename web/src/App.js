@@ -170,7 +170,7 @@ class HelpDialog extends Dialog {
                     WASD to move<br/>
                     . to enter doors<br/>
                     p to pickup items<br/>
-                    f to melee attach<br/>
+                    f to melee attack<br/>
                 </code>
             </Dialog>
         );

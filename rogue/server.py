@@ -29,6 +29,13 @@ class Player(Actor):
         self.input_queue = asyncio.Queue(QUEUE_SIZE)
         self.response_queue = asyncio.Queue(QUEUE_SIZE)
 
+    def hurt(self, actor, damage):
+        self.notice("you were hurt by {} for {} damage".format(actor, damage))
+
+    def die(self):
+        self.notice("you are dead.")
+        self.response_queue.put_nowait(None)
+
     def notice(self, msg, **kwargs):
         obj = kwargs
         obj["notice"] = msg
@@ -157,6 +164,9 @@ async def session(request):
             return
         log.info("writer stopping")
 
+        if not ws.closed:
+            await ws.close()
+
     writer = asyncio.create_task(_writer())
 
     async for msg in ws:
@@ -177,7 +187,8 @@ async def session(request):
         except asyncio.CancelledError:
             pass
 
-    await ws.close()
+    if not ws.closed:
+        await ws.close()
 
     request.app["world"].remove_actor(player)
 
