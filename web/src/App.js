@@ -36,20 +36,16 @@ class DataStore {
             return response.json();
         }).then(manifest => {
             this.manifest = manifest;
-            console.log("manifest", this.manifest);
             this.loadTiles(cb);
         }).catch(error => {
-            console.log("error", error);
             cb.onError(error);
         });
     }
 
     loadTiles(cb) {
         this.tiles.addEventListener("load",  () => {
-            console.log("tiles loaded");
             cb.onLoaded()
         }, false);
-        console.log("loading tiles", TILES_URL);
         this.tiles.src = TILES_URL;
     }
 
@@ -60,13 +56,10 @@ class DataStore {
     }
 
     connect(view) {
-        console.log("connecting to websocket");
-
         this.socket  = new WebSocket(this.manifest.socket_url);
         this.socket.binaryType = "arraybuffer";
 
         this.socket.addEventListener('open', (event) => {
-            console.log("socket connected");
             view.onConnected(event);
         });
 
@@ -80,16 +73,16 @@ class DataStore {
                 view.onFrame(msg.frame);
             } else if (msg.notice) {
                 view.onNotice(msg);
+            } else if (msg.stats) {
+                view.onStats(msg.stats);
             }
       });
 
         this.socket.addEventListener('close', (event) => {
-            console.log("socket closed");
             view.onDisconnected(event);
         });
 
         this.socket.addEventListener('error', (event) => {
-            console.log("socket error", event);
             view.onError(event);
         });
     }
@@ -246,7 +239,16 @@ class CanvasView extends React.Component {
         this.closeInventoryDialog = this.closeInventoryDialog.bind(this);
         this.closeHelpDialog = this.closeHelpDialog.bind(this);
 
-        this.state = {showHelp: true, showInventory: false, showPlayer: false, notices: [], connecting: true, connected: false, error: false};
+        this.state = {
+            showHelp: true,
+            showInventory: false,
+            showPlayer: false,
+            notices: [],
+            connecting: true,
+            connected: false,
+            error: false,
+            stats: {}
+        };
     }
 
     get canvas() {
@@ -290,7 +292,6 @@ class CanvasView extends React.Component {
                     } else if (obj_index >= 0) {
                         GfxUtil.drawTile(this.props.datastore, ctx, target_x, target_y, obj_index);
                     }
-
                 } else {
                     GfxUtil.fillTile(this.props.datastore, ctx, target_x, target_y, "black");
                 }
@@ -306,6 +307,10 @@ class CanvasView extends React.Component {
             notices.pop();
         }
         this.setState({notices: notices});
+    }
+
+    onStats(event) {
+        this.setState({stats: event});
     }
 
     onKeyPress(event) {
@@ -368,20 +373,21 @@ class CanvasView extends React.Component {
         let status;
         if (this.state.connecting) {
             status = (
-                <div class="splash">
+                <div className="splash">
                     Connecting...
                 </div>
             );
         } else if (this.state.error) {
             status = (
-                <div class="splash">
+                <div className="splash">
                     ERROR!!!
                 </div>
             );
         } else if (!this.state.connected) {
             status = (
                 <div className="splash disconnected">
-                    DISCONNECTED!!!
+                    DISCONNECTED!!!<br/>
+                    Hit reload to try again...
                 </div>
             );
         }
@@ -409,6 +415,15 @@ class CanvasView extends React.Component {
             );
         });
 
+        let stats;
+        if (this.state.stats.tot) {
+            stats = (
+                <div className="stats">
+                    Health: {this.state.stats.hp >=0 ? this.state.stats.hp : 0} of {this.state.stats.tot}
+                </div>
+            );
+        }
+
         return (
             <div>
                 <div className="toolbar">
@@ -418,7 +433,7 @@ class CanvasView extends React.Component {
                 </div>
 
                 {status}
-
+                {stats}
                 <canvas tabIndex="0" ref="canvas" width={704} height={704} onKeyDown={this.onKeyPress} onBlur={this.onBlur}/>
 
                 <div className="notices">

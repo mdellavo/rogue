@@ -12,12 +12,20 @@ canvas:focus {
 }
 
 .splash {
-    margin: auto;
-    padding-top: 100px;
+    position: absolute;
+
+    left: 0;
+    right: 0;
+    margin-left: auto;
+    margin-right: auto;
+
+    padding: 25px;
+    width: 100%;
     text-align: center;
     font-size: 24px;
     font-weight: bold;
     color: #eeeeee;
+    background: #22222288;
 }
 
 .toolbar {
@@ -43,9 +51,9 @@ canvas:focus {
     width: 100%;
     background: #444;
     padding: 5px 5px;
-
     color: #eeeeee;
     font-size: 10px;
+    text-align: center;
 }
 
 .help {
@@ -116,4 +124,9 @@ canvas:focus {
     font-size: 8pt;
     background: #00000088;
     width: 100%;
+}
+
+.stats {
+    float: right;
+    color: #eeeeee;
 }

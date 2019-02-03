@@ -60,7 +60,11 @@ class Actor(Object):
     max_inventory: int = 20
 
     @property
-    def alive(self):
+    def is_alive(self):
+        return self.state == ActorState.ALIVE
+
+    @property
+    def state(self):
         if self.hit_points > 0:
             return ActorState.ALIVE
         elif self.hit_points <= 0 and abs(self.hit_points) < self.health:

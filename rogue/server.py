@@ -18,6 +18,7 @@ QUEUE_SIZE = 100
 FRAME_SIZE = 11
 HEARTBEAT = 5
 RECV_TIMEOUT = 10
+UPDATE_TIMEOUT = .1
 
 
 class Player(Actor):
@@ -34,8 +35,16 @@ class Player(Actor):
 
     def hurt(self, actor, damage):
         self.notice("you were hurt by {} for {} damage".format(actor, damage))
+        self.send_stats()
+
+    def send_stats(self):
+        self.send_message(stats={
+            "hp": self.hit_points,
+            "tot": self.health,
+        })
 
     def die(self):
+        self.send_stats()
         self.notice("you are dead.")
         self.response_queue.put_nowait(None)
 
@@ -59,9 +68,6 @@ class Player(Actor):
                 if "_id" in msg:
                     response["_id"] = msg["_id"]
                 self.response_queue.put_nowait(response)
-
-        frame = self.get_frame(world)
-        self.response_queue.put_nowait(frame)
 
     def handle_action(self, world, msg):
         rv = None
@@ -99,7 +105,7 @@ class Player(Actor):
             rv.append(row)
         return rv
 
-    def get_frame(self, world):
+    def send_frame(self, world):
         width = height = FRAME_SIZE
 
         fov = world.explore(self)
@@ -120,7 +126,7 @@ class Player(Actor):
                 obj_index = self.tilemap.get_index(obj.key) if obj else -1
                 rv_row.append((explored, in_fov, tile_index, obj_index))
             rv.append(rv_row)
-        return {"frame": rv}
+        return self.send_message(frame=rv)
 
 
 class Decoder(object):
@@ -153,6 +159,17 @@ async def session(request):
     player = Player("player", ws, request.app["tileset"])
     request.app["world"].place_actor(player)
 
+    player.send_frame(request.app["world"])
+    player.send_stats()
+
+    async def _updater():
+        while not ws.closed:
+            await asyncio.sleep(UPDATE_TIMEOUT)
+            if ws.closed:
+                break
+            player.send_frame(request.app["world"])
+    updater = asyncio.create_task(_updater())
+
     async def _writer():
         try:
             while not ws.closed:
@@ -178,6 +195,8 @@ async def session(request):
             log.error('ws connection closed with exception %s', ws.exception())
 
     player.response_queue.put_nowait(None)
+
+    await asyncio.wait_for(updater, timeout=1)
 
     for i in range(2):
         try:
