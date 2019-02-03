@@ -29,6 +29,9 @@ class Player(Actor):
         self.input_queue = asyncio.Queue(QUEUE_SIZE)
         self.response_queue = asyncio.Queue(QUEUE_SIZE)
 
+    def send_message(self,  **msg):
+        self.response_queue.put_nowait(msg)
+
     def hurt(self, actor, damage):
         self.notice("you were hurt by {} for {} damage".format(actor, damage))
 
@@ -37,9 +40,7 @@ class Player(Actor):
         self.response_queue.put_nowait(None)
 
     def notice(self, msg, **kwargs):
-        obj = kwargs
-        obj["notice"] = msg
-        self.response_queue.put_nowait(obj)
+        self.send_message(notice=msg, **kwargs)
 
     def tick(self, world):
 

@@ -245,7 +245,7 @@ class World(object):
         if not critical:
             damage -= target.armor_class
 
-        if damage < 0:
+        if damage <= 0:
             actor.notice("you did no damage")
             return
 
