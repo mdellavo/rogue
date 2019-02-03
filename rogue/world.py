@@ -191,7 +191,7 @@ class World(object):
             x, y = position
             new_area.add_object(actor, x, y)
             area.remove_object(actor)
-            actor.notice("you have entered {}".format(new_area))
+            actor.notice("you have entered a new area")
         else:
             actor.notice("there is no door here")
 
