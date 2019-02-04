@@ -38,14 +38,12 @@ TILEMAP = collections.OrderedDict((
 ))
 
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 log = logging.getLogger(__name__)
 
 
 async def main():
-    log.info("generating world...")
     world = procgen.generate_world(MAP_SIZE)
-    log.info("loading tiles...")
     tileset = TileSet(TILEMAP, TILESIZE)
 
     async def run_world():

@@ -14,7 +14,7 @@ COIN_KEYS = ["coin1", "coin2", "coin3", "coin4", "coin5"]
 log = logging.getLogger(__name__)
 
 
-def add_doors(tiles, total_doors=NUM_DOORS, key="crypt1"):
+def add_doors(tiles, total_doors=NUM_DOORS, key="crypt1", depth=0):
     width = len(tiles[0])
     height = len(tiles)
     num_doors = 0
@@ -23,7 +23,7 @@ def add_doors(tiles, total_doors=NUM_DOORS, key="crypt1"):
         dy = random.randrange(0, height)
         tile = tiles[dy][dx]
         if not tile.blocked:
-            tiles[dy][dx] = CaveDoor(key)
+            tiles[dy][dx] = CaveDoor(key, depth=depth)
             num_doors += 1
 
 
@@ -39,7 +39,7 @@ def add_coins(area, num_coins=NUM_COINS):
         area.place(c)
 
 
-def generate_cave(size, iterations=5):
+def generate_cave(size, iterations=5, depth=0):
     current_step = [[True for _ in range(size)] for __ in range(size)]
 
     num_floor = int(round(size * size * .45))
@@ -84,7 +84,7 @@ def generate_cave(size, iterations=5):
         return Tile("wall3", blocked=True, blocked_sight=True) if cell else Tile("grey3")
 
     tiles = [[_tile((x, y), cell) for x, cell in enumerate(row)] for y, row in enumerate(current_step)]
-    add_doors(tiles, NUM_DOORS, key="stairsdown1")
+    add_doors(tiles, NUM_DOORS, key="stairsdown1", depth=depth)
     return tiles
 
 
@@ -96,8 +96,11 @@ class CaveDoor(Door):
         self.depth = kwargs.pop("depth", 0)
         super(CaveDoor, self).__init__(*args, **kwargs)
 
+    def __str__(self):
+        return "Cave level {}".format(self.depth)
+
     def generate_cave(self, exit_area, exit_position):
-        tiles = generate_cave(random.randrange(self.SIZE/2, self.SIZE*2))
+        tiles = generate_cave(random.randrange(self.SIZE/2, self.SIZE*2), depth=self.depth + 1)
 
         while True:
             dx = random.randrange(0, len(tiles[0]))
@@ -157,16 +160,7 @@ def generate_map(size, iterations=500, max_radius=5):
             return Tile("mountains1", blocked=True, blocked_sight=True)
 
     tiles = [[_tile(x, y, height) for x, height in enumerate(row)] for y, row in enumerate(heightmap)]
-
-    num_doors = 0
-    while num_doors < NUM_DOORS:
-        dx = random.randrange(0, size)
-        dy = random.randrange(0, size)
-        tile = tiles[dy][dx]
-        if not tile.blocked:
-            tiles[dy][dx] = CaveDoor("crypt1")
-            num_doors += 1
-
+    add_doors(tiles, depth=1)
     return tiles
 
 

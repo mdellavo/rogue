@@ -194,7 +194,7 @@ class World(object):
             area.remove_object(actor)
             procgen.add_coins(new_area)
             procgen.add_npcs(self, new_area)
-            actor.notice("you have entered a new area")
+            actor.notice("you have entered a {}".format(pt))
         else:
             actor.notice("there is no door here")
 
