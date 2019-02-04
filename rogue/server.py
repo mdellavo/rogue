@@ -124,8 +124,9 @@ class Player(Actor):
                 obj = object_map.get(pos)
                 tile_index = self.tilemap.get_index(tile.key) if tile else -1
                 obj_index = self.tilemap.get_index(obj.key) if obj else -1
-                rv_row.append((explored, in_fov, tile_index, obj_index))
+                rv_row.append([explored, in_fov, tile_index, obj_index])
             rv.append(rv_row)
+        rv[int(height/2)][int(width/2)][-1] = self.tilemap.get_index(self.key)
         return self.send_message(frame=rv)
 
 
