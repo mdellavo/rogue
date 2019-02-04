@@ -18,7 +18,7 @@ QUEUE_SIZE = 100
 FRAME_SIZE = 11
 HEARTBEAT = 5
 RECV_TIMEOUT = 10
-UPDATE_TIMEOUT = .1
+UPDATE_TIMEOUT = .025
 
 
 class Player(Actor):
@@ -62,22 +62,30 @@ class Player(Actor):
         except asyncio.QueueEmpty:
             msg = None
 
-        if msg and "action" in msg:
+        if not msg:
+            return
+
+        if "ping" in msg:
+            response = {"pong": msg["ping"]}
+        elif "action" in msg:
             response = self.handle_action(world, msg)
-            if response:
-                if "_id" in msg:
-                    response["_id"] = msg["_id"]
-                self.response_queue.put_nowait(response)
+        else:
+            response = None
+
+        if response:
+            if "_id" in msg:
+                response["_id"] = msg["_id"]
+            self.send_message(**response)
 
     def handle_action(self, world, msg):
         rv = None
         if msg["action"] == "move":
             dx, dy = msg["direction"]
-            rv = world.move(self, dx, dy)
+            world.move(self, dx, dy)
         elif msg["action"] == "pickup":
-            rv = world.pickup(self)
+            world.pickup(self)
         elif msg["action"] == "enter":
-            rv = world.enter(self)
+            world.enter(self)
         elif msg["action"] == "inventory":
 
             def _inv(obj):
@@ -87,7 +95,7 @@ class Player(Actor):
                 }
             rv = {"inventory": [_inv(obj) for obj in self.inventory]}
         elif msg["action"] == "melee":
-            rv = world.melee(self)
+            world.melee(self)
         return rv
 
     def visible_tiles(self, area, width, height):

@@ -5,6 +5,7 @@ import msgpack from 'msgpack-lite'
 
 const API_URL = process.env.REACT_APP_API;
 const TILES_URL = "/tiles.png";
+const PING_DELAY = 10;
 
 function decode(data) {
     return msgpack.decode(new Uint8Array(data));
@@ -21,6 +22,9 @@ class DataStore {
         this.socket = null;
         this.responseCallbacks = {};
         this.requestId = 0;
+        this.pingIntervalId = null;
+        this.frames = 0;
+        this.frameBytes = 0;
     }
 
     get tileset() {
@@ -55,11 +59,28 @@ class DataStore {
         return [tx * tilesize, ty * tilesize, tilesize, tilesize];
     }
 
+    onPing() {
+        const fps = this.frames / PING_DELAY;
+        const kb = this.frameBytes / PING_DELAY / 1024
+        this.send({ping: new Date().getTime()}, (pong) => {
+            const time = (new Date().getTime()) - pong.pong;
+            if (console)
+                console.log("fps=", fps, "kb/s=", kb, "time=", time);
+        });
+        this.frames = this.frameBytes = 0;
+    }
+
+    onFrame(frameBytes) {
+        this.frames++;
+        this.frameBytes += frameBytes;
+    }
+
     connect(view) {
         this.socket  = new WebSocket(this.manifest.socket_url);
         this.socket.binaryType = "arraybuffer";
 
         this.socket.addEventListener('open', (event) => {
+            this.pingIntervalId = setInterval(this.onPing.bind(this), PING_DELAY * 1000);
             view.onConnected(event);
         });
 
@@ -70,19 +91,23 @@ class DataStore {
                 this.responseCallbacks[msg._id](msg);
                 delete this.responseCallbacks[msg._id];
             } else if (msg.frame) {
+                this.onFrame(event.data.byteLength);
                 view.onFrame(msg.frame);
             } else if (msg.notice) {
                 view.onNotice(msg);
             } else if (msg.stats) {
                 view.onStats(msg.stats);
             }
-      });
+
+        });
 
         this.socket.addEventListener('close', (event) => {
+            clearInterval(this.pingIntervalId);
             view.onDisconnected(event);
         });
 
         this.socket.addEventListener('error', (event) => {
+            clearInterval(this.pingIntervalId);
             view.onError(event);
         });
     }
