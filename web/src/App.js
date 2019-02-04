@@ -24,7 +24,7 @@ class DataStore {
         this.requestId = 0;
         this.pingIntervalId = null;
         this.frames = 0;
-        this.frameBytes = 0;
+        this.bytes = 0;
     }
 
     get tileset() {
@@ -61,18 +61,13 @@ class DataStore {
 
     onPing() {
         const fps = this.frames / PING_DELAY;
-        const kb = this.frameBytes / PING_DELAY / 1024
+        const kb = this.bytes / PING_DELAY / 1024
         this.send({ping: new Date().getTime()}, (pong) => {
             const time = (new Date().getTime()) - pong.pong;
             if (console)
                 console.log("fps=", fps, "kb/s=", kb, "time=", time);
         });
-        this.frames = this.frameBytes = 0;
-    }
-
-    onFrame(frameBytes) {
-        this.frames++;
-        this.frameBytes += frameBytes;
+        this.frames = this.bytes = 0;
     }
 
     connect(view) {
@@ -87,11 +82,13 @@ class DataStore {
         this.socket.addEventListener('message', (event) => {
             const msg = decode(event.data);
 
+            this.bytes += event.data.byteLength;
+
             if (msg._id && this.responseCallbacks[msg._id]) {
                 this.responseCallbacks[msg._id](msg);
                 delete this.responseCallbacks[msg._id];
             } else if (msg.frame) {
-                this.onFrame(event.data.byteLength);
+                this.frames++;
                 view.onFrame(msg.frame);
             } else if (msg.notice) {
                 view.onNotice(msg);

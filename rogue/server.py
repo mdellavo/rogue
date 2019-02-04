@@ -177,19 +177,16 @@ async def session(request):
             if ws.closed:
                 break
             player.send_frame(request.app["world"])
+        log.info("updater stopped")
     updater = asyncio.create_task(_updater())
 
     async def _writer():
-        try:
-            while not ws.closed:
-                response = await player.response_queue.get()
-                if response is None:
-                    break
-                await ws.send_bytes(msgpack.packb(response))
-        except asyncio.CancelledError:
-            log.error("cancelling writer")
-            return
-        log.info("writer stopping")
+        while not ws.closed:
+            response = await player.response_queue.get()
+            if response is None:
+                break
+            await ws.send_bytes(msgpack.packb(response))
+        log.info("writer stopped")
 
         if not ws.closed:
             await ws.close()
@@ -203,21 +200,23 @@ async def session(request):
         elif msg.type == aiohttp.WSMsgType.ERROR:
             log.error('ws connection closed with exception %s', ws.exception())
 
-    player.response_queue.put_nowait(None)
-
-    await asyncio.wait_for(updater, timeout=1)
-
-    for i in range(2):
-        try:
-            await asyncio.wait_for(writer, timeout=RECV_TIMEOUT)
-        except asyncio.TimeoutError:
-            log.exception("error closing writer")
-            writer.cancel()
-        except asyncio.CancelledError:
-            pass
+    log.info("reader stopped")
 
     if not ws.closed:
         await ws.close()
+
+    player.response_queue.put_nowait(None)
+
+    for fut in (writer, updater):
+        for i in range(2):
+            try:
+                await asyncio.wait_for(fut, timeout=RECV_TIMEOUT)
+                log.info("cleaned up %s", fut)
+            except asyncio.TimeoutError:
+                log.exception("error closing %s", fut)
+                writer.cancel()
+            except asyncio.CancelledError:
+                pass
 
     request.app["world"].remove_actor(player)
 
