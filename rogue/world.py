@@ -2,7 +2,8 @@ import math
 import random
 import dataclasses
 
-from .objects import Actor, ActorState
+from .objects import Actor
+from . import procgen
 
 
 @dataclasses.dataclass
@@ -156,8 +157,8 @@ class World(object):
         self.actor_area[id(actor)] = area
         return area
 
-    def place_actor(self, actor):
-        self.add_actor(actor).place(actor)
+    def place_actor(self, actor, area=None):
+        self.add_actor(actor, area=area).place(actor)
 
     def remove_actor(self, actor):
         return self.get_area(actor).remove_object(actor)
@@ -191,6 +192,8 @@ class World(object):
             x, y = position
             new_area.add_object(actor, x, y)
             area.remove_object(actor)
+            procgen.add_coins(new_area)
+            procgen.add_npcs(self, new_area)
             actor.notice("you have entered a new area")
         else:
             actor.notice("there is no door here")

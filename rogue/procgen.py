@@ -1,8 +1,42 @@
 import random
 import noise
+import logging
 
 from .world import Tile, World, Door, Area
 from .objects import NPC, Coin
+
+NUM_NPCS = 100
+NUM_DOORS = 100
+NUM_COINS = 100
+
+COIN_KEYS = ["coin1", "coin2", "coin3", "coin4", "coin5"]
+
+log = logging.getLogger(__name__)
+
+
+def add_doors(tiles, total_doors=NUM_DOORS, key="crypt1"):
+    width = len(tiles[0])
+    height = len(tiles)
+    num_doors = 0
+    while num_doors < total_doors:
+        dx = random.randrange(0, width)
+        dy = random.randrange(0, height)
+        tile = tiles[dy][dx]
+        if not tile.blocked:
+            tiles[dy][dx] = CaveDoor(key)
+            num_doors += 1
+
+
+def add_npcs(world, area, num_npcs=NUM_NPCS):
+    for _ in range(num_npcs):
+        npc = NPC("orc1")
+        world.place_actor(npc, area=area)
+
+
+def add_coins(area, num_coins=NUM_COINS):
+    for _ in range(num_coins):
+        c = Coin(random.choice(COIN_KEYS))
+        area.place(c)
 
 
 def generate_cave(size, iterations=5):
@@ -40,35 +74,46 @@ def generate_cave(size, iterations=5):
         else:
             return current_step[y][x]
 
-    for i in range(iterations):
+    for _ in range(iterations):
         current_step = [[_cell(x, y) for y in range(size)] for x in range(size)]
 
-    def _tile(cell):
+    def _tile(pos, cell):
+        x, y = pos
+        if x == 0 or y == 0 or x == size - 1 or y == size - 1:
+            return Tile("wall3", blocked=True, blocked_sight=True)
         return Tile("wall3", blocked=True, blocked_sight=True) if cell else Tile("grey3")
 
-    return [[_tile(cell) for cell in row] for row in current_step]
+    tiles = [[_tile((x, y), cell) for x, cell in enumerate(row)] for y, row in enumerate(current_step)]
+    add_doors(tiles, NUM_DOORS, key="stairsdown1")
+    return tiles
 
 
 class CaveDoor(Door):
 
     SIZE = 50
 
+    def __init__(self, *args, **kwargs):
+        self.depth = kwargs.pop("depth", 0)
+        super(CaveDoor, self).__init__(*args, **kwargs)
+
     def generate_cave(self, exit_area, exit_position):
-        tiles = generate_cave(self.SIZE)
+        tiles = generate_cave(random.randrange(self.SIZE/2, self.SIZE*2))
 
         while True:
-            dx = random.randrange(0, self.SIZE)
-            dy = random.randrange(0, self.SIZE)
+            dx = random.randrange(0, len(tiles[0]))
+            dy = random.randrange(0, len(tiles))
             tile = tiles[dy][dx]
             if not tile.blocked:
-                tiles[dy][dx] = Door("crypt1", area=exit_area, position=exit_position)
+                tiles[dy][dx] = Door("stairsup1", area=exit_area, position=exit_position)
                 break
 
         return Area(tiles), (dx, dy)
 
     def get_area(self, exit_area, exit_position):
         if not self.area:
+            log.info("generating cave...")
             self.area, self.position = self.generate_cave(exit_area, exit_position)
+            log.info("cave done!")
         return super(CaveDoor, self).get_area(exit_area, exit_position)
 
 
@@ -97,6 +142,8 @@ def generate_map(size, iterations=500, max_radius=5):
             heightmap[y][x] = (heightmap[y][x] - min_height) / delta
 
     def _tile(x, y, height):
+        if x == 0 or y == 0 or x == size - 1 or y == size - 1:
+            return Tile("water1", blocked=True, blocked_sight=False)
 
         n = noise.snoise2(x, y)
 
@@ -123,24 +170,13 @@ def generate_map(size, iterations=500, max_radius=5):
     return tiles
 
 
-NUM_NPCS = 100
-NUM_DOORS = 100
-NUM_COINS = 100
-
-COIN_KEYS = ["coin1", "coin2", "coin3", "coin4", "coin5"]
-
-
 def generate_world(size):
+    log.info("generating world...")
+
     area = Area(generate_map(size, iterations=500))
     world = World(area)
 
-    for _ in range(NUM_NPCS):
-        npc = NPC("orc1")
-        world.place_actor(npc)
-
-    for _ in range(NUM_COINS):
-        c = Coin(random.choice(COIN_KEYS))
-        world.place_actor(c)
+    log.info("world done!")
 
     return world
 

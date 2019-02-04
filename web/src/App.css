@@ -13,12 +13,11 @@ canvas:focus {
 
 .splash {
     position: absolute;
-
+    top: 0;
     left: 0;
     right: 0;
     margin-left: auto;
     margin-right: auto;
-
     padding: 25px;
     width: 100%;
     text-align: center;

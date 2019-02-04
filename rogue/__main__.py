@@ -26,6 +26,8 @@ TILEMAP = collections.OrderedDict((
     ("mountains2", (118, 23)),
     ("mountains3", (119, 23)),
     ("crypt1", (7, 22)),
+    ("stairsdown1", (3, 24)),
+    ("stairsup1", (0, 24)),
     ("grey3", (8, 24)),
     ("wall3", (2, 22)),
     ("coin1", (7, 7)),
