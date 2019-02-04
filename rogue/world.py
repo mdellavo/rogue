@@ -17,10 +17,14 @@ class Tile(object):
 
 @dataclasses.dataclass
 class Door(Tile):
-    def __init__(self, key, area=None, position=None, **kwargs):
+    def __init__(self, key, area=None, position=None, message="door", **kwargs):
         super(Door, self).__init__(key, **kwargs)
         self.area = area
         self.position = position
+        self.message = kwargs.pop("message", message)
+
+    def __str__(self):
+        return self.message
 
     def get_area(self, exit_area, exit_position):
         if not self.area:
@@ -194,7 +198,7 @@ class World(object):
             area.remove_object(actor)
             procgen.add_coins(new_area)
             procgen.add_npcs(self, new_area)
-            actor.notice("you have entered a {}".format(pt))
+            actor.notice("you have entered {}".format(pt))
         else:
             actor.notice("there is no door here")
 

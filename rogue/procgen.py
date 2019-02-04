@@ -94,10 +94,8 @@ class CaveDoor(Door):
 
     def __init__(self, *args, **kwargs):
         self.depth = kwargs.pop("depth", 0)
+        kwargs["message"] = "cave level {}".format(self.depth)
         super(CaveDoor, self).__init__(*args, **kwargs)
-
-    def __str__(self):
-        return "Cave level {}".format(self.depth)
 
     def generate_cave(self, exit_area, exit_position):
         tiles = generate_cave(random.randrange(self.SIZE/2, self.SIZE*2), depth=self.depth + 1)
@@ -107,7 +105,11 @@ class CaveDoor(Door):
             dy = random.randrange(0, len(tiles))
             tile = tiles[dy][dx]
             if not tile.blocked:
-                tiles[dy][dx] = Door("stairsup1", area=exit_area, position=exit_position)
+                if self.depth > 1:
+                    message = "a door to cave level {}".format(self.depth - 1)
+                else:
+                    message = "an exit to the world"
+                tiles[dy][dx] = Door("stairsup1", area=exit_area, position=exit_position, message=message)
                 break
 
         return Area(tiles), (dx, dy)
