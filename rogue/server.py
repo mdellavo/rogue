@@ -211,10 +211,8 @@ async def session(request):
         for i in range(2):
             try:
                 await asyncio.wait_for(fut, timeout=RECV_TIMEOUT)
-                log.info("cleaned up %s", fut)
             except asyncio.TimeoutError:
-                log.exception("error closing %s", fut)
-                writer.cancel()
+                fut.cancel()
             except asyncio.CancelledError:
                 pass
 
