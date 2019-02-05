@@ -97,6 +97,11 @@ class Actor(Object):
 
 
 @dataclasses.dataclass
+class Player(Actor):
+    pass
+
+
+@dataclasses.dataclass
 class NPC(Actor):
 
     def __init__(self, *args, **kwargs):

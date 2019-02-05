@@ -7,7 +7,7 @@ import aiohttp_cors
 
 import msgpack
 
-from .objects import Actor
+from .objects import Player
 
 log = logging.getLogger(__name__)
 
@@ -21,7 +21,7 @@ RECV_TIMEOUT = 10
 UPDATE_TIMEOUT = .025
 
 
-class Player(Actor):
+class WebSocketPlayer(Player):
 
     def __init__(self, key, socket, tileset, *args, **kwargs):
         super(Player, self).__init__(key, *args, **kwargs)
@@ -165,7 +165,7 @@ async def session(request):
     await ws.prepare(request)
     log.debug('websocket connection started')
 
-    player = Player("player", ws, request.app["tileset"])
+    player = WebSocketPlayer("player", ws, request.app["tileset"])
     request.app["world"].place_actor(player)
 
     player.send_frame(request.app["world"])

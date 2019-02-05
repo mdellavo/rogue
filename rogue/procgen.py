@@ -171,6 +171,7 @@ def generate_world(size):
 
     area = Area(generate_map(size, iterations=500))
     world = World(area)
+    add_npcs(world, area)
 
     log.info("world done!")
 

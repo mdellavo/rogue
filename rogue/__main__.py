@@ -48,6 +48,7 @@ async def main():
 
     async def run_world():
         log.info("starting world...")
+
         while True:
             world.tick()
             await asyncio.sleep(TIMEOUT)

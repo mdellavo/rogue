@@ -2,7 +2,7 @@ import math
 import random
 import dataclasses
 
-from .objects import Actor
+from .objects import Actor, Player
 from . import procgen
 
 
@@ -37,6 +37,10 @@ class Area(object):
         self.tiles = tiles
         self.objects = []
         self.time = 0
+
+    @property
+    def has_players(self):
+        return any(o for o in self.objects if isinstance(o, Player))
 
     @property
     def map_width(self):
@@ -171,7 +175,8 @@ class World(object):
         return self.actor_area.get(id(actor))
 
     def tick(self):
-        for area in self.areas:
+        active_areas = [area for area in self.areas if area.has_players]
+        for area in active_areas:
             area.tick(self)
         self.age += 1
 
