@@ -185,7 +185,7 @@ class HelpDialog extends Dialog {
         return (
             <Dialog title="Help" callback={this.props.callback}>
                 <code><pre>
-                    <strong>W/A/S/D</strong> - to move<br/>
+                    <strong>w/a/s/d</strong> - to move N/W/S/E<br/>
                     <strong>.</strong>       - to enter doors<br/>
                     <strong>p</strong>       - to pickup items<br/>
                     <strong>f</strong>       - to attack surrounding<br/>
@@ -463,6 +463,7 @@ class CanvasView extends React.Component {
                 </div>
 
                 <div className="footer">
+                    <a href="https://github.com/mdellavo/rogue/" target="_blank">Source code available on github @ mdellavo/rogue</a>
                 </div>
 
                 {helpDialog}

@@ -55,6 +55,12 @@ canvas:focus {
     text-align: center;
 }
 
+.footer a {
+    color: #eeeeee;
+    text-decoration: none;
+    
+}
+
 .help {
     float: right;
 }
