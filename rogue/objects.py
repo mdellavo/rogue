@@ -1,3 +1,4 @@
+import abc
 import enum
 import random
 import dataclasses
@@ -33,6 +34,18 @@ class Object(object):
 
 class Coin(Object):
     pass
+
+
+class Item(Object, metaclass=abc.ABCMeta):
+    @abc.abstractmethod
+    def apply(self):
+        pass
+
+
+class Equipment(Object, metaclass=abc.ABCMeta):
+    @abc.abstractproperty
+    def equips(self):
+        pass
 
 
 class ActorState(enum.Enum):
@@ -107,17 +120,27 @@ class NPC(Actor):
     def __init__(self, *args, **kwargs):
         super(NPC, self).__init__(*args, **kwargs)
         self.target = None
+        self.sleep_for = random.randint(5, 10)
 
     def hurt(self, actor, damage):
         self.target = actor
 
     def tick(self, world):
+        if world.age % self.sleep_for:
+            return
+
+        self.sleep_for = random.randint(5, 10)
+
+        if not self.target:
+            actors = [actor for actor in world.surrounding_actors(self) if isinstance(actor, Player)]
+            if actors:
+                self.target = random.choice(actors)
 
         if self.target:
             world.melee(self)
             self.target = None
+            return
 
-        if not world.age % random.randint(5, 10):
-            for _ in range(100):
-                if world.move(self, random.randint(-1, 1), random.randint(-1, 1)):
-                    break
+        for _ in range(100):
+            if world.move(self, random.randint(-1, 1), random.randint(-1, 1)):
+                break

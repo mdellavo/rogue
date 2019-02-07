@@ -272,3 +272,4 @@ class World(object):
         if target.hit_points <= 0:
             target.die()
             self.remove_actor(target)
+            actor.notice("you kill a {}".format(target))
