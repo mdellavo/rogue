@@ -479,7 +479,7 @@ class CanvasView extends React.Component {
                 </div>
 
                 <div className="footer">
-                    <a href="https://github.com/mdellavo/rogue/" target="_blank">Source code available on github @ mdellavo/rogue</a>
+                    <a href="https://github.com/mdellavo/rogue/" target="_blank" rel="noopener noreferrer">Source code available on github @ mdellavo/rogue</a>
                 </div>
 
                 {helpDialog}
