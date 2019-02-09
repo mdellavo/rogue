@@ -26,7 +26,7 @@ class Door(Tile):
     def __str__(self):
         return self.message
 
-    def get_area(self, exit_area, exit_position):
+    def get_area(self, world, exit_area, exit_position):
         if not self.area:
             return ValueError("door needs area")
         return self.area, self.position
@@ -196,7 +196,7 @@ class World(object):
         area = self.get_area(actor)
         pt = area.get_tile(actor.x, actor.y)
         if isinstance(pt, Door):
-            new_area, position = pt.get_area(area, (actor.x, actor.y))
+            new_area, position = pt.get_area(self, area, (actor.x, actor.y))
             self.add_actor(actor, area=new_area)
             x, y = position
             new_area.add_object(actor, x, y)

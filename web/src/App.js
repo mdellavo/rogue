@@ -4,7 +4,6 @@ import './App.css';
 import msgpack from 'msgpack-lite'
 
 const API_URL = process.env.REACT_APP_API;
-const TILES_URL = "/tiles.png";
 const PING_DELAY = 10;
 
 function decode(data) {
@@ -50,7 +49,7 @@ class DataStore {
         this.tiles.addEventListener("load",  () => {
             cb.onLoaded()
         }, false);
-        this.tiles.src = TILES_URL;
+        this.tiles.src = this.manifest.tiles_url;
     }
 
     getTile(tile_index) {
@@ -61,7 +60,7 @@ class DataStore {
 
     onPing() {
         const fps = this.frames / PING_DELAY;
-        const kb = this.bytes / PING_DELAY / 1024
+        const kb = this.bytes / PING_DELAY / 1024;
         this.send({ping: new Date().getTime()}, (pong) => {
             const time = (new Date().getTime()) - pong.pong;
             if (console)
@@ -198,9 +197,19 @@ class HelpDialog extends Dialog {
 }
 
 class InventoryItem extends React.Component {
+
+    constructor(props) {
+        super(props);
+        this.onClick = this.onClick.bind(this);
+    }
+
+    onClick() {
+        this.props.handler.onItemClick(this.props.id);
+    }
+
     render() {
         return (
-            <div className="inventory-item">
+            <div className="inventory-item" onClick={this.onClick}>
                 <img alt={this.props.type} src={this.props.dataURL}/>
                 <p className="inventory-item-name">
                     {this.props.type}
@@ -215,7 +224,8 @@ class InventoryDialog extends Dialog {
 
     constructor(props) {
         super(props);
-        this.state = {"inventory": []}
+        this.state = {"inventory": []};
+        this.onItemClick = this.onItemClick.bind(this);
     }
 
     componentDidMount() {
@@ -224,9 +234,15 @@ class InventoryDialog extends Dialog {
         });
     }
 
+    onItemClick(id) {
+        this.props.datastore.send({action: "equip", item: id}, (msg) => {
+            console.log("equip resp", msg);
+        });
+    }
+
     render() {
-        const items = this.state.inventory.map((item, i) => {
-            return <InventoryItem key={i} type={item.type} dataURL={GfxUtil.getTile(this.props.datastore, item.idx)}/>
+        const items = this.state.inventory.map((item) => {
+            return <InventoryItem id={item.id} handler={this} key={this.props.id} type={item.type} dataURL={GfxUtil.getTile(this.props.datastore, item.idx)}/>
         });
 
         return (

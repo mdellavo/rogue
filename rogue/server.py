@@ -1,4 +1,5 @@
 import logging
+import collections
 import asyncio
 
 import aiohttp
@@ -7,7 +8,7 @@ import aiohttp_cors
 
 import msgpack
 
-from .objects import Player
+from .objects import Player, Actor
 
 log = logging.getLogger(__name__)
 
@@ -18,7 +19,65 @@ QUEUE_SIZE = 100
 FRAME_SIZE = 11
 HEARTBEAT = 5
 RECV_TIMEOUT = 10
-UPDATE_TIMEOUT = .025
+UPDATE_TIMEOUT = .1
+
+
+class ActionDispatcher(object):
+    def __init__(self):
+        self.registry = {}
+
+    def register(self, action):
+        def _register(handler):
+            self.registry[action] = handler
+            return handler
+        return _register
+
+    def dispatch(self, world, player, msg):
+        action = msg["action"]
+        if action not in self.registry:
+            log.error("could not dispatch %s: %s", action, msg)
+        return self.registry[action](world, player, msg)
+
+
+dispatcher = ActionDispatcher()
+
+
+@dispatcher.register("move")
+def handle_move(world, player, action):
+    dx, dy = action["direction"]
+    world.move(player, dx, dy)
+
+
+@dispatcher.register("pickup")
+def handle_pickup(world, player, _):
+    world.pickup(player)
+
+
+@dispatcher.register("enter")
+def handle_enter(world, player, _):
+    world.enter(player)
+
+
+@dispatcher.register("inventory")
+def handle_inventory(_, player, __):
+    def _inv(obj):
+        return {
+            "id": obj.id,
+            "idx": player.tilemap.get_index(obj.key),
+            "type": type(obj).__name__
+        }
+    rv = {"inventory": [_inv(obj) for obj in player.inventory]}
+    return rv
+
+
+@dispatcher.register("equip")
+def handle_equip(world, player, action):
+    print(action)
+
+
+@dispatcher.register("melee")
+def handle_melee(world, player, _):
+    world.melee(player)
 
 
 class WebSocketPlayer(Player):
@@ -68,7 +127,7 @@ class WebSocketPlayer(Player):
         if "ping" in msg:
             response = {"pong": msg["ping"]}
         elif "action" in msg:
-            response = self.handle_action(world, msg)
+            response = dispatcher.dispatch(world, self, msg)
         else:
             response = None
 
@@ -76,27 +135,6 @@ class WebSocketPlayer(Player):
             if "_id" in msg:
                 response["_id"] = msg["_id"]
             self.send_message(**response)
-
-    def handle_action(self, world, msg):
-        rv = None
-        if msg["action"] == "move":
-            dx, dy = msg["direction"]
-            world.move(self, dx, dy)
-        elif msg["action"] == "pickup":
-            world.pickup(self)
-        elif msg["action"] == "enter":
-            world.enter(self)
-        elif msg["action"] == "inventory":
-
-            def _inv(obj):
-                return {
-                    "idx": self.tilemap.get_index(obj.key),
-                    "type": type(obj).__name__
-                }
-            rv = {"inventory": [_inv(obj) for obj in self.inventory]}
-        elif msg["action"] == "melee":
-            world.melee(self)
-        return rv
 
     def visible_tiles(self, area, width, height):
         rv = []
@@ -120,7 +158,12 @@ class WebSocketPlayer(Player):
         area = world.get_area(self)
         tiles = self.visible_tiles(area, width, height)
 
-        object_map = {(obj.x, obj.y): obj for obj in area.objects}
+        object_map = collections.defaultdict(list)
+        for obj in area.objects:
+            object_map[(obj.x, obj.y)].append(obj)
+
+        def keyfn(o):
+            return isinstance(o, Actor)
 
         rv = []
         for row in tiles:
@@ -129,17 +172,14 @@ class WebSocketPlayer(Player):
                 pos, tile = cell
                 explored = tile and tile.explored
                 in_fov = explored and pos in fov
-                obj = object_map.get(pos)
+                objs = object_map.get(pos)
+                obj = sorted(objs, key=keyfn)[0] if objs else None
                 tile_index = self.tilemap.get_index(tile.key) if tile else -1
                 obj_index = self.tilemap.get_index(obj.key) if obj else -1
-                rv_row.append([explored, in_fov, tile_index, obj_index])
+                rv_row.append([explored, in_fov, tile_index, obj_index])  # FIXME only supports one obj
             rv.append(rv_row)
         rv[int(height/2)][int(width/2)][-1] = self.tilemap.get_index(self.key)
         return self.send_message(frame=rv)
-
-
-class Decoder(object):
-    pass
 
 
 @routes.get("/")
@@ -150,13 +190,9 @@ async def get_root(request):
             "tilesize": request.app["tileset"].tilesize,
             "tilemap": request.app["tileset"].get_indexed_map(),
         },
+        "tiles_url": "/tiles.png",
         "socket_url": "ws://{}/session".format(request.host),
     })
-
-
-@routes.get("/tiles")
-async def get_tiles(request):
-    return web.FileResponse("data/tiles.png")
 
 
 @routes.get("/session")

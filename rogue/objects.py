@@ -2,18 +2,22 @@ import abc
 import enum
 import random
 import dataclasses
-from typing import List
+from typing import List, Dict
 import logging
+import bson
 
 log = logging.getLogger(__name__)
 
 
 class BodyPart(enum.Enum):
-    Hands = 1
+    Hand = 1
     Feet = 2
     Head = 3
     Torso = 4
     Neck = 5
+
+    LeftHand = 6
+    RightHand = 7
 
 
 @dataclasses.dataclass
@@ -24,6 +28,8 @@ class Object(object):
     blocks: bool = False
     blocks_sight: bool = False
     anchored: bool = False
+
+    id: str = dataclasses.field(default_factory=lambda: str(bson.ObjectId()))
 
     def tick(self, world):
         pass
@@ -43,9 +49,15 @@ class Item(Object, metaclass=abc.ABCMeta):
 
 
 class Equipment(Object, metaclass=abc.ABCMeta):
-    @abc.abstractproperty
-    def equips(self):
-        pass
+    EQUIPS = None
+
+
+class Sword(Equipment):
+    EQUIPS = BodyPart.Hand
+
+
+class Shield(Equipment):
+    EQUIPS = BodyPart.Hand
 
 
 class ActorState(enum.Enum):
@@ -61,7 +73,6 @@ class Actor(Object):
     anchored: bool = True
     blocks: bool = True
 
-    parts: List[BodyPart] = dataclasses.field(default_factory=list)
     inventory: List[Object] = dataclasses.field(default_factory=list)
 
     view_distance: int = 5
@@ -72,12 +83,14 @@ class Actor(Object):
 
     max_inventory: int = 20
 
+    equipment: Dict[BodyPart, Equipment] = dataclasses.field(default_factory=dict)
+
     @property
-    def is_alive(self):
+    def is_alive(self) -> bool:
         return self.state == ActorState.ALIVE
 
     @property
-    def state(self):
+    def state(self) -> ActorState:
         if self.hit_points > 0:
             return ActorState.ALIVE
         elif self.hit_points <= 0 and abs(self.hit_points) < self.health:
@@ -107,6 +120,12 @@ class Actor(Object):
         self.inventory.remove(obj)
         obj.x = self.x
         obj.y = self.y
+
+    def equip(self, obj, part):
+        if obj and (not isinstance(obj, Equipment) or obj.EQUIPS != part):
+            raise ValueError("cannot equip this")
+
+        self.equipment[part] = obj
 
 
 @dataclasses.dataclass

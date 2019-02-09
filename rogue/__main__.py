@@ -35,6 +35,8 @@ TILEMAP = collections.OrderedDict((
     ("coin3", (9, 7)),
     ("coin4", (10, 7)),
     ("coin5", (11, 7)),
+    ("sword1", (8, 10)),
+    ("shield1", (100, 0)),
 ))
 
 
@@ -56,8 +58,9 @@ async def main():
     await asyncio.gather(run_world(), server.run_server(world, tileset))
 
 if __name__ == "__main__":
+    debug = "--debug" in sys.argv
     try:
-        asyncio.run(main())
+        asyncio.run(main(), debug=debug)
     except KeyboardInterrupt:
         pass
     sys.exit(0)

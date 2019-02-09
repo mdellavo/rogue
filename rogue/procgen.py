@@ -3,11 +3,12 @@ import noise
 import logging
 
 from .world import Tile, World, Door, Area
-from .objects import NPC, Coin
+from .objects import NPC, Coin, Shield, Sword
 
 NUM_NPCS = 100
 NUM_DOORS = 100
 NUM_COINS = 100
+NUM_ITEMS = 100
 
 COIN_KEYS = ["coin1", "coin2", "coin3", "coin4", "coin5"]
 
@@ -37,6 +38,18 @@ def add_coins(area, num_coins=NUM_COINS):
     for _ in range(num_coins):
         c = Coin(random.choice(COIN_KEYS))
         area.place(c)
+
+
+def add_items(area, num_items=NUM_ITEMS):
+    for _ in range(num_items):
+        area.place(Sword("sword1"))
+        area.place(Shield("shield1"))
+
+
+def populate_area(world, area):
+    add_npcs(world, area)
+    add_coins(area)
+    add_items(area)
 
 
 def generate_cave(size, iterations=5, depth=0):
@@ -114,12 +127,13 @@ class CaveDoor(Door):
 
         return Area(tiles), (dx, dy)
 
-    def get_area(self, exit_area, exit_position):
+    def get_area(self, world, exit_area, exit_position):
         if not self.area:
             log.info("generating cave...")
             self.area, self.position = self.generate_cave(exit_area, exit_position)
+            populate_area(world, self.area)
             log.info("cave done!")
-        return super(CaveDoor, self).get_area(exit_area, exit_position)
+        return super(CaveDoor, self).get_area(world, exit_area, exit_position)
 
 
 def generate_map(size, iterations=500, max_radius=5):
@@ -171,7 +185,7 @@ def generate_world(size):
 
     area = Area(generate_map(size, iterations=500))
     world = World(area)
-    add_npcs(world, area)
+    populate_area(world, area)
 
     log.info("world done!")
 
