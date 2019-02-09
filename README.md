@@ -34,3 +34,7 @@ Copyright &copy; 2019 Marc DellaVolpe
 ## License
 
 _todo_
+
+## Credits
+
+Thanks to Dungeon Crawl Stone Soup for the artwork!!!
