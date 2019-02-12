@@ -8,7 +8,7 @@ import aiohttp_cors
 
 import msgpack
 
-from .objects import Player, Actor
+from .objects import Player, Actor, ActionError
 
 log = logging.getLogger(__name__)
 
@@ -36,7 +36,10 @@ class ActionDispatcher(object):
         action = msg["action"]
         if action not in self.registry:
             log.error("could not dispatch %s: %s", action, msg)
-        return self.registry[action](world, player, msg)
+        try:
+            return self.registry[action](world, player, msg)
+        except ActionError as e:
+            player.notice(str(e))
 
 
 dispatcher = ActionDispatcher()
@@ -72,7 +75,10 @@ def handle_inventory(_, player, __):
 
 @dispatcher.register("equip")
 def handle_equip(world, player, action):
-    print(action)
+    obj = next(o for o in player.inventory if o.id == action["item"])
+    if obj:
+        part = action.get("part")
+        player.equip(obj, part=part)
 
 
 @dispatcher.register("melee")

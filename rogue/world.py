@@ -1,5 +1,6 @@
 import math
 import random
+import itertools
 import dataclasses
 
 from .objects import Actor, Player
@@ -39,8 +40,12 @@ class Area(object):
         self.time = 0
 
     @property
+    def players(self):
+        return (o for o in self.objects if isinstance(o, Player))
+
+    @property
     def has_players(self):
-        return any(o for o in self.objects if isinstance(o, Player))
+        return any(self.players)
 
     @property
     def map_width(self):
@@ -157,6 +162,10 @@ class World(object):
         self.actor_area = {}
         self.age = 0
 
+    @property
+    def players(self):
+        return itertools.chain.from_iterable(area.players for area in self.areas)
+
     def add_actor(self, actor, area=None):
         if not area:
             area = self.areas[0]
@@ -246,16 +255,19 @@ class World(object):
             actor.notice("there is nothing to attack")
             return
 
-        attack = random.randint(0, 20)
-        if attack <= 1:
+        attack_roll = random.randint(1, 20)
+        if attack_roll <= 1:
             actor.notice("you missed {}".format(target))
             return
 
-        damage = actor.strength + attack
+        damage = actor.strength + (random.randint(1, actor.weapon.damage) if actor.has_weapon else 0)
 
-        critical = attack >= 19
+        critical = attack_roll >= 19
         if not critical:
             damage -= target.armor_class
+
+        if target.has_shield:
+            damage -= target.shield.damage
 
         if damage <= 0:
             actor.notice("you did no damage")

@@ -2,11 +2,16 @@ import abc
 import enum
 import random
 import dataclasses
+from abc import ABCMeta, ABC
 from typing import List, Dict
 import logging
 import bson
 
 log = logging.getLogger(__name__)
+
+
+class ActionError(Exception):
+    pass
 
 
 class BodyPart(enum.Enum):
@@ -52,12 +57,21 @@ class Equipment(Object, metaclass=abc.ABCMeta):
     EQUIPS = None
 
 
-class Sword(Equipment):
+class Weapon(Equipment):
     EQUIPS = BodyPart.Hand
 
 
-class Shield(Equipment):
+class Armor(Equipment):
+    pass
+
+
+class Sword(Weapon):
+    damage: int = 6
+
+
+class Shield(Armor):
     EQUIPS = BodyPart.Hand
+    damage: int = 2
 
 
 class ActorState(enum.Enum):
@@ -77,13 +91,29 @@ class Actor(Object):
 
     view_distance: int = 5
     strength: int = 5
-    armor_class: int = 10
+    armor_class: int = 2
     health: int = 50
     hit_points: int = health
 
     max_inventory: int = 20
 
     equipment: Dict[BodyPart, Equipment] = dataclasses.field(default_factory=dict)
+
+    @property
+    def has_weapon(self):
+        return BodyPart.RightHand in self.equipment
+
+    @property
+    def has_shield(self):
+        return BodyPart.LeftHand in self.equipment
+
+    @property
+    def weapon(self):
+        return self.equipment.get(BodyPart.RightHand)
+
+    @property
+    def shield(self):
+        return self.equipment.get(BodyPart.LeftHand)
 
     @property
     def is_alive(self) -> bool:
@@ -109,28 +139,39 @@ class Actor(Object):
 
     def pickup(self, obj):
         if obj in self.inventory:
-            raise ValueError("actor already holding obj")
+            raise ActionError("actor already holding obj")
 
         if len(self.inventory) < self.max_inventory:
             self.inventory.append(obj)
 
     def drop(self, obj):
         if obj not in self.inventory:
-            raise ValueError("actor not holding obj")
+            raise ActionError("actor not holding obj")
         self.inventory.remove(obj)
         obj.x = self.x
         obj.y = self.y
 
-    def equip(self, obj, part):
-        if obj and (not isinstance(obj, Equipment) or obj.EQUIPS != part):
-            raise ValueError("cannot equip this")
+    def equip(self, obj, part=None):
+        if not isinstance(obj, Equipment) or (part and obj.EQUIPS != part):
+            raise ActionError("cannot equip this")
+
+        if isinstance(obj, Weapon):
+            part = BodyPart.RightHand
+        elif isinstance(obj, Shield):
+            part = BodyPart.LeftHand
+        elif not part:
+            part = obj.EQUIPS
 
         self.equipment[part] = obj
+
+        self.notice("you equipped a {} to your {}".format(obj, part.name))
 
 
 @dataclasses.dataclass
 class Player(Actor):
-    pass
+    """
+    Base class for interactive actors
+    """
 
 
 @dataclasses.dataclass

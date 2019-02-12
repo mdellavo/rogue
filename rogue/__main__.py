@@ -40,6 +40,8 @@ TILEMAP = collections.OrderedDict((
 ))
 
 
+DAY = 86400 / 6. * TIMEOUT
+
 logging.basicConfig(level=logging.DEBUG, format='[%(asctime)s] %(levelname)s/%(name)s - %(message)s')
 log = logging.getLogger(__name__)
 
@@ -53,6 +55,12 @@ async def main():
 
         while True:
             world.tick()
+
+            day, mod = divmod(world.age, DAY)
+            if not mod:
+                for player in world.players:
+                    player.notice("day {}".format(day))
+
             await asyncio.sleep(TIMEOUT)
 
     await asyncio.gather(run_world(), server.run_server(world, tileset))
