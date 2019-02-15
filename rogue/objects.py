@@ -2,7 +2,6 @@ import abc
 import enum
 import random
 import dataclasses
-from abc import ABCMeta, ABC
 from typing import List, Dict
 import logging
 import bson
@@ -33,11 +32,12 @@ class Object(object):
     blocks: bool = False
     blocks_sight: bool = False
     anchored: bool = False
+    age: int = 0
 
     id: str = dataclasses.field(default_factory=lambda: str(bson.ObjectId()))
 
     def tick(self, world):
-        pass
+        self.age += 1
 
     def __str__(self):
         return type(self).__name__.lower()
@@ -91,11 +91,13 @@ class Actor(Object):
 
     view_distance: int = 5
     strength: int = 5
-    armor_class: int = 2
+    armor_class: int = 1
     health: int = 50
     hit_points: int = health
 
     max_inventory: int = 20
+
+    kills: int = 0
 
     equipment: Dict[BodyPart, Equipment] = dataclasses.field(default_factory=dict)
 
@@ -165,6 +167,7 @@ class Actor(Object):
         self.equipment[part] = obj
 
         self.notice("you equipped a {} to your {}".format(obj, part.name))
+        return part
 
 
 @dataclasses.dataclass
@@ -186,7 +189,9 @@ class NPC(Actor):
         self.target = actor
 
     def tick(self, world):
-        if world.age % self.sleep_for:
+        super(NPC, self).tick(world)
+
+        if self.age % self.sleep_for:
             return
 
         self.sleep_for = random.randint(5, 10)

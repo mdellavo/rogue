@@ -3,10 +3,10 @@ import asyncio
 import logging
 import collections
 
-from .view import TileSet
 from . import procgen, server
+from .view import TileSet
+from .world import TIMEOUT, DAY
 
-TIMEOUT = .1
 MAP_SIZE = 100
 TILESIZE = 64
 
@@ -39,8 +39,6 @@ TILEMAP = collections.OrderedDict((
     ("shield1", (100, 0)),
 ))
 
-
-DAY = 86400 / 6. * TIMEOUT
 
 logging.basicConfig(level=logging.DEBUG, format='[%(asctime)s] %(levelname)s/%(name)s - %(message)s')
 log = logging.getLogger(__name__)

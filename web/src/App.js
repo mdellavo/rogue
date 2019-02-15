@@ -20,6 +20,7 @@ class DataStore {
         this.manifest = null;
         this.socket = null;
         this.responseCallbacks = {};
+        this.eventCallbacks = {};
         this.requestId = 0;
         this.pingIntervalId = null;
         this.frames = 0;
@@ -80,21 +81,16 @@ class DataStore {
 
         this.socket.addEventListener('message', (event) => {
             const msg = decode(event.data);
-
             this.bytes += event.data.byteLength;
 
             if (msg._id && this.responseCallbacks[msg._id]) {
                 this.responseCallbacks[msg._id](msg);
                 delete this.responseCallbacks[msg._id];
-            } else if (msg.frame) {
-                this.frames++;
-                view.onFrame(msg.frame);
-            } else if (msg.notice) {
-                view.onNotice(msg);
-            } else if (msg.stats) {
-                view.onStats(msg.stats);
+            } else if (msg._event && this.eventCallbacks[msg._event]) {
+                if (msg._event === "frame")
+                    this.frames++;
+                this.eventCallbacks[msg._event](msg);
             }
-
         });
 
         this.socket.addEventListener('close', (event) => {
@@ -119,22 +115,31 @@ class DataStore {
         }
         this.socket.send(encode(obj));
     }
+
+    addEventListener(event, callback) {
+        this.eventCallbacks[event] = callback;
+    }
+
+    cancelEventListener(event) {
+        delete this.eventCallbacks[event];
+    }
 }
 
+DataStore.instance = new DataStore();
 
 class GfxUtil {
 
-    static drawTile(datastore, ctx, x, y, tile_index) {
-        const [tile_x, tile_y, tile_w, tile_h] = datastore.getTile(tile_index);
+    static drawTile(ctx, x, y, tile_index) {
+        const [tile_x, tile_y, tile_w, tile_h] = DataStore.instance.getTile(tile_index);
         ctx.drawImage(
-            datastore.tiles,
+            DataStore.instance.tiles,
             tile_x, tile_y, tile_w, tile_h,
             x, y, tile_w, tile_h
         )
     }
 
-    static getTile(datastore, tile_index) {
-        const [tile_x, tile_y, tile_w, tile_h] = datastore.getTile(tile_index);
+    static getTile(tile_index) {
+        const [tile_x, tile_y, tile_w, tile_h] = DataStore.instance.getTile(tile_index);
 
         const canvas = document.createElement('canvas');
         canvas.width = tile_w;
@@ -142,15 +147,15 @@ class GfxUtil {
 
         const ctx = canvas.getContext("2d");
         ctx.drawImage(
-            datastore.tiles,
+            DataStore.instance.tiles,
             tile_x, tile_y, tile_w, tile_h,
             0, 0, tile_w, tile_h
         );
         return canvas.toDataURL("image/png");
     }
 
-    static fillTile(datastore, ctx, x, y, color) {
-        const tilesize = datastore.tileset.tilesize;
+    static fillTile(ctx, x, y, color) {
+        const tilesize = DataStore.instance.tileset.tilesize;
         ctx.fillStyle = color;
         ctx.fillRect(x, y, tilesize, tilesize);
     }
@@ -183,14 +188,20 @@ class HelpDialog extends Dialog {
     render() {
         return (
             <Dialog title="Help" callback={this.props.callback}>
-                <code><pre>
+                <h4>Controls</h4>
+                <pre>
                     <strong>w/a/s/d</strong> - to move N/W/S/E<br/>
                     <strong>.</strong>       - to enter doors<br/>
                     <strong>p</strong>       - to pickup items<br/>
                     <strong>f</strong>       - to attack surrounding<br/>
                     <strong>i</strong>       - to show/hide inventory<br/>
                     <strong>h</strong>       - to show/hide help<br/>
-                </pre></code>
+                </pre>
+                <p/>
+                <h4>Equipment</h4>
+                <p>
+                    Items can be equipped in inventory by clicking on them.
+                </p>
             </Dialog>
         );
     }
@@ -204,15 +215,19 @@ class InventoryItem extends React.Component {
     }
 
     onClick() {
-        this.props.handler.onItemClick(this.props.id);
+        this.props.handler.onItemClick(this.props.item.id);
+    }
+
+    getClassName() {
+        return this.props.item.equipped ? "inventory-item equipped" : "inventory-item"
     }
 
     render() {
         return (
-            <div className="inventory-item" onClick={this.onClick}>
-                <img alt={this.props.type} src={this.props.dataURL}/>
+            <div className={this.getClassName()} onClick={this.onClick}>
+                <img alt={this.props.item.type} src={this.props.dataURL}/>
                 <p className="inventory-item-name">
-                    {this.props.type}
+                    {this.props.item.type}
                 </p>
             </div>
         );
@@ -229,20 +244,31 @@ class InventoryDialog extends Dialog {
     }
 
     componentDidMount() {
-        this.props.datastore.send({action: "inventory"}, (msg) => {
+        DataStore.instance.send({action: "inventory"}, (msg) => {
             this.setState({"inventory": msg.inventory});
         });
     }
 
+    componentWillUnmount() {
+
+    }
+
     onItemClick(id) {
-        this.props.datastore.send({action: "equip", item: id}, (msg) => {
-            console.log("equip resp", msg);
+        DataStore.instance.send({action: "equip", item: id}, (msg) => {
+            for(let i=0; i<this.state.inventory.length; i++) {
+                const item = this.state.inventory[i];
+                if (item.id === id) {
+                    item.equipped = msg.equipped;
+                }
+            }
+
+            this.setState({"inventory": this.state.inventory});
         });
     }
 
     render() {
         const items = this.state.inventory.map((item) => {
-            return <InventoryItem id={item.id} handler={this} key={this.props.id} type={item.type} dataURL={GfxUtil.getTile(this.props.datastore, item.idx)}/>
+            return <InventoryItem key={item.id} item={item} handler={this} dataURL={GfxUtil.getTile(item.idx)}/>
         });
 
         return (
@@ -294,7 +320,10 @@ class CanvasView extends React.Component {
     }
 
     componentDidMount() {
-        this.props.datastore.connect(this);
+        DataStore.instance.addEventListener("frame", (msg) => { this.onFrame(msg.frame); });
+        DataStore.instance.addEventListener("notice", (msg) => { this.onNotice(msg); });
+        DataStore.instance.addEventListener("stats", (msg) => { this.onStats(msg.stats); });
+        DataStore.instance.connect(this);
         this.canvas.focus();
     }
 
@@ -312,7 +341,7 @@ class CanvasView extends React.Component {
 
      onFrame(frame) {
         const ctx = this.canvas.getContext("2d");
-        const tilesize = this.props.datastore.tileset.tilesize;
+        const tilesize = DataStore.instance.tileset.tilesize;
 
         for (let y=0; y<frame.length; y++) {
             const row = frame[y];
@@ -322,16 +351,16 @@ class CanvasView extends React.Component {
 
                 if (explored) {
                     if (tile_index >= 0) {
-                        GfxUtil.drawTile(this.props.datastore, ctx, target_x, target_y, tile_index);
+                        GfxUtil.drawTile(ctx, target_x, target_y, tile_index);
                     }
 
                     if (!in_fov) {
-                        GfxUtil.fillTile(this.props.datastore, ctx, target_x, target_y, "rgba(0, 0, 0, .5)");
+                        GfxUtil.fillTile(ctx, target_x, target_y, "rgba(0, 0, 0, .5)");
                     } else if (obj_index >= 0) {
-                        GfxUtil.drawTile(this.props.datastore, ctx, target_x, target_y, obj_index);
+                        GfxUtil.drawTile(ctx, target_x, target_y, obj_index);
                     }
                 } else {
-                    GfxUtil.fillTile(this.props.datastore, ctx, target_x, target_y, "black");
+                    GfxUtil.fillTile(ctx, target_x, target_y, "black");
                 }
 
             }
@@ -353,19 +382,19 @@ class CanvasView extends React.Component {
 
     onKeyPress(event) {
         if (event.key === "w")
-            this.props.datastore.send({action: "move", direction: [0, -1]});
+            DataStore.instance.send({action: "move", direction: [0, -1]});
         else if (event.key === "a")
-            this.props.datastore.send({action: "move", direction: [-1, 0]});
+            DataStore.instance.send({action: "move", direction: [-1, 0]});
         else if (event.key === "s")
-            this.props.datastore.send({action: "move", direction: [0, 1]});
+            DataStore.instance.send({action: "move", direction: [0, 1]});
         else if (event.key === "d")
-            this.props.datastore.send({action: "move", direction: [1, 0]});
+            DataStore.instance.send({action: "move", direction: [1, 0]});
         else if (event.key === "p")
-            this.props.datastore.send({action: "pickup"});
+            DataStore.instance.send({action: "pickup"});
         else if (event.key === ".")
-            this.props.datastore.send({action: "enter"});
+            DataStore.instance.send({action: "enter"});
         else if (event.key === "f")
-            this.props.datastore.send({action: "melee"});
+            DataStore.instance.send({action: "melee"});
         else if (event.key === "i")
             if (this.state.showInventory)
                 this.closeInventoryDialog();
@@ -432,17 +461,17 @@ class CanvasView extends React.Component {
 
         let helpDialog;
         if (this.state.showHelp) {
-            helpDialog = <HelpDialog callback={this.closeHelpDialog} datastore={this.props.datastore}/>;
+            helpDialog = <HelpDialog callback={this.closeHelpDialog}/>;
         }
 
         let playerDialog;
         if (this.state.showPlayer) {
-            playerDialog = <PlayerDialog callback={this.closePlayerDialog} datastore={this.props.datastore}/>;
+            playerDialog = <PlayerDialog callback={this.closePlayerDialog}/>;
         }
 
         let inventoryDialog;
         if (this.state.showInventory) {
-            inventoryDialog = <InventoryDialog callback={this.closeInventoryDialog} datastore={this.props.datastore}/>;
+            inventoryDialog = <InventoryDialog callback={this.closeInventoryDialog} />;
         }
 
         const notices = this.state.notices.map((notice, i) => {
@@ -514,8 +543,7 @@ class App extends Component {
     }
 
     componentDidMount() {
-        this.datastore = new DataStore();
-        this.datastore.loadManifest(API_URL,  this);
+        DataStore.instance.loadManifest(API_URL,  this);
     }
 
     onLoaded() {
@@ -530,7 +558,7 @@ class App extends Component {
 
         let contents;
         if (this.state.loaded)
-            contents = <CanvasView datastore={this.datastore}/>;
+            contents = <CanvasView/>;
         else if (this.state.error)
             contents = <ErrorView/>;
         else

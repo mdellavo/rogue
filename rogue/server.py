@@ -8,6 +8,7 @@ import aiohttp_cors
 
 import msgpack
 
+from .world import DAY
 from .objects import Player, Actor, ActionError
 
 log = logging.getLogger(__name__)
@@ -63,12 +64,17 @@ def handle_enter(world, player, _):
 
 @dispatcher.register("inventory")
 def handle_inventory(_, player, __):
+    equipment_map = {obj.id: part for part, obj in player.equipment.items()}
+
     def _inv(obj):
-        return {
+        i = {
             "id": obj.id,
             "idx": player.tilemap.get_index(obj.key),
-            "type": type(obj).__name__
+            "type": type(obj).__name__,
         }
+        if obj.id in equipment_map:
+            i["equipped"] = equipment_map[obj.id].name
+        return i
     rv = {"inventory": [_inv(obj) for obj in player.inventory]}
     return rv
 
@@ -78,7 +84,8 @@ def handle_equip(world, player, action):
     obj = next(o for o in player.inventory if o.id == action["item"])
     if obj:
         part = action.get("part")
-        player.equip(obj, part=part)
+        part = player.equip(obj, part=part)
+        return {"id": obj.id, "equipped": part.name}
 
 
 @dispatcher.register("melee")
@@ -98,29 +105,31 @@ class WebSocketPlayer(Player):
     def send_message(self,  **msg):
         self.response_queue.put_nowait(msg)
 
+    def send_event(self, event_name, **msg):
+        msg["_event"] = event_name
+        self.send_message(**msg)
+
     def hurt(self, actor, damage):
         self.notice("you were hurt by {} for {} damage".format(actor, damage))
         self.send_stats()
 
+    def notice(self, msg, **kwargs):
+        self.send_event("notice", notice=msg, **kwargs)
+
     def send_stats(self):
-        self.send_message(stats={
+        self.send_event("stats", stats={
             "hp": self.hit_points,
             "tot": self.health,
         })
 
     def die(self):
         self.send_stats()
-        self.notice("you are dead.")
+        age = int(round(self.age/DAY))
+        self.notice("you are dead. You were {} days old and you killed {} things".format(age, self.kills))
         self.response_queue.put_nowait(None)
 
-    def notice(self, msg, **kwargs):
-        self.send_message(notice=msg, **kwargs)
-
     def tick(self, world):
-
-        if self.response_queue.full():
-            while not self.response_queue.empty():
-                self.response_queue.get_nowait()
+        super(WebSocketPlayer, self).tick(world)
 
         try:
             msg = self.input_queue.get_nowait()
@@ -185,7 +194,7 @@ class WebSocketPlayer(Player):
                 rv_row.append([explored, in_fov, tile_index, obj_index])  # FIXME only supports one obj
             rv.append(rv_row)
         rv[int(height/2)][int(width/2)][-1] = self.tilemap.get_index(self.key)
-        return self.send_message(frame=rv)
+        return self.send_event("frame", frame=rv)
 
 
 @routes.get("/")

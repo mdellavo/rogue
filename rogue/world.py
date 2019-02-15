@@ -7,6 +7,10 @@ from .objects import Actor, Player
 from . import procgen
 
 
+TIMEOUT = .1
+DAY = 86400 / 6. * TIMEOUT
+
+
 @dataclasses.dataclass
 class Tile(object):
     def __init__(self, key, blocked=False, blocked_sight=False):
@@ -284,4 +288,5 @@ class World(object):
         if target.hit_points <= 0:
             target.die()
             self.remove_actor(target)
-            actor.notice("you kill a {}".format(target))
+            actor.kills += 1
+            actor.notice("you killed a {}".format(target))
