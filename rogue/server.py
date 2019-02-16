@@ -126,7 +126,7 @@ class WebSocketPlayer(Player):
     def die(self):
         self.send_stats()
         age = int(round(self.age/DAY))
-        self.notice("you are dead. You were {} days old and you killed {} things".format(age, self.kills))
+        self.notice("you are dead. You lasted {} days and you killed {} things".format(age, self.kills))
         self.response_queue.put_nowait(None)
 
     def tick(self, world):
