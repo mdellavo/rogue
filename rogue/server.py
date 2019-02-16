@@ -1,3 +1,4 @@
+import time
 import logging
 import collections
 import asyncio
@@ -20,7 +21,7 @@ QUEUE_SIZE = 100
 FRAME_SIZE = 11
 HEARTBEAT = 5
 RECV_TIMEOUT = 10
-UPDATE_TIMEOUT = .1
+UPDATE_TIMEOUT = .06666
 
 
 class ActionDispatcher(object):
@@ -166,7 +167,7 @@ class WebSocketPlayer(Player):
             rv.append(row)
         return rv
 
-    def send_frame(self, world):
+    def get_frame(self, world):
         width = height = FRAME_SIZE
 
         fov = world.explore(self)
@@ -194,7 +195,7 @@ class WebSocketPlayer(Player):
                 rv_row.append([explored, in_fov, tile_index, obj_index])  # FIXME only supports one obj
             rv.append(rv_row)
         rv[int(height/2)][int(width/2)][-1] = self.tilemap.get_index(self.key)
-        return self.send_event("frame", frame=rv)
+        return rv
 
 
 @routes.get("/")
@@ -212,23 +213,30 @@ async def get_root(request):
 
 @routes.get("/session")
 async def session(request):
-    ws = web.WebSocketResponse(receive_timeout=RECV_TIMEOUT, heartbeat=HEARTBEAT)
+    ws = web.WebSocketResponse(receive_timeout=RECV_TIMEOUT, heartbeat=HEARTBEAT, compress=False)
     await ws.prepare(request)
     log.debug('websocket connection started')
 
     player = WebSocketPlayer("player", ws, request.app["tileset"])
     request.app["world"].place_actor(player)
 
-    player.send_frame(request.app["world"])
     player.send_stats()
 
     async def _updater():
         while not ws.closed:
-            await asyncio.sleep(UPDATE_TIMEOUT)
             if ws.closed:
                 break
-            player.send_frame(request.app["world"])
-        log.info("updater stopped")
+            t1 = time.time()
+            frame = player.get_frame(request.app["world"])
+            await ws.send_bytes(msgpack.packb({"_event": "frame", "frame": frame}))
+            t2 = time.time()
+            delta = t2 - t1
+            timeout = max(UPDATE_TIMEOUT - delta, 0)
+            if timeout:
+                print(timeout)
+            await asyncio.sleep(timeout)
+
+    log.info("updater stopped")
     updater = asyncio.create_task(_updater())
 
     async def _writer():
