@@ -232,8 +232,6 @@ async def session(request):
             t2 = time.time()
             delta = t2 - t1
             timeout = max(UPDATE_TIMEOUT - delta, 0)
-            if timeout:
-                print(timeout)
             await asyncio.sleep(timeout)
 
     log.info("updater stopped")
