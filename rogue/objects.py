@@ -14,18 +14,25 @@ class ActionError(Exception):
 
 
 class BodyPart(enum.Enum):
-    Hand = 1
-    Feet = 2
-    Head = 3
-    Torso = 4
-    Neck = 5
+    HAND = 1
+    FEET = 2
+    HEAD = 3
+    TORSO = 4
+    NECK = 5  # protect it
 
-    LeftHand = 6
-    RightHand = 7
+    LEFT_HAND = 6
+    RIGHT_HAND = 7
+
+
+class ObjectTypes(enum.Enum):
+    UNSPECIFIED = 0
+    EQUIPMENT = 1
+    ITEM = 2
+    COIN = 3
 
 
 @dataclasses.dataclass
-class Object(object):
+class Object(object, metaclass=abc.ABCMeta):
     key: str
     x: int = None
     y: int = None
@@ -42,23 +49,41 @@ class Object(object):
     def __str__(self):
         return type(self).__name__.lower()
 
+    def get_object_type(self):
+        return ObjectTypes.UNSPECIFIED
+
 
 class Coin(Object):
-    pass
+    def get_object_type(self):
+        return ObjectTypes.COIN
 
 
-class Item(Object, metaclass=abc.ABCMeta):
+class Item(Object):
+    def get_object_type(self):
+        return ObjectTypes.ITEM
+
     @abc.abstractmethod
-    def apply(self):
+    def use(self, actor):
         pass
 
 
-class Equipment(Object, metaclass=abc.ABCMeta):
+class HealthPotion(Item):
+    value: int = 10
+
+    def use(self, actor):
+        actor.hit_points = min(actor.hit_points + self.value, actor.health)
+        actor.healed(actor, self.value)
+
+
+class Equipment(Object):
     EQUIPS = None
+
+    def get_object_type(self):
+        return ObjectTypes.EQUIPMENT
 
 
 class Weapon(Equipment):
-    EQUIPS = BodyPart.Hand
+    EQUIPS = BodyPart.HAND
 
 
 class Armor(Equipment):
@@ -70,7 +95,7 @@ class Sword(Weapon):
 
 
 class Shield(Armor):
-    EQUIPS = BodyPart.Hand
+    EQUIPS = BodyPart.HAND
     damage: int = 2
 
 
@@ -103,19 +128,19 @@ class Actor(Object):
 
     @property
     def has_weapon(self):
-        return BodyPart.RightHand in self.equipment
+        return BodyPart.RIGHT_HAND in self.equipment
 
     @property
     def has_shield(self):
-        return BodyPart.LeftHand in self.equipment
+        return BodyPart.LEFT_HAND in self.equipment
 
     @property
     def weapon(self):
-        return self.equipment.get(BodyPart.RightHand)
+        return self.equipment.get(BodyPart.RIGHT_HAND)
 
     @property
     def shield(self):
-        return self.equipment.get(BodyPart.LeftHand)
+        return self.equipment.get(BodyPart.LEFT_HAND)
 
     @property
     def is_alive(self) -> bool:
@@ -129,6 +154,9 @@ class Actor(Object):
             return ActorState.UNCONSCIOUS
         else:
             return ActorState.DEAD
+
+    def healed(self, actor, damage):
+        pass
 
     def hurt(self, actor, damage):
         pass
@@ -153,14 +181,20 @@ class Actor(Object):
         obj.x = self.x
         obj.y = self.y
 
+    def use(self, obj):
+        if not isinstance(obj, Item):
+            raise ActionError("cannot use this")
+
+        obj.use(self)
+
     def equip(self, obj, part=None):
         if not isinstance(obj, Equipment) or (part and obj.EQUIPS != part):
             raise ActionError("cannot equip this")
 
         if isinstance(obj, Weapon):
-            part = BodyPart.RightHand
+            part = BodyPart.RIGHT_HAND
         elif isinstance(obj, Shield):
-            part = BodyPart.LeftHand
+            part = BodyPart.LEFT_HAND
         elif not part:
             part = obj.EQUIPS
 
@@ -175,6 +209,9 @@ class Player(Actor):
     """
     Base class for interactive actors
     """
+
+    def find_object_by_id(self, id_):
+        return next((o for o in self.inventory if o.id == id_), None)
 
 
 @dataclasses.dataclass

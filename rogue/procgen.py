@@ -3,7 +3,7 @@ import noise
 import logging
 
 from .world import Tile, World, Door, Area
-from .objects import NPC, Coin, Shield, Sword
+from .objects import NPC, Coin, Shield, Sword, HealthPotion
 
 NUM_NPCS = 100
 NUM_DOORS = 100
@@ -44,6 +44,7 @@ def add_items(area, num_items=NUM_ITEMS):
     for _ in range(num_items):
         area.place(Sword("sword1"))
         area.place(Shield("shield1"))
+        area.place(HealthPotion("potion1"))
 
 
 def populate_area(world, area):

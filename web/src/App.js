@@ -6,6 +6,24 @@ import msgpack from 'msgpack-lite'
 const API_URL = process.env.REACT_APP_API;
 const PING_DELAY = 10;
 
+const Actions = {
+    INVENTORY: "inventory",
+    EQUIP: "equip",
+    USE: "use",
+    MOVE: "move",
+    ENTER: "enter",
+    MELEE: "melee",
+    PICKUP: "pickup",
+};
+
+const ObjectTypes = {
+    UNSPECIFIED: "unspecified",
+    EQUIPMENT: "equipment",
+    ITEM: "item",
+    COIN: "coin",
+};
+
+
 function decode(data) {
     return msgpack.decode(new Uint8Array(data));
 }
@@ -197,11 +215,6 @@ class HelpDialog extends Dialog {
                     <strong>i</strong>       - to show/hide inventory<br/>
                     <strong>h</strong>       - to show/hide help<br/>
                 </pre>
-                <p/>
-                <h4>Equipment</h4>
-                <p>
-                    Items can be equipped in inventory by clicking on them.
-                </p>
             </Dialog>
         );
     }
@@ -215,7 +228,7 @@ class InventoryItem extends React.Component {
     }
 
     onClick() {
-        this.props.handler.onItemClick(this.props.item.id);
+        this.props.handler.onItemClick(this.props.item);
     }
 
     getClassName() {
@@ -243,8 +256,8 @@ class InventoryDialog extends Dialog {
         this.onItemClick = this.onItemClick.bind(this);
     }
 
-    componentDidMount() {
-        DataStore.instance.send({action: "inventory"}, (msg) => {
+    componentWillMount() {
+        DataStore.instance.send({action: Actions.INVENTORY}, (msg) => {
             this.setState({"inventory": msg.inventory});
         });
     }
@@ -253,17 +266,25 @@ class InventoryDialog extends Dialog {
 
     }
 
-    onItemClick(id) {
-        DataStore.instance.send({action: "equip", item: id}, (msg) => {
-            for(let i=0; i<this.state.inventory.length; i++) {
-                const item = this.state.inventory[i];
-                if (item.id === id) {
-                    item.equipped = msg.equipped;
+    onItemClick(item) {
+        if (item.type === ObjectTypes.EQUIPMENT) {
+            DataStore.instance.send({action: Actions.EQUIP, item: item.id}, (msg) => {
+                for (let i = 0; i < this.state.inventory.length; i++) {
+                    if (this.state.inventory[i].id === msg.id) {
+                        this.state.inventory[i].equipped = msg.equipped;
+                        this.setState({"inventory": this.state.inventory});
+                        break;
+                    }
                 }
-            }
+            });
+        } else if (item.type === ObjectTypes.ITEM) {
+            DataStore.instance.send({action: Actions.USE, item: item.id}, (msg) => {
+                this.setState({"inventory": this.state.inventory.filter((i) => {
+                    return i.id !== msg.id
+                })});
+            });
+        }
 
-            this.setState({"inventory": this.state.inventory});
-        });
     }
 
     render() {
@@ -273,8 +294,16 @@ class InventoryDialog extends Dialog {
 
         return (
             <Dialog title="Inventory" callback={this.props.callback}>
-                {items}
-                <div className="clear"></div>
+                <h4>Equipment</h4>
+                <p>
+                    Equip weapons and armor by clicking on them.<br/>
+                    Use items by clicking on them.<br/>
+                </p>
+                <div>
+                    {items}
+                </div>
+                <div className="clear">
+                </div>
             </Dialog>
         );
     }
@@ -382,19 +411,19 @@ class CanvasView extends React.Component {
 
     onKeyPress(event) {
         if (event.key === "w")
-            DataStore.instance.send({action: "move", direction: [0, -1]});
+            DataStore.instance.send({action: Actions.MOVE, direction: [0, -1]});
         else if (event.key === "a")
-            DataStore.instance.send({action: "move", direction: [-1, 0]});
+            DataStore.instance.send({action: Actions.MOVE, direction: [-1, 0]});
         else if (event.key === "s")
-            DataStore.instance.send({action: "move", direction: [0, 1]});
+            DataStore.instance.send({action: Actions.MOVE, direction: [0, 1]});
         else if (event.key === "d")
-            DataStore.instance.send({action: "move", direction: [1, 0]});
+            DataStore.instance.send({action: Actions.MOVE, direction: [1, 0]});
         else if (event.key === "p")
-            DataStore.instance.send({action: "pickup"});
+            DataStore.instance.send({action: Actions.PICKUP});
         else if (event.key === ".")
-            DataStore.instance.send({action: "enter"});
+            DataStore.instance.send({action: Actions.ENTER});
         else if (event.key === "f")
-            DataStore.instance.send({action: "melee"});
+            DataStore.instance.send({action: Actions.MELEE});
         else if (event.key === "i")
             if (this.state.showInventory)
                 this.closeInventoryDialog();

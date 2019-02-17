@@ -4,7 +4,7 @@ import collections
 import asyncio
 
 import aiohttp
-from aiohttp import web
+from aiohttp import web, client_exceptions
 import aiohttp_cors
 
 import msgpack
@@ -22,6 +22,10 @@ FRAME_SIZE = 11
 HEARTBEAT = 5
 RECV_TIMEOUT = 10
 UPDATE_TIMEOUT = .06666
+
+
+def _project_enum(e):
+    return e.name.lower().replace("_", " ")
 
 
 class ActionDispatcher(object):
@@ -71,10 +75,10 @@ def handle_inventory(_, player, __):
         i = {
             "id": obj.id,
             "idx": player.tilemap.get_index(obj.key),
-            "type": type(obj).__name__,
+            "type": _project_enum(obj.get_object_type()),
         }
         if obj.id in equipment_map:
-            i["equipped"] = equipment_map[obj.id].name
+            i["equipped"] = _project_enum(equipment_map[obj.id])
         return i
     rv = {"inventory": [_inv(obj) for obj in player.inventory]}
     return rv
@@ -82,11 +86,19 @@ def handle_inventory(_, player, __):
 
 @dispatcher.register("equip")
 def handle_equip(world, player, action):
-    obj = next(o for o in player.inventory if o.id == action["item"])
+    obj = player.find_object_by_id(action["item"])
     if obj:
         part = action.get("part")
         part = player.equip(obj, part=part)
-        return {"id": obj.id, "equipped": part.name}
+        return {"id": obj.id, "equipped": _project_enum(part)}
+
+
+@dispatcher.register("use")
+def handle_use(world, player, action):
+    obj = player.find_object_by_id(action["item"])
+    if obj:
+        world.use(player, obj)
+        return {"id": obj.id, "used": True}
 
 
 @dispatcher.register("melee")
@@ -109,6 +121,10 @@ class WebSocketPlayer(Player):
     def send_event(self, event_name, **msg):
         msg["_event"] = event_name
         self.send_message(**msg)
+
+    def healed(self, actor, damage):
+        self.notice("you feal better, +{} health".format(damage))
+        self.send_stats()
 
     def hurt(self, actor, damage):
         self.notice("you were hurt by {} for {} damage".format(actor, damage))
@@ -224,31 +240,38 @@ async def session(request):
 
     async def _updater():
         while not ws.closed:
-            if ws.closed:
-                break
             t1 = time.time()
             frame = player.get_frame(request.app["world"])
-            await ws.send_bytes(msgpack.packb({"_event": "frame", "frame": frame}))
+            try:
+                await ws.send_bytes(msgpack.packb({"_event": "frame", "frame": frame}))
+            except ConnectionResetError as e:
+                log.exception("error sending frame: %s", e)
+                break
             t2 = time.time()
             delta = t2 - t1
             timeout = max(UPDATE_TIMEOUT - delta, 0)
             await asyncio.sleep(timeout)
+        if not ws.closed:
+            await ws.close()
 
-    log.info("updater stopped")
-    updater = asyncio.create_task(_updater())
+        log.info("updater stopped")
 
     async def _writer():
         while not ws.closed:
             response = await player.response_queue.get()
             if response is None:
                 break
-            await ws.send_bytes(msgpack.packb(response))
-        log.info("writer stopped")
-
+            try:
+                await ws.send_bytes(msgpack.packb(response))
+            except ConnectionResetError as e:
+                log.exception("error sending message: %s", e)
+                break
         if not ws.closed:
             await ws.close()
+        log.info("writer stopped")
 
     writer = asyncio.create_task(_writer())
+    updater = asyncio.create_task(_updater())
 
     async for msg in ws:
         if msg.type == aiohttp.WSMsgType.BINARY:
@@ -267,7 +290,7 @@ async def session(request):
     for fut in (writer, updater):
         for i in range(2):
             try:
-                await asyncio.wait_for(fut, timeout=RECV_TIMEOUT)
+                await asyncio.wait_for(fut, timeout=.1)
             except asyncio.TimeoutError:
                 fut.cancel()
             except asyncio.CancelledError:

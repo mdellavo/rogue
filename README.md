@@ -23,6 +23,27 @@ python -m rogue
 yarn start
 ```
 
+## Todo / Bugs
+
+- Bug: input is janky, maybe jut dont queue, slot based input
+
+- api to fetch tiles
+- map api
+- dungeon proc gen
+- player stats
+- experience
+- health bar
+- threejs ui
+- pathfinding
+- mouse/touch ui
+- ranged weapons
+- towns / prefabs
+- animations/tweens betwen movements
+- noises / chat?
+- music/sfx
+- leaderboard
+
+
 ## Author
 
 Marc DellaVolpe  (marc.dellavolpe@gmail.com)

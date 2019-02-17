@@ -3,7 +3,7 @@ import random
 import itertools
 import dataclasses
 
-from .objects import Actor, Player
+from .objects import Actor, Player, Item
 from . import procgen
 
 
@@ -161,7 +161,7 @@ class Area(object):
 
 
 class World(object):
-    def __init__(self, area):
+    def __init__(self, area: Area):
         self.areas = [area]
         self.actor_area = {}
         self.age = 0
@@ -178,13 +178,13 @@ class World(object):
         self.actor_area[id(actor)] = area
         return area
 
-    def place_actor(self, actor, area=None):
+    def place_actor(self, actor: Actor, area: Area=None):
         self.add_actor(actor, area=area).place(actor)
 
-    def remove_actor(self, actor):
+    def remove_actor(self, actor: Actor):
         return self.get_area(actor).remove_object(actor)
 
-    def get_area(self, actor):
+    def get_area(self, actor: Actor):
         return self.actor_area.get(id(actor))
 
     def tick(self):
@@ -193,19 +193,19 @@ class World(object):
             area.tick(self)
         self.age += 1
 
-    def move(self, actor, dx, dy):
+    def move(self, actor: Actor, dx: int, dy: int):
         area = self.get_area(actor)
         return area.move(actor, dx, dy)
 
-    def fov(self, actor):
+    def fov(self, actor: Actor):
         area = self.get_area(actor)
         return area.fov(actor)
 
-    def explore(self, actor):
+    def explore(self, actor: Actor):
         area = self.get_area(actor)
         return area.explore(actor)
 
-    def enter(self, actor):
+    def enter(self, actor: Actor):
         area = self.get_area(actor)
         pt = area.get_tile(actor.x, actor.y)
         if isinstance(pt, Door):
@@ -220,7 +220,7 @@ class World(object):
         else:
             actor.notice("there is no door here")
 
-    def inspect(self, actor):
+    def inspect(self, actor: Actor):
         rv = []
         area = self.get_area(actor)
         for x, y in area.immediate_area(actor):
@@ -229,7 +229,7 @@ class World(object):
             rv.append(((x, y), tile, objs))
         return rv
 
-    def pickup(self, actor):
+    def pickup(self, actor: Actor):
         area = self.get_area(actor)
         objs = [obj for obj in area.get_objects(actor.x, actor.y) if not (obj is actor or obj.anchored)]
 
@@ -242,14 +242,14 @@ class World(object):
             actor.pickup(obj)
             actor.notice("you picked up {}".format(obj))
 
-    def surrounding_actors(self, actor):
+    def surrounding_actors(self, actor: Actor):
         area = self.get_area(actor)
         rv = []
         for x, y in area.immediate_area(actor):
             rv.extend([obj for obj in area.get_objects(x, y) if obj is not actor and isinstance(obj, Actor)])
         return rv
 
-    def melee(self, actor, target=None):
+    def melee(self, actor: Actor, target: Actor=None):
         if not target:
             targets = self.surrounding_actors(actor)
             if targets:
@@ -290,3 +290,8 @@ class World(object):
             self.remove_actor(target)
             actor.kills += 1
             actor.notice("you killed a {}".format(target))
+
+    def use(self, actor: Actor, obj: Item):
+        actor.use(obj)
+        actor.inventory.remove(obj)
+
