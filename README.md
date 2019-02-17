@@ -25,9 +25,8 @@ yarn start
 
 ## Todo / Bugs
 
-- Bug: input is janky, maybe jut dont queue, slot based input
-
 - api to fetch tiles
+
 - map api
 - dungeon proc gen
 - player stats

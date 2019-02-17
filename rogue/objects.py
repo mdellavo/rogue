@@ -6,6 +6,8 @@ from typing import List, Dict
 import logging
 import bson
 
+from .util import _project_enum
+
 log = logging.getLogger(__name__)
 
 
@@ -34,6 +36,8 @@ class ObjectTypes(enum.Enum):
 @dataclasses.dataclass
 class Object(object, metaclass=abc.ABCMeta):
     key: str
+    name: str = None
+    object_type: ObjectTypes = ObjectTypes.UNSPECIFIED
     x: int = None
     y: int = None
     blocks: bool = False
@@ -50,17 +54,16 @@ class Object(object, metaclass=abc.ABCMeta):
         return type(self).__name__.lower()
 
     def get_object_type(self):
-        return ObjectTypes.UNSPECIFIED
+        return
 
 
 class Coin(Object):
-    def get_object_type(self):
-        return ObjectTypes.COIN
+    name = "coin"
+    object_type: ObjectTypes = ObjectTypes.COIN
 
 
 class Item(Object):
-    def get_object_type(self):
-        return ObjectTypes.ITEM
+    object_type: ObjectTypes = ObjectTypes.ITEM
 
     @abc.abstractmethod
     def use(self, actor):
@@ -68,6 +71,7 @@ class Item(Object):
 
 
 class HealthPotion(Item):
+    name = "health potion"
     value: int = 10
 
     def use(self, actor):
@@ -76,26 +80,27 @@ class HealthPotion(Item):
 
 
 class Equipment(Object):
-    EQUIPS = None
-
-    def get_object_type(self):
-        return ObjectTypes.EQUIPMENT
+    equips: BodyPart = None
+    object_type: ObjectTypes = ObjectTypes.EQUIPMENT
 
 
 class Weapon(Equipment):
-    EQUIPS = BodyPart.HAND
+    equips = BodyPart.HAND
 
 
 class Armor(Equipment):
-    pass
+    name = "armor"
+    equips = BodyPart.TORSO
 
 
 class Sword(Weapon):
+    name = "sword"
     damage: int = 6
 
 
 class Shield(Armor):
-    EQUIPS = BodyPart.HAND
+    name = "shield"
+    equips = BodyPart.HAND
     damage: int = 2
 
 
@@ -107,8 +112,7 @@ class ActorState(enum.Enum):
 
 @dataclasses.dataclass
 class Actor(Object):
-    name: str = None
-
+    born: float = 0
     anchored: bool = True
     blocks: bool = True
 
@@ -188,7 +192,7 @@ class Actor(Object):
         obj.use(self)
 
     def equip(self, obj, part=None):
-        if not isinstance(obj, Equipment) or (part and obj.EQUIPS != part):
+        if not isinstance(obj, Equipment) or (part and obj.equips != part):
             raise ActionError("cannot equip this")
 
         if isinstance(obj, Weapon):
@@ -196,11 +200,11 @@ class Actor(Object):
         elif isinstance(obj, Shield):
             part = BodyPart.LEFT_HAND
         elif not part:
-            part = obj.EQUIPS
+            part = obj.equips
 
         self.equipment[part] = obj
 
-        self.notice("you equipped a {} to your {}".format(obj, part.name))
+        self.notice("you equipped a {} to your {}".format(obj, _project_enum(part)))
         return part
 
 

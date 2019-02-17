@@ -178,7 +178,8 @@ class World(object):
         self.actor_area[id(actor)] = area
         return area
 
-    def place_actor(self, actor: Actor, area: Area=None):
+    def place_actor(self, actor: Actor, area: Area = None):
+        actor.born = self.age
         self.add_actor(actor, area=area).place(actor)
 
     def remove_actor(self, actor: Actor):

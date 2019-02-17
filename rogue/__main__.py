@@ -1,44 +1,13 @@
 import sys
 import asyncio
 import logging
-import collections
 
 from . import procgen, server
-from .view import TileSet
+from .tiles import TileSet, TILEMAP
 from .world import TIMEOUT, DAY
 
 MAP_SIZE = 100
 TILESIZE = 64
-
-TILEMAP = collections.OrderedDict((
-    ("player", (0, 3)),
-    ("orc1", (14, 13)),
-    ("grass1", (9, 23)),
-    ("grass2", (10, 23)),
-    ("grass3", (11, 23)),
-    ("water1", (15, 23)),
-    ("water2", (16, 23)),
-    ("water3", (17, 23)),
-    ("sand1", (12, 23)),
-    ("sand2", (13, 23)),
-    ("sand3", (14, 23)),
-    ("mountains1", (117, 23)),
-    ("mountains2", (118, 23)),
-    ("mountains3", (119, 23)),
-    ("crypt1", (7, 22)),
-    ("stairsdown1", (3, 24)),
-    ("stairsup1", (0, 24)),
-    ("grey3", (8, 24)),
-    ("wall3", (2, 22)),
-    ("coin1", (7, 7)),
-    ("coin2", (8, 7)),
-    ("coin3", (9, 7)),
-    ("coin4", (10, 7)),
-    ("coin5", (11, 7)),
-    ("sword1", (8, 10)),
-    ("shield1", (100, 0)),
-    ("potion1", (28, 8)),
-))
 
 
 logging.basicConfig(level=logging.DEBUG, format='[%(asctime)s] %(levelname)s/%(name)s - %(message)s')

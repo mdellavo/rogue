@@ -3,3 +3,4 @@ aiohttp_cors
 noise
 msgpack
 bson
+pillow

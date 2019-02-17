@@ -2,15 +2,16 @@ import time
 import logging
 import collections
 import asyncio
+import hashlib
 
 import aiohttp
-from aiohttp import web, client_exceptions
+from aiohttp import web
 import aiohttp_cors
-
 import msgpack
 
 from .world import DAY
 from .objects import Player, Actor, ActionError
+from .util import _project_enum
 
 log = logging.getLogger(__name__)
 
@@ -22,10 +23,6 @@ FRAME_SIZE = 11
 HEARTBEAT = 5
 RECV_TIMEOUT = 10
 UPDATE_TIMEOUT = .06666
-
-
-def _project_enum(e):
-    return e.name.lower().replace("_", " ")
 
 
 class ActionDispatcher(object):
@@ -75,7 +72,8 @@ def handle_inventory(_, player, __):
         i = {
             "id": obj.id,
             "idx": player.tilemap.get_index(obj.key),
-            "type": _project_enum(obj.get_object_type()),
+            "type": _project_enum(obj.object_type),
+            "name": obj.name,
         }
         if obj.id in equipment_map:
             i["equipped"] = _project_enum(equipment_map[obj.id])
@@ -112,7 +110,7 @@ class WebSocketPlayer(Player):
         super(Player, self).__init__(key, *args, **kwargs)
         self.socket = socket
         self.tilemap = tileset
-        self.input_queue = asyncio.Queue(QUEUE_SIZE)
+        self.next_action = None
         self.response_queue = asyncio.Queue(QUEUE_SIZE)
 
     def send_message(self,  **msg):
@@ -148,25 +146,22 @@ class WebSocketPlayer(Player):
     def tick(self, world):
         super(WebSocketPlayer, self).tick(world)
 
-        try:
-            msg = self.input_queue.get_nowait()
-        except asyncio.QueueEmpty:
-            msg = None
-
-        if not msg:
+        if not self.next_action:
             return
 
-        if "ping" in msg:
-            response = {"pong": msg["ping"]}
-        elif "action" in msg:
-            response = dispatcher.dispatch(world, self, msg)
+        if "ping" in self.next_action:
+            response = {"pong": self.next_action["ping"]}
+        elif "action" in self.next_action:
+            response = dispatcher.dispatch(world, self, self.next_action)
         else:
             response = None
 
         if response:
-            if "_id" in msg:
-                response["_id"] = msg["_id"]
+            if "_id" in self.next_action:
+                response["_id"] = self.next_action["_id"]
             self.send_message(**response)
+
+        self.next_action = None
 
     def visible_tiles(self, area, width, height):
         rv = []
@@ -220,9 +215,10 @@ async def get_root(request):
         "status": "ok",
         "tileset": {
             "tilesize": request.app["tileset"].tilesize,
-            "tilemap": request.app["tileset"].get_indexed_map(),
+            "num_tiles": request.app["tileset"].num_tiles,
         },
         "tiles_url": "/tiles.png",
+        "tile_url": "http://{}/tile/".format(request.host),
         "socket_url": "ws://{}/session".format(request.host),
     })
 
@@ -276,7 +272,7 @@ async def session(request):
     async for msg in ws:
         if msg.type == aiohttp.WSMsgType.BINARY:
             obj = msgpack.unpackb(msg.data, raw=False)
-            player.input_queue.put_nowait(obj)
+            player.next_action = obj  # XXX validate? submit actions
         elif msg.type == aiohttp.WSMsgType.ERROR:
             log.error('ws connection closed with exception %s', ws.exception())
 
@@ -301,6 +297,20 @@ async def session(request):
     log.debug('websocket connection closed')
 
     return ws
+
+
+@routes.get("/tile/{idx}")
+async def get_tile(request):
+    idx = int(request.match_info["idx"])
+    img = request.app["tileset"].get_tile_bitmap(idx)  # need memory cache
+    digest = hashlib.sha1(img).hexdigest()
+    matching = request.headers.get("If-None-Match", "").strip('"')
+    if matching == digest:
+        return web.Response(status=304)
+    return web.Response(body=img, content_type="image/png", headers={
+        "Cache-Control": "public,max-age=86400",
+        "ETag": '"' + digest + '"'
+    })
 
 
 async def run_server(world, tileset):

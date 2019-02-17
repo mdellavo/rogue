@@ -43,10 +43,20 @@ class DataStore {
         this.pingIntervalId = null;
         this.frames = 0;
         this.bytes = 0;
+        this.tile_cache = {};
     }
 
     get tileset() {
         return this.manifest ? this.manifest.tileset : null;
+    }
+
+    getTile(tile_index, cb) {
+        if (!this.tile_cache[tile_index]) {
+            this.tile_cache[tile_index] = new Image();
+            this.tile_cache[tile_index].onload = cb;
+            this.tile_cache[tile_index].src = this.manifest.tile_url + tile_index.toString();
+        }
+        return this.tile_cache[tile_index];
     }
 
     loadManifest(manifest_url, cb) {
@@ -65,16 +75,17 @@ class DataStore {
     }
 
     loadTiles(cb) {
-        this.tiles.addEventListener("load",  () => {
-            cb.onLoaded()
-        }, false);
-        this.tiles.src = this.manifest.tiles_url;
-    }
+        let num_complete = 0;
+        const loaded = () => {
+            num_complete++;
+            if (num_complete === this.tileset.num_tiles) {
+                cb.onLoaded();
+            }
+        };
 
-    getTile(tile_index) {
-        const tilesize =  this.manifest.tileset.tilesize;
-        const [tx, ty] = this.manifest.tileset.tilemap[tile_index].coords;
-        return [tx * tilesize, ty * tilesize, tilesize, tilesize];
+        for (let i=0; i<this.tileset.num_tiles; i++) {
+            this.getTile(i, loaded);
+        }
     }
 
     onPing() {
@@ -148,28 +159,8 @@ DataStore.instance = new DataStore();
 class GfxUtil {
 
     static drawTile(ctx, x, y, tile_index) {
-        const [tile_x, tile_y, tile_w, tile_h] = DataStore.instance.getTile(tile_index);
-        ctx.drawImage(
-            DataStore.instance.tiles,
-            tile_x, tile_y, tile_w, tile_h,
-            x, y, tile_w, tile_h
-        )
-    }
-
-    static getTile(tile_index) {
-        const [tile_x, tile_y, tile_w, tile_h] = DataStore.instance.getTile(tile_index);
-
-        const canvas = document.createElement('canvas');
-        canvas.width = tile_w;
-        canvas.height = tile_h;
-
-        const ctx = canvas.getContext("2d");
-        ctx.drawImage(
-            DataStore.instance.tiles,
-            tile_x, tile_y, tile_w, tile_h,
-            0, 0, tile_w, tile_h
-        );
-        return canvas.toDataURL("image/png");
+        const img = DataStore.instance.getTile(tile_index);
+        ctx.drawImage(img, x, y);
     }
 
     static fillTile(ctx, x, y, color) {
@@ -238,9 +229,9 @@ class InventoryItem extends React.Component {
     render() {
         return (
             <div className={this.getClassName()} onClick={this.onClick}>
-                <img alt={this.props.item.type} src={this.props.dataURL}/>
+                <img alt={this.props.item.type} src={DataStore.instance.getTile(this.props.item.idx).src}/>
                 <p className="inventory-item-name">
-                    {this.props.item.type}
+                    {this.props.item.name}
                 </p>
             </div>
         );
@@ -289,7 +280,7 @@ class InventoryDialog extends Dialog {
 
     render() {
         const items = this.state.inventory.map((item) => {
-            return <InventoryItem key={item.id} item={item} handler={this} dataURL={GfxUtil.getTile(item.idx)}/>
+            return <InventoryItem key={item.id} item={item} handler={this}/>
         });
 
         return (
