@@ -1,10 +1,11 @@
 import io
 import os
 import collections
+import hashlib
 
 from PIL import Image
 
-TILES_PATH = os.path.join(os.path.dirname(__file__), "..", "web", "public", "tiles.png")
+TILES_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "tiles.png")
 
 TILEMAP = collections.OrderedDict((
     ("player", (0, 3)),
@@ -70,7 +71,9 @@ class TileSet(object):
             cropped = self.tiles.crop(box)
             out = io.BytesIO()
             cropped.save(out, format="PNG")
-            rv = out.getvalue()
+            img_bytes = out.getvalue()
+            digest = hashlib.sha1(img_bytes).hexdigest()
+            rv = (digest, img_bytes)
             self.tile_cache[idx] = rv
         return rv
 

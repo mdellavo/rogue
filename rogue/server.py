@@ -221,7 +221,6 @@ async def get_root(request):
             "tilesize": request.app["tileset"].tilesize,
             "num_tiles": request.app["tileset"].num_tiles,
         },
-        "tiles_url": "/tiles.png",
         "tile_url": "http://{}/tile/".format(request.host),
         "socket_url": "ws://{}/session".format(request.host),
     })
@@ -306,8 +305,7 @@ async def session(request):
 @routes.get("/tile/{idx}")
 async def get_tile(request):
     idx = int(request.match_info["idx"])
-    img = request.app["tileset"].get_tile_bitmap(idx)  # need memory cache
-    digest = hashlib.sha1(img).hexdigest()
+    digest, img = request.app["tileset"].get_tile_bitmap(idx)  # need memory cache
     matching = request.headers.get("If-None-Match", "").strip('"')
     if matching == digest:
         return web.Response(status=304)
