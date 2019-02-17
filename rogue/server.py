@@ -2,9 +2,9 @@ import time
 import logging
 import collections
 import asyncio
-import hashlib
 import random
 import dataclasses
+from asyncio import Queue
 
 import aiohttp
 from aiohttp import web
@@ -237,14 +237,19 @@ async def session(request):
 
     player.send_stats()
 
+    updater_queue = Queue()
+
     async def _updater():
         while not ws.closed:
+            if not updater_queue.empty():
+                break
+
             t1 = time.time()
             frame = player.get_frame(request.app["world"])
             try:
                 await ws.send_bytes(msgpack.packb({"_event": "frame", "frame": frame}))
-            except ConnectionResetError as e:
-                log.exception("error sending frame: %s", e)
+            except Exception:
+                log.error("updater close")
                 break
             t2 = time.time()
             delta = t2 - t1
@@ -262,8 +267,8 @@ async def session(request):
                 break
             try:
                 await ws.send_bytes(msgpack.packb(response))
-            except ConnectionResetError as e:
-                log.exception("error sending message: %s", e)
+            except Exception:
+                log.error("writer closed")
                 break
         if not ws.closed:
             await ws.close()
@@ -279,12 +284,13 @@ async def session(request):
         elif msg.type == aiohttp.WSMsgType.ERROR:
             log.error('ws connection closed with exception %s', ws.exception())
 
+    player.response_queue.put_nowait(None)
+    updater_queue.put_nowait(None)
+
     log.info("reader stopped")
 
     if not ws.closed:
         await ws.close()
-
-    player.response_queue.put_nowait(None)
 
     for fut in (writer, updater):
         for i in range(2):

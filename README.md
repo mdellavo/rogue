@@ -25,23 +25,25 @@ yarn start
 
 ## Todo / Bugs
 
-- api to fetch tiles
-
-- map api
 - dungeon proc gen
-- player stats
-- experience
-- health bar
-- threejs ui
-- pathfinding
-- mouse/touch ui
-- ranged weapons
-- towns / prefabs
-- animations/tweens betwen movements
-- noises / chat?
-- music/sfx
-- leaderboard
+- map api
 
+- player stats / modifiers
+- experience
+
+- threejs ui
+- ranged weapons
+- pathfinding
+- noises / chat?
+- mouse/touch ui
+
+- leaderboard
+- health bar
+- loading progress
+
+- music/sfx
+- towns / prefabs
+- animations?
 
 ## Author
 
