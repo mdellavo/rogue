@@ -1,3 +1,4 @@
+import os
 import time
 import logging
 import collections
@@ -14,6 +15,7 @@ import msgpack
 from .world import DAY
 from .objects import Player, Actor, ActionError
 from .util import _project_enum
+from .tiles import ASSET_PATH, ASSET_TYPES, MUSIC
 
 log = logging.getLogger(__name__)
 
@@ -223,6 +225,7 @@ async def get_root(request):
         },
         "tile_url": "http://{}/tile/".format(request.host),
         "socket_url": "ws://{}/session".format(request.host),
+        "music": ["http://{}/asset/music/{}".format(request.host, key) for key in MUSIC]
     })
 
 
@@ -319,6 +322,21 @@ async def get_tile(request):
         "Cache-Control": "public,max-age=86400",
         "ETag": '"' + digest + '"'
     })
+
+
+@routes.get(r"/asset/{asset_type:\w+}/{asset_key}")
+async def get_asset(request):
+
+    asset_type = request.match_info["asset_type"]
+    if asset_type not in ASSET_TYPES:
+        return web.Response(status=404)
+
+    asset_key = request.match_info["asset_key"]
+    if asset_type == "music" and asset_key not in MUSIC:
+        return web.Response(status=404)
+
+    asset_path = os.path.join(ASSET_PATH, asset_type, asset_key)
+    return web.FileResponse(asset_path)
 
 
 async def run_server(world, tileset):

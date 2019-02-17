@@ -24,6 +24,10 @@ const ObjectTypes = {
 };
 
 
+function choice(items) {
+    return items[Math.floor(Math.random() * items.length)];
+}
+
 function decode(data) {
     return msgpack.decode(new Uint8Array(data));
 }
@@ -86,6 +90,10 @@ class DataStore {
         for (let i=0; i<this.tileset.num_tiles; i++) {
             this.getTile(i, loaded);
         }
+    }
+
+    get music() {
+        return this.manifest ? this.manifest.music : null;
     }
 
     onPing() {
@@ -155,6 +163,24 @@ class DataStore {
 }
 
 DataStore.instance = new DataStore();
+
+
+class SfxUtil {
+    static musicPlayer = null;
+    static playMusic(url) {
+        SfxUtil.stopMusic();
+        SfxUtil.musicPlayer = new Audio(url);
+        SfxUtil.musicPlayer.muted = true;
+        SfxUtil.musicPlayer.play();
+    }
+
+    static stopMusic() {
+        if (SfxUtil.musicPlayer) {
+            SfxUtil.musicPlayer.stop();
+            SfxUtil.musicPlayer = null;
+        }
+    }
+}
 
 class GfxUtil {
 
@@ -323,6 +349,8 @@ class CanvasView extends React.Component {
         this.closeInventoryDialog = this.closeInventoryDialog.bind(this);
         this.closeHelpDialog = this.closeHelpDialog.bind(this);
 
+        this.startedPlaying = false;
+
         this.state = {
             showHelp: true,
             showInventory: false,
@@ -345,6 +373,7 @@ class CanvasView extends React.Component {
         DataStore.instance.addEventListener("stats", (msg) => { this.onStats(msg.stats); });
         DataStore.instance.connect(this);
         this.canvas.focus();
+        this.shuffleMusic();
     }
 
     onConnected() {
@@ -401,26 +430,30 @@ class CanvasView extends React.Component {
     }
 
     onKeyPress(event) {
-        if (event.key === "w")
+        if (!this.startedPlaying)
+            SfxUtil.musicPlayer.muted = false;
+
+        const key = event.key.toLowerCase();
+        if (key === "w")
             DataStore.instance.send({action: Actions.MOVE, direction: [0, -1]});
-        else if (event.key === "a")
+        else if (key === "a")
             DataStore.instance.send({action: Actions.MOVE, direction: [-1, 0]});
-        else if (event.key === "s")
+        else if (key === "s")
             DataStore.instance.send({action: Actions.MOVE, direction: [0, 1]});
-        else if (event.key === "d")
+        else if (key === "d")
             DataStore.instance.send({action: Actions.MOVE, direction: [1, 0]});
-        else if (event.key === "p")
+        else if (key === "p")
             DataStore.instance.send({action: Actions.PICKUP});
-        else if (event.key === ".")
+        else if (key === ".")
             DataStore.instance.send({action: Actions.ENTER});
-        else if (event.key === "f")
+        else if (key === "f")
             DataStore.instance.send({action: Actions.MELEE});
-        else if (event.key === "i")
+        else if (key === "i")
             if (this.state.showInventory)
                 this.closeInventoryDialog();
             else
                 this.showInventoryDialog();
-        else if (event.key === "h")
+        else if (key === "h")
             if (this.state.showHelp)
                 this.closeHelpDialog();
             else
@@ -453,6 +486,11 @@ class CanvasView extends React.Component {
 
     closeHelpDialog() {
         this.setState({showHelp: false});
+    }
+
+    shuffleMusic() {
+        const music = choice(DataStore.instance.music);
+        SfxUtil.playMusic(music);
     }
 
     render() {

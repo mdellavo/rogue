@@ -5,7 +5,12 @@ import hashlib
 
 from PIL import Image
 
-TILES_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "tiles.png")
+ASSET_TYPES = ("gfx", "sfx", "music")  # XXX enum
+ASSET_PATH = os.path.join(os.path.dirname(__file__), "..", "data")
+TILES_PATH = os.path.join(ASSET_PATH, "gfx", "tiles.png")
+
+MUSIC_PATH = os.path.join(ASSET_PATH, "music")
+MUSIC = os.listdir(MUSIC_PATH)
 
 TILEMAP = collections.OrderedDict((
     ("player", (0, 3)),

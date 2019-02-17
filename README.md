@@ -25,24 +25,25 @@ yarn start
 
 ## Todo / Bugs
 
+- per play fov
+
 - dungeon proc gen
 - map api
 
 - player stats / modifiers
 - experience
-
-- threejs ui
-- ranged weapons
-- pathfinding
-- noises / chat?
-- mouse/touch ui
-
 - leaderboard
 - health bar
 - loading progress
 
-- music/sfx
-- towns / prefabs
+- threejs ui
+- path finding
+- mouse/touch ui
+- ranged weapons
+- noises / chat?
+
+- towns / prefabs / stores
+- sfx?
 - animations?
 
 ## Author
@@ -60,3 +61,4 @@ _todo_
 ## Credits
 
 Thanks to Dungeon Crawl Stone Soup for the artwork!!!
+Thanks to https://www.purple-planet.com/ for the awesome music
