@@ -3,6 +3,8 @@ import logging
 import collections
 import asyncio
 import hashlib
+import random
+import dataclasses
 
 import aiohttp
 from aiohttp import web
@@ -73,11 +75,12 @@ def handle_inventory(_, player, __):
             "id": obj.id,
             "idx": player.tilemap.get_index(obj.key),
             "type": _project_enum(obj.object_type),
-            "name": obj.name,
+            "name": str(obj),
         }
         if obj.id in equipment_map:
             i["equipped"] = _project_enum(equipment_map[obj.id])
         return i
+
     rv = {"inventory": [_inv(obj) for obj in player.inventory]}
     return rv
 
@@ -104,6 +107,7 @@ def handle_melee(world, player, _):
     world.melee(player)
 
 
+@dataclasses.dataclass
 class WebSocketPlayer(Player):
 
     def __init__(self, key, socket, tileset, *args, **kwargs):
@@ -125,7 +129,7 @@ class WebSocketPlayer(Player):
         self.send_stats()
 
     def hurt(self, actor, damage):
-        self.notice("you were hurt by {} for {} damage".format(actor, damage))
+        self.notice("you were hurt by {} for {} damage".format(actor.name, damage))
         self.send_stats()
 
     def notice(self, msg, **kwargs):
@@ -229,7 +233,7 @@ async def session(request):
     await ws.prepare(request)
     log.debug('websocket connection started')
 
-    player = WebSocketPlayer("player", ws, request.app["tileset"])
+    player = WebSocketPlayer("player", ws, request.app["tileset"], name="player.{}".format(random.randint(100, 1000)))
     request.app["world"].place_actor(player)
 
     player.send_stats()

@@ -241,7 +241,7 @@ class World(object):
         for obj in objs:
             area.remove_object(obj)
             actor.pickup(obj)
-            actor.notice("you picked up {}".format(obj))
+            actor.notice("you picked up a {}".format(obj))
 
     def surrounding_actors(self, actor: Actor):
         area = self.get_area(actor)
@@ -262,7 +262,7 @@ class World(object):
 
         attack_roll = random.randint(1, 20)
         if attack_roll <= 1:
-            actor.notice("you missed {}".format(target))
+            actor.notice("you missed {}".format(target.name))
             return
 
         damage = actor.strength + (random.randint(1, actor.weapon.damage) if actor.has_weapon else 0)
@@ -282,15 +282,15 @@ class World(object):
         target.hurt(actor, damage)
 
         if critical:
-            actor.notice("critical hit on {} for {} damage!!!".format(target, damage))
+            actor.notice("critical hit on {} for {} damage!!!".format(target.name, damage))
         else:
-            actor.notice("hit on {} for {} damage!".format(target, damage))
+            actor.notice("hit on {} for {} damage!".format(target.name, damage))
 
         if target.hit_points <= 0:
             target.die()
             self.remove_actor(target)
             actor.kills += 1
-            actor.notice("you killed a {}".format(target))
+            actor.notice("you killed a {}".format(target.name))
 
     def use(self, actor: Actor, obj: Item):
         actor.use(obj)

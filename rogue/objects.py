@@ -51,17 +51,19 @@ class Object(object, metaclass=abc.ABCMeta):
         self.age += 1
 
     def __str__(self):
-        return type(self).__name__.lower()
+        return self.name
 
     def get_object_type(self):
         return
 
 
+@dataclasses.dataclass
 class Coin(Object):
-    name = "coin"
+    name: str = "coin"
     object_type: ObjectTypes = ObjectTypes.COIN
 
 
+@dataclasses.dataclass
 class Item(Object):
     object_type: ObjectTypes = ObjectTypes.ITEM
 
@@ -70,8 +72,9 @@ class Item(Object):
         pass
 
 
+@dataclasses.dataclass
 class HealthPotion(Item):
-    name = "health potion"
+    name: str = "health potion"
     value: int = 10
 
     def use(self, actor):
@@ -79,31 +82,37 @@ class HealthPotion(Item):
         actor.healed(actor, self.value)
 
 
+@dataclasses.dataclass
 class Equipment(Object):
     equips: BodyPart = None
     object_type: ObjectTypes = ObjectTypes.EQUIPMENT
 
 
+@dataclasses.dataclass
 class Weapon(Equipment):
     equips = BodyPart.HAND
 
 
+@dataclasses.dataclass
 class Armor(Equipment):
-    name = "armor"
+    name: str = "armor"
     equips = BodyPart.TORSO
 
 
+@dataclasses.dataclass
 class Sword(Weapon):
-    name = "sword"
+    name: str = "sword"
     damage: int = 6
 
 
+@dataclasses.dataclass
 class Shield(Armor):
-    name = "shield"
+    name: str = "shield"
     equips = BodyPart.HAND
     damage: int = 2
 
 
+@dataclasses.dataclass
 class ActorState(enum.Enum):
     ALIVE = 1
     UNCONSCIOUS = 2

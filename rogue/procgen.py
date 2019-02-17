@@ -29,8 +29,8 @@ def add_doors(tiles, total_doors=NUM_DOORS, key="crypt1", depth=0):
 
 
 def add_npcs(world, area, num_npcs=NUM_NPCS):
-    for _ in range(num_npcs):
-        npc = NPC("orc1")
+    for i in range(num_npcs):
+        npc = NPC("orc1", name="orc.{}".format(i))
         world.place_actor(npc, area=area)
 
 
