@@ -38,7 +38,6 @@ function encode(obj) {
 
 class DataStore {
     constructor() {
-        this.tiles = new Image();
         this.manifest = null;
         this.socket = null;
         this.responseCallbacks = {};
