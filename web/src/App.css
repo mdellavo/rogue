@@ -148,3 +148,17 @@ canvas:focus {
     color: #eeeeee;
     right: 0;
 }
+
+.connect {
+    width: 60%;
+    margin: 10px auto;
+    color: #fff;
+}
+
+.connect fieldset {
+    padding: 10px;
+}
+
+.connect button {
+    padding: 5px 10px;
+}

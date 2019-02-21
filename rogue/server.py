@@ -235,10 +235,28 @@ async def session(request):
     await ws.prepare(request)
     log.debug('websocket connection started')
 
-    player = WebSocketPlayer("player", ws, request.app["tileset"], name="player.{}".format(random.randint(100, 1000)))
+    async for msg in ws:
+        if msg.type == aiohttp.WSMsgType.BINARY:
+            obj = msgpack.unpackb(msg.data, raw=False)
+            break
+        elif msg.type == aiohttp.WSMsgType.ERROR:
+            log.error('ws connection closed with exception %s', ws.exception())
+            await ws.close()
+            return ws
+
+    profile = obj.get("profile")
+    if not profile:
+        log.error("did not get profile: %s", obj)
+        await ws.close()
+        return ws
+
+    player_name = obj["profile"]["name"]
+
+    player = WebSocketPlayer("player", ws, request.app["tileset"], name=player_name)
     request.app["world"].place_actor(player)
 
     player.send_stats()
+    player.notice("welcome {}, good luck".format(player_name))
 
     updater_queue = Queue()
 
@@ -283,7 +301,7 @@ async def session(request):
     async for msg in ws:
         if msg.type == aiohttp.WSMsgType.BINARY:
             obj = msgpack.unpackb(msg.data, raw=False)
-            player.next_action = obj  # XXX validate? submit actions
+            player.next_action = obj
         elif msg.type == aiohttp.WSMsgType.ERROR:
             log.error('ws connection closed with exception %s', ws.exception())
 

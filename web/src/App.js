@@ -106,12 +106,13 @@ class DataStore {
         this.frames = this.bytes = 0;
     }
 
-    connect(view) {
+    connect(view, profile) {
         this.socket  = new WebSocket(this.manifest.socket_url);
         this.socket.binaryType = "arraybuffer";
 
         this.socket.addEventListener('open', (event) => {
             this.pingIntervalId = setInterval(this.onPing.bind(this), PING_DELAY * 1000);
+            this.socket.send(encode({"profile": profile}));
             view.onConnected(event);
         });
 
@@ -169,7 +170,6 @@ class SfxUtil {
     static playMusic(url) {
         SfxUtil.stopMusic();
         SfxUtil.musicPlayer = new Audio(url);
-        SfxUtil.musicPlayer.muted = true;
         SfxUtil.musicPlayer.play();
     }
 
@@ -348,8 +348,6 @@ class CanvasView extends React.Component {
         this.closeInventoryDialog = this.closeInventoryDialog.bind(this);
         this.closeHelpDialog = this.closeHelpDialog.bind(this);
 
-        this.startedPlaying = false;
-
         this.state = {
             showHelp: true,
             showInventory: false,
@@ -370,7 +368,7 @@ class CanvasView extends React.Component {
         DataStore.instance.addEventListener("frame", (msg) => { this.onFrame(msg.frame); });
         DataStore.instance.addEventListener("notice", (msg) => { this.onNotice(msg); });
         DataStore.instance.addEventListener("stats", (msg) => { this.onStats(msg.stats); });
-        DataStore.instance.connect(this);
+        DataStore.instance.connect(this, this.props.profile);
         this.canvas.focus();
         this.shuffleMusic();
     }
@@ -429,9 +427,6 @@ class CanvasView extends React.Component {
     }
 
     onKeyPress(event) {
-        if (!this.startedPlaying)
-            SfxUtil.musicPlayer.muted = false;
-
         const key = event.key.toLowerCase();
         if (key === "w")
             DataStore.instance.send({action: Actions.MOVE, direction: [0, -1]});
@@ -592,15 +587,55 @@ function LoadingView() {
     );
 }
 
+
+class JoinView extends Component {
+    constructor(props) {
+        super(props);
+        this.state = {name: "Player-" + Math.round(1000 * Math.random()).toString()};
+        this.submit = this.submit.bind(this);
+        this.update = this.update.bind(this);    }
+
+    update(event) {
+        this.setState({name: event.target.value});
+    }
+
+    submit(event) {
+        event.preventDefault();
+        this.props.handler.onJoin(this.state);
+    }
+
+    render() {
+        return (
+            <div className="connect">
+                <fieldset>
+                    <legend>Join the game</legend>
+
+                    <form onSubmit={this.submit}>
+                        <label>Name:</label>
+                        <input type="text" name="name" onChange={this.update} value={this.state.name}/>
+                        <input type="submit" onClick={this.submit} value="Join"/>
+                    </form>
+
+                </fieldset>
+            </div>
+        );
+    }
+
+}
+
 class App extends Component {
 
     constructor(props) {
         super(props);
-        this.state = {loaded: false, error: false};
+        this.state = {loaded: false, error: false, profile: null};
     }
 
     componentDidMount() {
         DataStore.instance.loadManifest(API_URL,  this);
+    }
+
+    onJoin(data) {
+        this.setState({profile: data});
     }
 
     onLoaded() {
@@ -614,12 +649,14 @@ class App extends Component {
     render() {
 
         let contents;
-        if (this.state.loaded)
-            contents = <CanvasView/>;
+        if (this.state.profile)
+            contents = <CanvasView profile={this.state.profile}/>;
+        else if (this.state.loaded)
+            contents = <JoinView handler={this}/>;
         else if (this.state.error)
             contents = <ErrorView/>;
         else
-            contents = <LoadingView/>;
+            contents = <LoadingView />;
 
         return (
             <div className="App">
