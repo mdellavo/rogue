@@ -27,12 +27,11 @@ yarn start
 
 - per play fov
 
-- dungeon proc gen
-- map api
+- bitmap map api
 
 - player stats / modifiers
 - experience
-- leaderboard
+- leader board
 - health bar
 - loading progress
 

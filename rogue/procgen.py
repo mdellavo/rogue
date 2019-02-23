@@ -1,5 +1,6 @@
 import random
 import noise
+import collections
 import logging
 
 from .world import Tile, World, Door, Area
@@ -179,6 +180,109 @@ def generate_map(size, iterations=500, max_radius=5):
     tiles = [[_tile(x, y, height) for x, height in enumerate(row)] for y, row in enumerate(heightmap)]
     add_doors(tiles, depth=1)
     return tiles
+
+
+class Room(collections.namedtuple("Room", ["x", "y", "w", "h"])):
+
+    @property
+    def center(self):
+        return self.x + (self.w // 2), self.y + (self.h // 2)
+
+    @property
+    def l(self):
+        return self.x + self.w
+
+    @property
+    def b(self):
+        return self.y + self.h
+
+    def contains(self, x, y):
+        return (self.x <= x <= (self.x + self.w)) and (self.y <= y <= (self.y + self.h))
+
+    def overlaps(self, other):
+        return (
+                self.l >= other.x or
+                self.b >= other.y or
+                other.l >= self.x or
+                other.b >= self.y
+        )
+
+
+def partition(room, min_size):
+    rooms = []
+    tunnels = []
+
+    def _too_small(p):
+        return p.w <= min_size or p.h <= min_size
+
+    remaining = [room]
+    while remaining:
+        part = remaining.pop(0)
+        orientation = bool(random.randint(0, 1))
+        a, b = split_room(part, orientation)
+        tunnels.append((a, b))
+        if _too_small(a) or _too_small(b):
+            rooms.append(part)
+        else:
+            remaining.extend((a, b))
+
+    return rooms, tunnels
+
+
+def split_room(room, vertical):
+    if vertical:
+        s = random.randint(room.h // 4, 2 * room.h // 4)
+        a, b = Room(room.x, room.y, room.w, s), Room(room.x, room.y + s, room.w, room.h - s)
+    else:
+        s = random.randint(room.w // 4, 2 * room.w // 4)
+        a, b = Room(room.x, room.y, s, room.h), Room(room.x + s, room.y, room.w - s, room.h)
+    return a, b
+
+
+def generate_dungeon(width, height, min_size):
+    outer = Room(0, 0, width, height)
+    rooms, tunnels = partition(outer, min_size)
+
+    def _generate_room(r):
+        offset_x = random.randint(2, r.w//2)
+        offset_y = random.randint(2, r.h//2)
+
+        w = random.randint(min_size, r.w)
+        if offset_x + w >= r.w:
+            w = r.w - 4
+
+        h = random.randint(min_size, r.h)
+        if offset_y + h >= r.h:
+            h = r.h - 4
+
+        return Room(r.x + offset_x, r.y + offset_y, w, h)
+
+    return [_generate_room(room) for room in rooms], tunnels
+
+
+# http://www.roguebasin.com/index.php?title=Basic_BSP_Dungeon_generation
+def render_dungeon(width, height, rooms, tunnels):
+
+    def _inside(x, y):
+        return any(room.contains(x, y) for room in rooms) and x < width - 1 and y < height - 1
+
+    rows = [[_inside(x, y) for x in range(width)] for y in range(height)]
+
+    for tunnel in tunnels:
+        a, b = sorted(tunnel)
+
+        a_cx, a_cy = a.center
+        b_cx, b_cy = b.center
+        for x in range(a_cx, b_cx):
+            if x >= width - 1:
+                continue
+            rows[a_cy][x] = True
+
+        for y in range(a_cy, b_cy):
+            if y >= height - 1:
+                continue
+            rows[y][a_cx] = True
+    return rows
 
 
 def generate_world(size):
