@@ -16,7 +16,7 @@ COIN_KEYS = ["coin1", "coin2", "coin3", "coin4", "coin5"]
 log = logging.getLogger(__name__)
 
 
-def add_doors(tiles, total_doors=NUM_DOORS, key="crypt1", depth=0):
+def add_doors(door_class, tiles, total_doors=NUM_DOORS, depth=0, key="crypt1"):
     width = len(tiles[0])
     height = len(tiles)
     num_doors = 0
@@ -25,7 +25,7 @@ def add_doors(tiles, total_doors=NUM_DOORS, key="crypt1", depth=0):
         dy = random.randrange(0, height)
         tile = tiles[dy][dx]
         if not tile.blocked:
-            tiles[dy][dx] = CaveDoor(key, depth=depth)
+            tiles[dy][dx] = door_class(key, depth=depth)
             num_doors += 1
 
 
@@ -54,13 +54,13 @@ def populate_area(world, area):
     add_items(area)
 
 
-def generate_cave(size, iterations=5, depth=0):
-    current_step = [[True for _ in range(size)] for __ in range(size)]
+def generate_cave(width, height, iterations=5, depth=0):
+    current_step = [[True for _ in range(width)] for __ in range(height)]
 
-    num_floor = int(round(size * size * .45))
+    num_floor = int(round(width * height * .45))
     while num_floor > 0:
-        x = random.randrange(1, size - 1)
-        y = random.randrange(1, size - 1)
+        x = random.randrange(1, width - 1)
+        y = random.randrange(1, height - 1)
         if current_step[y][x]:
             current_step[y][x] = False
             num_floor -= 1
@@ -76,7 +76,7 @@ def generate_cave(size, iterations=5, depth=0):
 
                 cx = x + j
                 cy = y + i
-                if cx < 0 or cx >= size or cy < 0 or cy >= size:
+                if cx < 0 or cx >= width or cy < 0 or cy >= height:
                     continue
 
                 if current_step[cy][cx]:
@@ -90,22 +90,22 @@ def generate_cave(size, iterations=5, depth=0):
             return current_step[y][x]
 
     for _ in range(iterations):
-        current_step = [[_cell(x, y) for y in range(size)] for x in range(size)]
+        current_step = [[_cell(x, y) for y in range(width)] for x in range(height)]
 
     def _tile(pos, cell):
         x, y = pos
-        if x == 0 or y == 0 or x == size - 1 or y == size - 1:
+        if x == 0 or y == 0 or x == width - 1 or y == height - 1:
             return Tile("wall3", blocked=True, blocked_sight=True)
         return Tile("wall3", blocked=True, blocked_sight=True) if cell else Tile("grey3")
 
     tiles = [[_tile((x, y), cell) for x, cell in enumerate(row)] for y, row in enumerate(current_step)]
-    add_doors(tiles, NUM_DOORS, key="stairsdown1", depth=depth)
+    add_doors(CaveDoor, tiles, NUM_DOORS, depth=depth)
     return tiles
 
 
 class CaveDoor(Door):
 
-    SIZE = 50
+    SIZE = 100
 
     def __init__(self, *args, **kwargs):
         self.depth = kwargs.pop("depth", 0)
@@ -113,7 +113,8 @@ class CaveDoor(Door):
         super(CaveDoor, self).__init__(*args, **kwargs)
 
     def generate_cave(self, exit_area, exit_position):
-        tiles = generate_cave(random.randrange(self.SIZE/2, self.SIZE*2), depth=self.depth + 1)
+        min_size, max_size = self.SIZE // 2, self.SIZE * 2
+        tiles = generate_cave(random.randrange(min_size), random.randrange(max_size), depth=self.depth + 1)
 
         while True:
             dx = random.randrange(0, len(tiles[0]))
@@ -136,6 +137,40 @@ class CaveDoor(Door):
             populate_area(world, self.area)
             log.info("cave done!")
         return super(CaveDoor, self).get_area(world, exit_area, exit_position)
+
+
+class DungeonDoor(Door):
+    SIZE = 100
+
+    def __init__(self, *args, **kwargs):
+        self.depth = kwargs.pop("depth", 0)
+        kwargs["message"] = "cave level {}".format(self.depth)
+        super(DungeonDoor, self).__init__(*args, **kwargs)
+
+    def generate_dungeon(self, exit_area, exit_position):
+        min_size, max_size = self.SIZE // 2, self.SIZE * 2
+        tiles = generate_dungeon(random.randrange(min_size), random.randrange(max_size), 4)
+        while True:
+            dx = random.randrange(0, len(tiles[0]))
+            dy = random.randrange(0, len(tiles))
+            tile = tiles[dy][dx]
+            if not tile.blocked:
+                if self.depth > 1:
+                    message = "a door to dungeon level {}".format(self.depth - 1)
+                else:
+                    message = "an exit to the world"
+                tiles[dy][dx] = Door("stairsup1", area=exit_area, position=exit_position, message=message)
+                break
+        return Area(tiles), (dx, dy)
+
+    def get_area(self, world, exit_area, exit_position):
+        if not self.area:
+            log.info("generating dungeon...")
+            self.area, self.position = self.generate_dungeon(exit_area, exit_position)
+            populate_area(world, self.area)
+            log.info("dungeon done!")
+
+        return super(DungeonDoor, self).get_area(world, exit_area, exit_position)
 
 
 def generate_map(size, iterations=500, max_radius=5):
@@ -178,7 +213,8 @@ def generate_map(size, iterations=500, max_radius=5):
             return Tile("mountains1", blocked=True, blocked_sight=True)
 
     tiles = [[_tile(x, y, height) for x, height in enumerate(row)] for y, row in enumerate(heightmap)]
-    add_doors(tiles, depth=1)
+    add_doors(CaveDoor, tiles, depth=1)
+    add_doors(DungeonDoor, tiles, depth=1)
     return tiles
 
 
@@ -239,13 +275,13 @@ def split_room(room, vertical):
     return a, b
 
 
-def generate_dungeon(width, height, min_size):
+def generate_dungeon(width, height, min_size, depth=0):
     outer = Room(0, 0, width, height)
-    rooms, tunnels = partition(outer, min_size)
+    parts, tunnels = partition(outer, min_size)
 
     def _generate_room(r):
-        offset_x = random.randint(2, r.w//2)
-        offset_y = random.randint(2, r.h//2)
+        offset_x = random.randint(0, r.w//2)
+        offset_y = random.randint(0, r.h//2)
 
         w = random.randint(min_size, r.w)
         if offset_x + w >= r.w:
@@ -257,7 +293,10 @@ def generate_dungeon(width, height, min_size):
 
         return Room(r.x + offset_x, r.y + offset_y, w, h)
 
-    return [_generate_room(room) for room in rooms], tunnels
+    rooms =[_generate_room(room) for room in parts]
+    tiles = render_dungeon(width, height, rooms, tunnels)
+    add_doors(DungeonDoor, tiles, NUM_DOORS, depth=depth)
+    return tiles
 
 
 # http://www.roguebasin.com/index.php?title=Basic_BSP_Dungeon_generation
@@ -282,7 +321,11 @@ def render_dungeon(width, height, rooms, tunnels):
             if y >= height - 1:
                 continue
             rows[y][a_cx] = True
-    return rows
+
+    def _tile(cell):
+        return Tile("wall3", blocked=True, blocked_sight=True) if cell else Tile("grey3")
+
+    return [[_tile(cell) for cell in row] for row in rows]
 
 
 def generate_world(size):
