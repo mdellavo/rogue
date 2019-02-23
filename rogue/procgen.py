@@ -99,7 +99,7 @@ def generate_cave(width, height, iterations=5, depth=0):
         return Tile("wall3", blocked=True, blocked_sight=True) if cell else Tile("grey3")
 
     tiles = [[_tile((x, y), cell) for x, cell in enumerate(row)] for y, row in enumerate(current_step)]
-    add_doors(CaveDoor, tiles, NUM_DOORS, depth=depth)
+    add_doors(CaveDoor, tiles, NUM_DOORS, depth=depth, key="crypt1")
     return tiles
 
 
@@ -141,15 +141,16 @@ class CaveDoor(Door):
 
 class DungeonDoor(Door):
     SIZE = 100
+    MIN_SIZE = 10
 
     def __init__(self, *args, **kwargs):
         self.depth = kwargs.pop("depth", 0)
-        kwargs["message"] = "cave level {}".format(self.depth)
+        kwargs["message"] = "dungeon level {}".format(self.depth)
         super(DungeonDoor, self).__init__(*args, **kwargs)
 
     def generate_dungeon(self, exit_area, exit_position):
         min_size, max_size = self.SIZE // 2, self.SIZE * 2
-        tiles = generate_dungeon(random.randrange(min_size), random.randrange(max_size), 4)
+        tiles = generate_dungeon(random.randrange(min_size), random.randrange(max_size), self.MIN_SIZE)
         while True:
             dx = random.randrange(0, len(tiles[0]))
             dy = random.randrange(0, len(tiles))
@@ -213,8 +214,8 @@ def generate_map(size, iterations=500, max_radius=5):
             return Tile("mountains1", blocked=True, blocked_sight=True)
 
     tiles = [[_tile(x, y, height) for x, height in enumerate(row)] for y, row in enumerate(heightmap)]
-    add_doors(CaveDoor, tiles, depth=1)
-    add_doors(DungeonDoor, tiles, depth=1)
+    add_doors(CaveDoor, tiles, depth=1, key="crypt1")
+    add_doors(DungeonDoor, tiles, depth=1, key="crypt2")
     return tiles
 
 
@@ -283,11 +284,11 @@ def generate_dungeon(width, height, min_size, depth=0):
         offset_x = random.randint(0, r.w//2)
         offset_y = random.randint(0, r.h//2)
 
-        w = random.randint(min_size, r.w)
+        w = random.randint(2, r.w)
         if offset_x + w >= r.w:
             w = r.w - 4
 
-        h = random.randint(min_size, r.h)
+        h = random.randint(2, r.h)
         if offset_y + h >= r.h:
             h = r.h - 4
 
@@ -295,7 +296,7 @@ def generate_dungeon(width, height, min_size, depth=0):
 
     rooms =[_generate_room(room) for room in parts]
     tiles = render_dungeon(width, height, rooms, tunnels)
-    add_doors(DungeonDoor, tiles, NUM_DOORS, depth=depth)
+    add_doors(DungeonDoor, tiles, NUM_DOORS, depth=depth, key="crypt2")
     return tiles
 
 

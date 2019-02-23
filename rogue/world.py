@@ -22,7 +22,7 @@ class Tile(object):
 
 @dataclasses.dataclass
 class Door(Tile):
-    def __init__(self, key, area=None, position=None, message="door", **kwargs):
+    def __init__(self, key, area=None, position=None, message="a door", **kwargs):
         super(Door, self).__init__(key, **kwargs)
         self.area = area
         self.position = position
