@@ -111,6 +111,7 @@ canvas:focus {
 }
 
 .dialog-body p {
+    margin: auto;
     padding-bottom: 10px;
 }
 
@@ -120,10 +121,17 @@ canvas:focus {
 
 .inventory-item {
     float: left;
+    width: 96px;
+    margin: auto;
+    padding: 5px;
+    text-align: center;
+    display: inline-block;
+    height: 96px;
 }
 
 .inventory-item.equipped {
-    background: red;
+    background: #aaa;
+    font-weight: bold;
 }
 
 .inventory-item p  {

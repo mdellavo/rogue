@@ -175,7 +175,7 @@ class SfxUtil {
 
     static stopMusic() {
         if (SfxUtil.musicPlayer) {
-            SfxUtil.musicPlayer.stop();
+            SfxUtil.musicPlayer.pause();
             SfxUtil.musicPlayer = null;
         }
     }
@@ -315,7 +315,7 @@ class InventoryDialog extends Dialog {
                     Equip weapons and armor by clicking on them.<br/>
                     Use items by clicking on them.<br/>
                 </p>
-                <div>
+                <div class="inventory">
                     {items}
                 </div>
                 <div className="clear">
@@ -420,6 +420,9 @@ class CanvasView extends React.Component {
             notices.pop();
         }
         this.setState({notices: notices});
+        if (event.mood) {
+            this.shuffleMusic();
+        }
     }
 
     onStats(event) {

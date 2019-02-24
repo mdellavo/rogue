@@ -25,22 +25,19 @@ yarn start
 
 ## Todo / Bugs
 
-- per play fov
-
+- per player fov
 - bitmap map api
-
 - player stats / modifiers
 - experience
 - leader board
 - health bar
 - loading progress
-
+- ranged weapons
+- magic
 - threejs ui
 - path finding
 - mouse/touch ui
-- ranged weapons
 - noises / chat?
-
 - towns / prefabs / stores
 - sfx?
 - animations?
