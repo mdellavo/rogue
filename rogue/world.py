@@ -1,40 +1,66 @@
 import math
 import random
 import itertools
-import dataclasses
+import collections
 
-from .objects import Actor, Player, Item
-from . import procgen
-
+from .actor import Player, Actor
 
 TIMEOUT = .1
 DAY = 86400 / 6. * TIMEOUT
 
 
-@dataclasses.dataclass
-class Tile(object):
-    def __init__(self, key, blocked=False, blocked_sight=False):
-        self.key = key
-        self.blocked = blocked
-        self.blocked_sight = blocked_sight
-        self.explored = False
+def _path_score(a, b):
+    ax, ay = a
+    bx, by = b
+    return abs(bx - ax) + abs(by - ay)
 
 
-@dataclasses.dataclass
-class Door(Tile):
-    def __init__(self, key, area=None, position=None, message="a door", **kwargs):
-        super(Door, self).__init__(key, **kwargs)
-        self.area = area
-        self.position = position
-        self.message = kwargs.pop("message", message)
+def _total_path(came_from, node):
+    total = {node}
+    while node in came_from:
+        node = came_from[node]
+        total.add(node)
+    return total
 
-    def __str__(self):
-        return self.message
 
-    def get_area(self, world, exit_area, exit_position):
-        if not self.area:
-            return ValueError("door needs area")
-        return self.area, self.position
+# https://en.wikipedia.org/wiki/A*_search_algorithm#Pseudocode
+def find_path(area, start, goal):
+    open = set()
+    closed = set()
+    came_from = {}
+    score = {start: 0}
+    total = collections.defaultdict(lambda: math.inf)
+    total[start] = _path_score(start, goal)
+
+    def _next():
+        return min([node for node in total], key=lambda a, b: _path_score(a, b))
+
+    while open:
+        node = _next()
+        if node == goal:
+            return _total_path(came_from, node)
+        open.remove(node)
+        closed.add(node)
+        x, y = node
+        tile = area.get_tile(x, y)
+        if tile.blocked or not tile.explored:
+            continue
+        for dy in (-1, 0, 1):
+            for dx in (-1, 0, 1):
+                neighbor = x + dx, y + dy
+                neighbor_tile = area.get_tile(neighbor)
+                if not neighbor_tile:
+                    continue
+                if neighbor in closed:
+                    continue
+                new_score = score[node] + abs(dx) + abs(dy)
+                if neighbor not in open:
+                    open.add(neighbor)
+                elif new_score >= total[neighbor]:
+                    continue
+                came_from[neighbor] = node
+                score[neighbor] = score
+                total[neighbor] = score + _path_score(neighbor, goal)
 
 
 class Area(object):
@@ -96,7 +122,11 @@ class Area(object):
     def tick(self, world):
         self.time += 1
         for obj in self.objects:
-            obj.tick(world)
+            obj.age += 1
+            if isinstance(obj, Actor):
+                action = obj.get_action(world)
+                if action:
+                    action.perform(obj, world)
 
     def place(self, obj):
         for _ in range(100):
@@ -105,22 +135,6 @@ class Area(object):
             if self.add_object(obj, x, y):
                 return
         raise ValueError("could not place object")
-
-    def move(self, actor, dx, dy):
-        x = actor.x + dx
-        y = actor.y + dy
-
-        if x < 0 or x >= self.map_width or y < 0 or y >= self.map_height:
-            return False
-
-        tile = self.get_tile(x, y)
-        if tile.blocked or any(obj.blocks for obj in self.get_objects(x, y)):
-            return False
-
-        actor.x = x
-        actor.y = y
-
-        return True
 
     def immediate_area(self, actor):
         immediate = [(actor.x, actor.y)]
@@ -138,7 +152,7 @@ class Area(object):
         for theta in range(361):
             ax = math.cos(math.radians(theta))
             ay = math.sin(math.radians(theta))
-            for i in range(1, actor.view_distance):
+            for i in range(1, actor.attributes.view_distance):
                 px = actor.x + int(round(i * ax))
                 py = actor.y + int(round(i * ay))
                 if px < 0 or px >= self.map_width or py < 0 or py >= self.map_height:
@@ -179,7 +193,7 @@ class World(object):
         return area
 
     def place_actor(self, actor: Actor, area: Area = None):
-        actor.born = self.age
+        actor.stats.born = self.age
         self.add_actor(actor, area=area).place(actor)
 
     def remove_actor(self, actor: Actor):
@@ -194,10 +208,6 @@ class World(object):
             area.tick(self)
         self.age += 1
 
-    def move(self, actor: Actor, dx: int, dy: int):
-        area = self.get_area(actor)
-        return area.move(actor, dx, dy)
-
     def fov(self, actor: Actor):
         area = self.get_area(actor)
         return area.fov(actor)
@@ -205,21 +215,6 @@ class World(object):
     def explore(self, actor: Actor):
         area = self.get_area(actor)
         return area.explore(actor)
-
-    def enter(self, actor: Actor):
-        area = self.get_area(actor)
-        pt = area.get_tile(actor.x, actor.y)
-        if isinstance(pt, Door):
-            new_area, position = pt.get_area(self, area, (actor.x, actor.y))
-            self.add_actor(actor, area=new_area)
-            x, y = position
-            new_area.add_object(actor, x, y)
-            area.remove_object(actor)
-            procgen.add_coins(new_area)
-            procgen.add_npcs(self, new_area)
-            actor.notice("you have entered {}".format(pt), mood=True)
-        else:
-            actor.notice("there is no door here")
 
     def inspect(self, actor: Actor):
         rv = []
@@ -230,69 +225,9 @@ class World(object):
             rv.append(((x, y), tile, objs))
         return rv
 
-    def pickup(self, actor: Actor):
-        area = self.get_area(actor)
-        objs = [obj for obj in area.get_objects(actor.x, actor.y) if not (obj is actor or obj.anchored)]
-
-        if not objs:
-            actor.notice("there is nothing to pickup")
-            return
-
-        for obj in objs:
-            area.remove_object(obj)
-            actor.pickup(obj)
-            actor.notice("you picked up a {}".format(obj))
-
     def surrounding_actors(self, actor: Actor):
         area = self.get_area(actor)
         rv = []
         for x, y in area.immediate_area(actor):
             rv.extend([obj for obj in area.get_objects(x, y) if obj is not actor and isinstance(obj, Actor)])
         return rv
-
-    def melee(self, actor: Actor, target: Actor=None):
-        if not target:
-            targets = self.surrounding_actors(actor)
-            if targets:
-                target = targets[0]
-
-        if not target:
-            actor.notice("there is nothing to attack")
-            return
-
-        attack_roll = random.randint(1, 20)
-        if attack_roll <= 1:
-            actor.notice("you missed {}".format(target.name))
-            return
-
-        damage = actor.strength + (random.randint(1, actor.weapon.damage) if actor.has_weapon else 0)
-
-        critical = attack_roll >= 19
-        if not critical:
-            damage -= target.armor_class
-
-        if target.has_shield:
-            damage -= target.shield.damage
-
-        if damage <= 0:
-            actor.notice("you did no damage")
-            return
-
-        target.hit_points -= damage
-        target.hurt(actor, damage)
-
-        if critical:
-            actor.notice("critical hit on {} for {} damage!!!".format(target.name, damage))
-        else:
-            actor.notice("hit on {} for {} damage!".format(target.name, damage))
-
-        if target.hit_points <= 0:
-            target.die()
-            self.remove_actor(target)
-            actor.kills += 1
-            actor.notice("you killed a {}".format(target.name))
-
-    def use(self, actor: Actor, obj: Item):
-        actor.use(obj)
-        actor.inventory.remove(obj)
-

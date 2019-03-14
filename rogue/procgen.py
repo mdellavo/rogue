@@ -3,8 +3,10 @@ import noise
 import collections
 import logging
 
-from .world import Tile, World, Door, Area
-from .objects import NPC, Coin, Shield, Sword, HealthPotion
+from .world import World, Area
+from .tiles import Door, Tile
+from .objects import Coin, Shield, Sword, HealthPotion
+from .npcs import NPC
 
 NUM_NPCS = 100
 NUM_DOORS = 100

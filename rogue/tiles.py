@@ -2,6 +2,7 @@ import io
 import os
 import collections
 import hashlib
+import dataclasses
 
 from PIL import Image
 
@@ -92,4 +93,30 @@ class TileSet(object):
             }
 
         return [_tile(k) for k in self.tilemap.keys()]
+
+
+@dataclasses.dataclass
+class Tile(object):
+    def __init__(self, key, blocked=False, blocked_sight=False):
+        self.key = key
+        self.blocked = blocked
+        self.blocked_sight = blocked_sight
+        self.explored = False
+
+
+@dataclasses.dataclass
+class Door(Tile):
+    def __init__(self, key, area=None, position=None, message="a door", **kwargs):
+        super(Door, self).__init__(key, **kwargs)
+        self.area = area
+        self.position = position
+        self.message = kwargs.pop("message", message)
+
+    def __str__(self):
+        return self.message
+
+    def get_area(self, world, exit_area, exit_position):
+        if not self.area:
+            return ValueError("door needs area")
+        return self.area, self.position
 

@@ -339,6 +339,8 @@ class CanvasView extends React.Component {
         super(props);
         this.onBlur = this.onBlur.bind(this);
         this.onKeyPress = this.onKeyPress.bind(this);
+        this.onMouseDown = this.onMouseDown.bind(this);
+        this.onMouseUp = this.onMouseUp.bind(this);
         
         this.showPlayerDialog = this.showPlayerDialog.bind(this);
         this.showInventoryDialog = this.showInventoryDialog.bind(this);
@@ -347,6 +349,8 @@ class CanvasView extends React.Component {
         this.closePlayerDialog = this.closePlayerDialog.bind(this);
         this.closeInventoryDialog = this.closeInventoryDialog.bind(this);
         this.closeHelpDialog = this.closeHelpDialog.bind(this);
+
+        this.clicked = null;
 
         this.state = {
             showHelp: true,
@@ -379,6 +383,7 @@ class CanvasView extends React.Component {
 
     onDisconnected() {
         this.setState({connected: false});
+        SfxUtil.stopMusic();
     }
 
     onError() {
@@ -409,6 +414,12 @@ class CanvasView extends React.Component {
                     GfxUtil.fillTile(ctx, target_x, target_y, "black");
                 }
 
+                if (this.clicked) {
+                    const [clickedX, clickedY] = this.clicked;
+                    if (explored && x === clickedX && y === clickedY) {
+                        GfxUtil.fillTile(ctx, target_x, target_y, "red");
+                    }
+                }
             }
         }
     }
@@ -459,6 +470,19 @@ class CanvasView extends React.Component {
 
     onBlur() {
         this.canvas.focus();
+    }
+
+    onMouseDown(event) {
+        const tilesize = DataStore.instance.tileset.tilesize;
+        this.clicked =  [
+            Math.floor((event.clientX - event.target.offsetLeft) / tilesize),
+            Math.floor((event.clientY - event.target.offsetTop) / tilesize),
+        ];
+        console.log("clicked", this.clicked);
+    }
+
+    onMouseUp(event) {
+        this.clicked = null;
     }
 
     showPlayerDialog() {
@@ -556,7 +580,7 @@ class CanvasView extends React.Component {
 
                 {status}
                 {stats}
-                <canvas tabIndex="0" ref="canvas" width={704} height={704} onKeyDown={this.onKeyPress} onBlur={this.onBlur}/>
+                <canvas tabIndex="0" ref="canvas" width={704} height={704} onKeyDown={this.onKeyPress} onBlur={this.onBlur} onMouseDown={this.onMouseDown} onMouseUp={this.onMouseUp}XS/>
 
                 <div className="notices">
                     {notices}

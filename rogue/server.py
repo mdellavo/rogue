@@ -11,9 +11,11 @@ from aiohttp import web
 import aiohttp_cors
 import msgpack
 
+from .actions import MoveAction, UseItemAction, PickupItemAction, EquipAction, MeleeAttackAction, EnterAction
 from .world import DAY
-from .objects import Player, Actor, ActionError
-from .util import _project_enum
+from .actor import Player, Actor
+from .actions import ActionError
+from .util import project_enum
 from .tiles import ASSET_PATH, ASSET_TYPES, MUSIC
 
 log = logging.getLogger(__name__)
@@ -54,17 +56,17 @@ dispatcher = ActionDispatcher()
 @dispatcher.register("move")
 def handle_move(world, player, action):
     dx, dy = action["direction"]
-    world.move(player, dx, dy)
+    player.next_action = MoveAction(dx, dy)
 
 
 @dispatcher.register("pickup")
 def handle_pickup(world, player, _):
-    world.pickup(player)
+    player.next_action = PickupItemAction()
 
 
 @dispatcher.register("enter")
 def handle_enter(world, player, _):
-    world.enter(player)
+    player.next_action = EnterAction()
 
 
 @dispatcher.register("inventory")
@@ -75,11 +77,11 @@ def handle_inventory(_, player, __):
         i = {
             "id": obj.id,
             "idx": player.tilemap.get_index(obj.key),
-            "type": _project_enum(obj.object_type),
+            "type": project_enum(obj.object_type),
             "name": str(obj),
         }
         if obj.id in equipment_map:
-            i["equipped"] = _project_enum(equipment_map[obj.id])
+            i["equipped"] = project_enum(equipment_map[obj.id])
         return i
 
     rv = {"inventory": [_inv(obj) for obj in player.inventory]}
@@ -91,21 +93,22 @@ def handle_equip(world, player, action):
     obj = player.find_object_by_id(action["item"])
     if obj:
         part = action.get("part")
-        part = player.equip(obj, part=part)
-        return {"id": obj.id, "equipped": _project_enum(part)}
+        action = EquipAction(obj, part=part)
+        player.next_action = action
+        return {"id": obj.id, "equipped": project_enum(action.part)}
 
 
 @dispatcher.register("use")
 def handle_use(world, player, action):
     obj = player.find_object_by_id(action["item"])
     if obj:
-        world.use(player, obj)
+        player.next_action = UseItemAction(obj)
         return {"id": obj.id, "used": True}
 
 
 @dispatcher.register("melee")
 def handle_melee(world, player, _):
-    world.melee(player)
+    player.next_action = MeleeAttackAction()
 
 
 @dataclasses.dataclass
@@ -115,7 +118,6 @@ class WebSocketPlayer(Player):
         super(Player, self).__init__(key, *args, **kwargs)
         self.socket = socket
         self.tilemap = tileset
-        self.next_action = None
         self.response_queue = asyncio.Queue(QUEUE_SIZE)
 
     def send_message(self,  **msg):
@@ -138,33 +140,19 @@ class WebSocketPlayer(Player):
 
     def send_stats(self):
         self.send_event("stats", stats={
-            "hp": self.hit_points,
-            "tot": self.health,
+            "hp": self.attributes.hit_points,
+            "tot": self.attributes.health,
         })
 
     def die(self):
         self.send_stats()
         age = int(round(self.age/DAY))
-        self.notice("you are dead. You lasted {} days and you killed {} things".format(age, self.kills))
+        self.notice("you are dead. You lasted {} days and you killed {} things".format(age, self.stats.kills))
         self.response_queue.put_nowait(None)
 
     def tick(self, world):
         super(WebSocketPlayer, self).tick(world)
 
-        if not self.next_action:
-            return
-
-        if "ping" in self.next_action:
-            response = {"pong": self.next_action["ping"]}
-        elif "action" in self.next_action:
-            response = dispatcher.dispatch(world, self, self.next_action)
-        else:
-            response = None
-
-        if response:
-            if "_id" in self.next_action:
-                response["_id"] = self.next_action["_id"]
-            self.send_message(**response)
 
         self.next_action = None
 
@@ -226,6 +214,20 @@ async def get_root(request):
         "socket_url": "ws://{}/session".format(request.host),
         "music": ["http://{}/asset/music/{}".format(request.host, key) for key in MUSIC]
     })
+
+
+def _handle_message(world, player, message):
+    if "ping" in message:
+        response = {"pong": message["ping"]}
+    elif "action" in message:
+        response = dispatcher.dispatch(world, player, message)
+    else:
+        response = None
+
+    if response:
+        if "_id" in message:
+            response["_id"] = message["_id"]
+        player.send_message(**response)
 
 
 @routes.get("/session")
@@ -300,7 +302,7 @@ async def session(request):
     async for msg in ws:
         if msg.type == aiohttp.WSMsgType.BINARY:
             obj = msgpack.unpackb(msg.data, raw=False)
-            player.next_action = obj
+            _handle_message(request.app["world"], player, obj)
         elif msg.type == aiohttp.WSMsgType.ERROR:
             log.error('ws connection closed with exception %s', ws.exception())
 

@@ -1,4 +1,5 @@
 import os
+import mimetypes
 
 import boto3
 from fabric import task
@@ -21,13 +22,16 @@ def deploy_website(path, bucket_name):
         local_path = os.path.join(dirname, filename)
         remote_path = local_path[len(path) + 1:]
 
-        print(local_path, '->', remote_path)
+        mimetype, encoding = mimetypes.guess_type(local_path)
+
+        print(local_path, '->', remote_path, mimetype, encoding)
         with open(local_path) as f:
             s3.put_object(
                 Body=f.read(),
                 Bucket=bucket_name,
                 ACL="public-read",
                 Key=remote_path,
+                ContentType=mimetype or "text/plain",
             )
 
     for dirname, _, filenames in os.walk(path):
