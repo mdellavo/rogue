@@ -23,6 +23,10 @@ class ActorAttributes(object):
     hit_points: int = health
     max_inventory: int = 20
 
+    energy: int = 0
+    energy_to_act: int = 10
+    energy_recharge: int = 2
+
 
 @dataclasses.dataclass
 class ActorStats(object):
@@ -36,12 +40,22 @@ class Actor(Object):
     blocks: bool = True
 
     inventory: List[Object] = dataclasses.field(default_factory=list)
-    attributes = ActorAttributes()
-    stats = ActorStats()
+    attributes: ActorAttributes = dataclasses.field(default_factory=ActorAttributes)
+    stats: ActorStats = dataclasses.field(default_factory=ActorStats)
     equipment: Dict[BodyPart, Equipment] = dataclasses.field(default_factory=dict)
 
     def get_action(self, world) -> Optional[Action]:
         return None
+
+    @property
+    def can_act(self):
+        return self.attributes.energy >= self.attributes.energy_to_act
+
+    def charge_energy(self):
+        self.attributes.energy += self.attributes.energy_recharge
+
+    def drain_energy(self):
+        self.attributes.energy = 0
 
     @property
     def has_weapon(self):

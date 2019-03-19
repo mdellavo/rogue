@@ -11,16 +11,11 @@ class NPC(Actor):
     def __init__(self, *args, **kwargs):
         super(NPC, self).__init__(*args, **kwargs)
         self.target = None
-        self.sleep_for = random.randint(5, 10)
 
     def hurt(self, actor, damage):
         self.target = actor
 
     def get_action(self, world):
-        if self.age % self.sleep_for:
-            return None
-
-        self.sleep_for = random.randint(5, 10)
 
         if not self.target:
             actors = [actor for actor in world.surrounding_actors(self) if isinstance(actor, Player)]

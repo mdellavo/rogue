@@ -14,6 +14,7 @@ class ActionError(Exception):
 
 class Action(object, metaclass=abc.ABCMeta):
     NAME = None
+    ENERGY = 1
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
@@ -57,7 +58,7 @@ class EnterAction(Action):
         area = world.get_area(actor)
         pt = area.get_tile(actor.x, actor.y)
         if isinstance(pt, Door):
-            new_area, position = pt.get_area(self, area, (actor.x, actor.y))
+            new_area, position = pt.get_area(world, area, (actor.x, actor.y))
             world.add_actor(actor, area=new_area)
             x, y = position
             new_area.add_object(actor, x, y)

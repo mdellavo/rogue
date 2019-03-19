@@ -150,12 +150,6 @@ class WebSocketPlayer(Player):
         self.notice("you are dead. You lasted {} days and you killed {} things".format(age, self.stats.kills))
         self.response_queue.put_nowait(None)
 
-    def tick(self, world):
-        super(WebSocketPlayer, self).tick(world)
-
-
-        self.next_action = None
-
     def visible_tiles(self, area, width, height):
         rv = []
         for y in range(height):
@@ -230,6 +224,12 @@ def _handle_message(world, player, message):
         player.send_message(**response)
 
 
+def _generate_player(ws, player_name, tileset):
+    player = WebSocketPlayer("player", ws, tileset, name=player_name)
+    player.attributes.energy_recharge = 5
+    return player
+
+
 @routes.get("/session")
 async def session(request):
     ws = web.WebSocketResponse(receive_timeout=RECV_TIMEOUT, heartbeat=HEARTBEAT, compress=False)
@@ -253,7 +253,7 @@ async def session(request):
 
     player_name = obj["profile"]["name"]
 
-    player = WebSocketPlayer("player", ws, request.app["tileset"], name=player_name)
+    player = _generate_player(ws, player_name, request.app["tileset"])
     request.app["world"].place_actor(player)
 
     player.send_stats()

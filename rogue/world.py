@@ -124,9 +124,13 @@ class Area(object):
         for obj in self.objects:
             obj.age += 1
             if isinstance(obj, Actor):
-                action = obj.get_action(world)
-                if action:
-                    action.perform(obj, world)
+                obj.charge_energy()
+                if obj.can_act:
+                    action = obj.get_action(world)
+                    if action:
+                        success = action.perform(obj, world)
+                        if success:
+                            obj.drain_energy()
 
     def place(self, obj):
         for _ in range(100):
