@@ -3,64 +3,13 @@ import random
 import itertools
 import collections
 
+from typing import Tuple, Set, Dict, List
+
 from .actor import Player, Actor
+from .tiles import Tile
 
 TIMEOUT = .1
 DAY = 86400 / 6. * TIMEOUT
-
-
-def _path_score(a, b):
-    ax, ay = a
-    bx, by = b
-    return abs(bx - ax) + abs(by - ay)
-
-
-def _total_path(came_from, node):
-    total = {node}
-    while node in came_from:
-        node = came_from[node]
-        total.add(node)
-    return total
-
-
-# https://en.wikipedia.org/wiki/A*_search_algorithm#Pseudocode
-def find_path(area, start, goal):
-    open = set()
-    closed = set()
-    came_from = {}
-    score = {start: 0}
-    total = collections.defaultdict(lambda: math.inf)
-    total[start] = _path_score(start, goal)
-
-    def _next():
-        return min([node for node in total], key=lambda a, b: _path_score(a, b))
-
-    while open:
-        node = _next()
-        if node == goal:
-            return _total_path(came_from, node)
-        open.remove(node)
-        closed.add(node)
-        x, y = node
-        tile = area.get_tile(x, y)
-        if tile.blocked or not tile.explored:
-            continue
-        for dy in (-1, 0, 1):
-            for dx in (-1, 0, 1):
-                neighbor = x + dx, y + dy
-                neighbor_tile = area.get_tile(neighbor)
-                if not neighbor_tile:
-                    continue
-                if neighbor in closed:
-                    continue
-                new_score = score[node] + abs(dx) + abs(dy)
-                if neighbor not in open:
-                    open.add(neighbor)
-                elif new_score >= total[neighbor]:
-                    continue
-                came_from[neighbor] = node
-                score[neighbor] = score
-                total[neighbor] = score + _path_score(neighbor, goal)
 
 
 class Area(object):
@@ -235,3 +184,73 @@ class World(object):
         for x, y in area.immediate_area(actor):
             rv.extend([obj for obj in area.get_objects(x, y) if obj is not actor and isinstance(obj, Actor)])
         return rv
+
+
+# https://en.wikipedia.org/wiki/A*_search_algorithm#Pseudocode
+
+NodeType = Tuple[int, int]
+
+
+def _path_score(a: NodeType, b: NodeType) -> int:
+    ax, ay = a
+    bx, by = b
+    return abs(bx - ax) + abs(by - ay)
+
+
+def _total_path(came_from:Dict[NodeType, NodeType], node: NodeType) -> List[NodeType]:
+    total = [node]
+    while node in came_from:
+        node = came_from[node]
+        total.append(node)
+    return list(reversed(total))[1:]
+
+
+def find_path(area: Area, start: NodeType, goal: NodeType) -> List[NodeType]:
+    open_nodes: Set[NodeType] = set()
+    open_nodes.add(start)
+
+    closed_nodes: Set[NodeType] = set()
+
+    came_from: Dict[NodeType: NodeType] = {}
+    score = {start: 0}
+
+    total: Dict[NodeType: int] = collections.defaultdict(lambda: math.inf)
+    total[start] = _path_score(start, goal)
+
+    def _next() -> NodeType:
+        return sorted(open_nodes, key=lambda n: _path_score(n, goal)).pop(0)
+
+    while open_nodes:
+        node: NodeType = _next()
+
+        if node == goal:
+            return _total_path(came_from, node)
+
+        open_nodes.remove(node)
+        closed_nodes.add(node)
+        x, y = node
+
+        tile: Tile = area.get_tile(x, y)
+        if tile.blocked or not tile.explored:
+            continue
+
+        for dy in (-1, 0, 1):
+            for dx in (-1, 0, 1):
+                neighbor: NodeType = (x + dx, y + dy)
+                neighbor_tile: Tile = area.get_tile(*neighbor)
+
+                if not neighbor_tile:
+                    continue
+                if neighbor in closed_nodes:
+                    continue
+
+                new_score = score[node] + _path_score(node, neighbor)
+                if neighbor not in open_nodes:
+                    open_nodes.add(neighbor)
+                elif new_score >= total[neighbor]:
+                    continue
+
+                came_from[neighbor] = node
+                score[neighbor] = new_score
+                total[neighbor] = new_score + _path_score(neighbor, goal)
+

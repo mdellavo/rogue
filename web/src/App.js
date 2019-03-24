@@ -14,6 +14,7 @@ const Actions = {
     ENTER: "enter",
     MELEE: "melee",
     PICKUP: "pickup",
+    MOVE_TO: "move2",
 };
 
 const ObjectTypes = {
@@ -315,7 +316,7 @@ class InventoryDialog extends Dialog {
                     Equip weapons and armor by clicking on them.<br/>
                     Use items by clicking on them.<br/>
                 </p>
-                <div class="inventory">
+                <div className="inventory">
                     {items}
                 </div>
                 <div className="clear">
@@ -474,11 +475,12 @@ class CanvasView extends React.Component {
 
     onMouseDown(event) {
         const tilesize = DataStore.instance.tileset.tilesize;
-        this.clicked =  [
+        const pos = [
             Math.floor((event.clientX - event.target.offsetLeft) / tilesize),
             Math.floor((event.clientY - event.target.offsetTop) / tilesize),
         ];
-        console.log("clicked", this.clicked);
+        this.clicked = pos
+        DataStore.instance.send({action: Actions.MOVE_TO, pos: pos})
     }
 
     onMouseUp(event) {

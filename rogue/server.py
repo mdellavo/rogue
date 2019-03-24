@@ -12,7 +12,7 @@ import aiohttp_cors
 import msgpack
 
 from .actions import MoveAction, UseItemAction, PickupItemAction, EquipAction, MeleeAttackAction, EnterAction
-from .world import DAY
+from .world import DAY, find_path
 from .actor import Player, Actor
 from .actions import ActionError
 from .util import project_enum
@@ -44,10 +44,14 @@ class ActionDispatcher(object):
         action = msg["action"]
         if action not in self.registry:
             log.error("could not dispatch %s: %s", action, msg)
+            return
         try:
             return self.registry[action](world, player, msg)
         except ActionError as e:
             player.notice(str(e))
+        except Exception as e:
+            log.exception("exception during player action: " + str(e))
+            player.notice("you cant do that, you broke it")
 
 
 dispatcher = ActionDispatcher()
@@ -109,6 +113,15 @@ def handle_use(world, player, action):
 @dispatcher.register("melee")
 def handle_melee(world, player, _):
     player.next_action = MeleeAttackAction()
+
+
+@dispatcher.register("move2")
+def handle_move_to(world, player, action):
+    area = world.get_area(player)
+    player_relative = (action["pos"][0] - int(FRAME_SIZE/2), action["pos"][1] - int(FRAME_SIZE/2))
+    goal = (player.pos[0] + player_relative[0], player.pos[1] + player_relative[1])
+    path = find_path(area, player.pos, goal)
+    print("move from", player.pos, "to", goal, "by", path)
 
 
 @dataclasses.dataclass
