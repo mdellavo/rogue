@@ -72,7 +72,7 @@ class HealthPotion(Item):
     value: int = 10
 
     def use(self, actor):
-        actor.hit_points = min(actor.hit_points + self.value, actor.health)
+        actor.attributes.hit_points = min(actor.attributes.hit_points + self.value, actor.attributes.health)
         actor.healed(actor, self.value)
 
 
@@ -95,12 +95,13 @@ class Armor(Equipment):
 
 @dataclasses.dataclass
 class Sword(Weapon):
+    equips: BodyPart = BodyPart.HAND
     name: str = "sword"
     damage: int = 6
 
 
 @dataclasses.dataclass
-class Shield(Armor):
+class Shield(Equipment):
     name: str = "shield"
     equips = BodyPart.HAND
     damage: int = 2

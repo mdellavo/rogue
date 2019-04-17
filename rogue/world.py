@@ -3,7 +3,7 @@ import random
 import itertools
 import collections
 
-from typing import Tuple, Set, Dict, List
+from typing import Tuple, Set, Dict, List, DefaultDict
 
 from .actor import Player, Actor
 from .tiles import Tile
@@ -66,7 +66,7 @@ class Area(object):
     def remove_object(self, obj):
         if obj not in self.objects:
             return
-        self.objects.remove(obj)
+            self.objects.remove(obj)
 
     def tick(self, world):
         self.time += 1
@@ -125,6 +125,9 @@ class Area(object):
             tile = self.get_tile(x, y)
             tile.explored = True
         return visible
+
+    def find_path(self, actor, waypoint):
+        return find_path(self, actor.pos, waypoint)
 
 
 class World(object):
@@ -211,10 +214,10 @@ def find_path(area: Area, start: NodeType, goal: NodeType) -> List[NodeType]:
 
     closed_nodes: Set[NodeType] = set()
 
-    came_from: Dict[NodeType: NodeType] = {}
+    came_from = {}
     score = {start: 0}
 
-    total: Dict[NodeType: int] = collections.defaultdict(lambda: math.inf)
+    total: DefaultDict[NodeType, float] = collections.defaultdict(lambda: math.inf)
     total[start] = _path_score(start, goal)
 
     def _next() -> NodeType:
@@ -253,4 +256,3 @@ def find_path(area: Area, start: NodeType, goal: NodeType) -> List[NodeType]:
                 came_from[neighbor] = node
                 score[neighbor] = new_score
                 total[neighbor] = new_score + _path_score(neighbor, goal)
-

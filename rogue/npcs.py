@@ -7,11 +7,6 @@ from .actions import MeleeAttackAction, MoveAction
 
 @dataclasses.dataclass
 class NPC(Actor):
-
-    def __init__(self, *args, **kwargs):
-        super(NPC, self).__init__(*args, **kwargs)
-        self.target = None
-
     def hurt(self, actor, damage):
         self.target = actor
 

@@ -14,7 +14,7 @@ const Actions = {
     ENTER: "enter",
     MELEE: "melee",
     PICKUP: "pickup",
-    MOVE_TO: "move2",
+    WAYPOINT: "waypoint",
 };
 
 const ObjectTypes = {
@@ -395,6 +395,8 @@ class CanvasView extends React.Component {
         const ctx = this.canvas.getContext("2d");
         const tilesize = DataStore.instance.tileset.tilesize;
 
+        ctx.font = '20px serif';
+
         for (let y=0; y<frame.length; y++) {
             const row = frame[y];
             for (let x=0; x<row.length; x++) {
@@ -421,6 +423,9 @@ class CanvasView extends React.Component {
                         GfxUtil.fillTile(ctx, target_x, target_y, "red");
                     }
                 }
+
+                //ctx.fillText(`${x}, ${y}`, target_x + (tilesize/2), target_y + (tilesize/2));
+
             }
         }
     }
@@ -480,7 +485,7 @@ class CanvasView extends React.Component {
             Math.floor((event.clientY - event.target.offsetTop) / tilesize),
         ];
         this.clicked = pos
-        DataStore.instance.send({action: Actions.MOVE_TO, pos: pos})
+        DataStore.instance.send({action: Actions.WAYPOINT, pos: pos})
     }
 
     onMouseUp(event) {

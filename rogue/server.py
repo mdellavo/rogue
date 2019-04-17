@@ -12,7 +12,6 @@ import aiohttp_cors
 import msgpack
 
 from .actions import MoveAction, UseItemAction, PickupItemAction, EquipAction, MeleeAttackAction, EnterAction
-from .world import DAY, find_path
 from .actor import Player, Actor
 from .actions import ActionError
 from .util import project_enum
@@ -96,8 +95,7 @@ def handle_inventory(_, player, __):
 def handle_equip(world, player, action):
     obj = player.find_object_by_id(action["item"])
     if obj:
-        part = action.get("part")
-        action = EquipAction(obj, part=part)
+        action = EquipAction(obj)
         player.next_action = action
         return {"id": obj.id, "equipped": project_enum(action.part)}
 
@@ -115,13 +113,11 @@ def handle_melee(world, player, _):
     player.next_action = MeleeAttackAction()
 
 
-@dispatcher.register("move2")
-def handle_move_to(world, player, action):
-    area = world.get_area(player)
+@dispatcher.register("waypoint")
+def handle_waypoint(world, player, action):
     player_relative = (action["pos"][0] - int(FRAME_SIZE/2), action["pos"][1] - int(FRAME_SIZE/2))
-    goal = (player.pos[0] + player_relative[0], player.pos[1] + player_relative[1])
-    path = find_path(area, player.pos, goal)
-    print("move from", player.pos, "to", goal, "by", path)
+    waypoint = (player.pos[0] + player_relative[0], player.pos[1] + player_relative[1])
+    player.set_waypoint(world, waypoint)
 
 
 @dataclasses.dataclass

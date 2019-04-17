@@ -69,21 +69,16 @@ class EnterAction(Action):
 
 
 class EquipAction(Action):
-    def __init__(self, obj, part=None):
-        self.obj = obj
-        self.part = part
-
-    def perform(self, actor, world):
-        if not isinstance(self.obj, Equipment) or (self.part and self.obj.equips != self.part):
+    def __init__(self, obj):
+        if not isinstance(obj, Equipment):
             raise ActionError("cannot equip this")
-
+        self.obj = obj
         if isinstance(self.obj, Weapon):
             self.part = BodyPart.RIGHT_HAND
         elif isinstance(self.obj, Shield):
             self.part = BodyPart.LEFT_HAND
-        elif not self.part:
-            self.part = self.obj.equips
 
+    def perform(self, actor, world):
         actor.equipment[self.part] = self.obj
         actor.notice("you equipped a {} to your {}".format(self.obj, project_enum(self.part)))
 
@@ -128,12 +123,10 @@ class UseItemAction(Action):
 
     def __init__(self, obj):
         self.obj = obj
-
-    def perform(self, actor, world):
         if not isinstance(self.obj, Item):
             raise ActionError("cannot use this")
 
-        actor.use(self.obj)
+    def perform(self, actor, world):
         self.obj.use(actor)
         actor.inventory.remove(self.obj)
 
@@ -185,5 +178,3 @@ class MeleeAttackAction(Action):
             world.remove_actor(self.target)
             actor.stats.kills += 1
             actor.notice("you killed a {}".format(self.target.name))
-
-
