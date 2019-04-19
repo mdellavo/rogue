@@ -235,7 +235,7 @@ def _handle_message(world, player, message):
 
 def _generate_player(ws, player_name, tileset):
     player = WebSocketPlayer("player", ws, tileset, name=player_name)
-    player.attributes.energy_recharge = 5
+    player.attributes.energy_recharge = 7
     return player
 
 

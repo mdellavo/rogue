@@ -64,8 +64,7 @@ class Area(object):
         return False
 
     def remove_object(self, obj):
-        if obj not in self.objects:
-            return
+        if obj in self.objects:
             self.objects.remove(obj)
 
     def tick(self, world):

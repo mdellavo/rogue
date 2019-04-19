@@ -5,3 +5,4 @@ msgpack
 bson
 pillow
 fabric
+boto3

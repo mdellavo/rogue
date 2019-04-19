@@ -42,7 +42,7 @@ def deploy_website(path, bucket_name):
 @task
 def build_web(c):
     with c.cd(ROGUE_WEB_PATH):
-        c.local("PATH=\"$PATH:/usr/local/bin\" yarn build")
+        c.run("PATH=\"$PATH:/usr/local/bin\" yarn build")
 
 
 @task

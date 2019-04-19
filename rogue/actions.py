@@ -64,8 +64,6 @@ class EnterAction(Action):
             new_area.add_object(actor, x, y)
             area.remove_object(actor)
             actor.notice("you have entered {}".format(pt), mood=True)
-        else:
-            actor.notice("there is no door here")
 
 
 class EquipAction(Action):
@@ -90,16 +88,10 @@ class PickupItemAction(Action):
         area = world.get_area(actor)
         objs = [obj for obj in area.get_objects(actor.x, actor.y) if not (obj is actor or obj.anchored)]
 
-        if not objs:
-            actor.notice("there is nothing to pickup")
-            return
-
         for obj in objs:
             area.remove_object(obj)
-            if obj in actor.inventory:
-                raise ActionError("actor already holding obj")
 
-            if len(actor.inventory) < actor.attributes.max_inventory:
+            if obj not in actor.inventory and len(actor.inventory) < actor.attributes.max_inventory:
                 actor.inventory.append(obj)
                 actor.notice("you picked up a {}".format(obj))
 
@@ -111,11 +103,10 @@ class DropItemAction(Action):
         self.obj = obj
 
     def perform(self, actor, world):
-        if self.obj not in actor.inventory:
-            raise ActionError("actor not holding obj")
-        actor.inventory.remove(self.obj)
-        self.obj.x = actor.x
-        self.obj.y = actor.y
+        if self.obj in actor.inventory:
+            actor.inventory.remove(self.obj)
+            self.obj.x = actor.x
+            self.obj.y = actor.y
 
 
 class UseItemAction(Action):
@@ -144,7 +135,6 @@ class MeleeAttackAction(Action):
                 self.target = targets[0]
 
         if not self.target:
-            actor.notice("there is nothing to attack")
             return
 
         attack_roll = random.randint(1, 20)
