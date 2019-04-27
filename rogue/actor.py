@@ -1,10 +1,13 @@
 from __future__ import annotations
 import dataclasses
 import enum
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict, Optional
 
 from .objects import Object, Equipment, BodyPart
-from .actions import Action, MeleeAttackAction, MoveAction
+from .actions import Action, MeleeAttackAction, MoveAction, PickupItemAction, EnterAction
+from .tiles import Door
+from .annotations import NodeType
+
 
 @dataclasses.dataclass
 class ActorState(enum.Enum):
@@ -45,22 +48,36 @@ class Actor(Object):
     equipment: Dict[BodyPart, Equipment] = dataclasses.field(default_factory=dict)
 
     target: Optional[Actor] = None
-    path: Optional[List[Tuple[int, int]]] = None
+    waypoint: Optional[NodeType] = None
 
     def get_action(self, world) -> Optional[Action]:
         if self.target:
             return MeleeAttackAction(target=self.target)
 
-        if self.path:
-            x, y = self.path.pop(0)
-            dx, dy = x - self.x, y - self.y
-            return MoveAction(dx, dy)
+        area = world.get_area(self)
+
+        if self.waypoint:
+            if self.pos == self.waypoint:
+                self.waypoint = None
+                if area.has_objects(self.x, self.y):
+                    return PickupItemAction()
+                tile = area.get_tile(self.x, self.y)
+                if tile and isinstance(tile, Door):
+                    return EnterAction()
+            else:
+                path = area.find_path(self, self.waypoint)
+                if path:
+                    x, y = path.pop(0)
+                    dx, dy = x - self.x, y - self.y
+                    return MoveAction(dx, dy)
 
         return None
 
-    def set_waypoint(self, world, waypoint):
-        area = world.get_area(self)
-        self.path = area.find_path(self, waypoint)
+    def get_alternate_action(self, failed_action: Action) -> Optional[Action]:
+        pass
+
+    def set_waypoint(self, waypoint: NodeType):
+        self.waypoint = waypoint
 
     @property
     def can_act(self):

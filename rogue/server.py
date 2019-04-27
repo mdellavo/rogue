@@ -11,9 +11,9 @@ from aiohttp import web
 import aiohttp_cors
 import msgpack
 
+from .world import DAY
 from .actions import MoveAction, UseItemAction, PickupItemAction, EquipAction, MeleeAttackAction, EnterAction
 from .actor import Player, Actor
-from .actions import ActionError
 from .util import project_enum
 from .tiles import ASSET_PATH, ASSET_TYPES, MUSIC
 
@@ -46,8 +46,6 @@ class ActionDispatcher(object):
             return
         try:
             return self.registry[action](world, player, msg)
-        except ActionError as e:
-            player.notice(str(e))
         except Exception as e:
             log.exception("exception during player action: " + str(e))
             player.notice("you cant do that, you broke it")
@@ -117,7 +115,7 @@ def handle_melee(world, player, _):
 def handle_waypoint(world, player, action):
     player_relative = (action["pos"][0] - int(FRAME_SIZE/2), action["pos"][1] - int(FRAME_SIZE/2))
     waypoint = (player.pos[0] + player_relative[0], player.pos[1] + player_relative[1])
-    player.set_waypoint(world, waypoint)
+    player.set_waypoint(waypoint)
 
 
 @dataclasses.dataclass

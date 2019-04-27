@@ -3,10 +3,12 @@ import random
 import itertools
 import collections
 
-from typing import Tuple, Set, Dict, List, DefaultDict
+from typing import Set, Dict, List, DefaultDict
 
 from .actor import Player, Actor
 from .tiles import Tile
+from .actions import ActionError
+from .annotations import NodeType
 
 TIMEOUT = .1
 DAY = 86400 / 6. * TIMEOUT
@@ -42,6 +44,9 @@ class Area(object):
     def get_objects(self, x, y):
         return [obj for obj in self.objects if obj.x == x and obj.y == y]
 
+    def has_objects(self, x, y):
+        return len(self.get_objects(x, y)) > 0
+
     def is_tile_free(self, x, y):
         if self.get_tile(x, y).blocked:
             return False
@@ -76,7 +81,11 @@ class Area(object):
                 if obj.can_act:
                     action = obj.get_action(world)
                     if action:
-                        success = action.perform(obj, world)
+                        try:
+                            success = action.perform(obj, world)
+                        except ActionError as e:
+                            obj.notice(str(e))
+                            success = False
                         if success:
                             obj.drain_energy()
 
@@ -189,9 +198,6 @@ class World(object):
 
 
 # https://en.wikipedia.org/wiki/A*_search_algorithm#Pseudocode
-
-NodeType = Tuple[int, int]
-
 
 def _path_score(a: NodeType, b: NodeType) -> int:
     ax, ay = a

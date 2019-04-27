@@ -34,6 +34,7 @@ canvas:focus {
 .toolbar {
     background: #444;
     padding: 5px 5px;
+    width: 100%;
 }
 
 .toolbar button {
