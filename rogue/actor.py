@@ -58,12 +58,13 @@ class Actor(Object):
 
         if self.waypoint:
             if self.pos == self.waypoint:
-                self.waypoint = None
-                if area.has_objects(self.x, self.y):
+                objs = [obj for obj in  area.get_objects(self.x, self.y) if obj is not self]
+                if objs:
                     return PickupItemAction()
                 tile = area.get_tile(self.x, self.y)
                 if tile and isinstance(tile, Door):
                     return EnterAction()
+                self.waypoint = None
             else:
                 path = area.find_path(self, self.waypoint)
                 if path:
