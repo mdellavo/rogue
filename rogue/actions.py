@@ -91,9 +91,13 @@ class PickupItemAction(Action):
         for obj in objs:
             area.remove_object(obj)
 
-            if obj not in actor.inventory and len(actor.inventory) < actor.attributes.max_inventory:
+            if obj in actor.inventory:
+                actor.notice("you are already holding {}".format(obj))
+            elif len(actor.inventory) < actor.attributes.max_inventory:
                 actor.inventory.append(obj)
                 actor.notice("you picked up a {}".format(obj))
+            else:
+                actor.notice("you cannot pickup {}".format(obj))
 
 
 class DropItemAction(Action):

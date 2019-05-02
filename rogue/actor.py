@@ -52,7 +52,9 @@ class Actor(Object):
 
     def get_action(self, world) -> Optional[Action]:
         if self.target:
-            return MeleeAttackAction(target=self.target)
+            action = MeleeAttackAction(target=self.target)
+            self.target = None
+            return action
 
         area = world.get_area(self)
 
@@ -144,8 +146,9 @@ class Player(Actor):
         return next((o for o in self.inventory if o.id == id_), None)
 
     def get_action(self, world):
-        rv = super(Player, self).get_action(world)
-        if not rv and self.next_action:
+        if self.next_action:
             rv = self.next_action
             self.next_action = None
+        else:
+            rv = super(Player, self).get_action(world)
         return rv

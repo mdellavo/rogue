@@ -1,8 +1,12 @@
 import random
+import logging
 import dataclasses
 
 from .actor import Actor, Player
 from .actions import MeleeAttackAction, MoveAction
+
+
+log = logging.getLogger(__name__)
 
 
 @dataclasses.dataclass
