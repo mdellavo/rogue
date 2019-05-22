@@ -2,6 +2,7 @@ import random
 import noise
 import collections
 import logging
+from enum import Enum
 
 from .world import World, Area
 from .tiles import Door, Tile
@@ -176,51 +177,6 @@ class DungeonDoor(Door):
         return super(DungeonDoor, self).get_area(world, exit_area, exit_position)
 
 
-def generate_map(size, iterations=500, max_radius=5):
-    heightmap = [[0. for _ in range(size)] for __ in range(size)]
-
-    for _ in range(iterations):
-
-        cx = random.randrange(0, size)
-        cy = random.randrange(0, size)
-        radius = random.randint(1, max_radius)
-        radius_squared = radius ** 2
-
-        for y in range(size):
-            for x in range(size):
-                height = radius_squared - (((x - cx)**2) + ((y - cy)**2))
-                if height > 0:
-                    heightmap[y][x] += height
-
-    min_height = min(height for row in heightmap for height in row)
-    max_height = max(height for row in heightmap for height in row)
-    delta = max_height - min_height
-
-    for y in range(size):
-        for x in range(size):
-            heightmap[y][x] = (heightmap[y][x] - min_height) / delta
-
-    def _tile(x, y, height):
-        if x == 0 or y == 0 or x == size - 1 or y == size - 1:
-            return Tile("water1", blocked=True, blocked_sight=False)
-
-        n = noise.snoise2(x, y)
-
-        if height < .05:
-            return Tile("water1", blocked=True)
-        elif height < .1:
-            return Tile("sand1")
-        elif height < .5:
-            return Tile("grass1")
-        else:
-            return Tile("mountains1", blocked=True, blocked_sight=True)
-
-    tiles = [[_tile(x, y, height) for x, height in enumerate(row)] for y, row in enumerate(heightmap)]
-    add_doors(CaveDoor, tiles, depth=1, key="crypt1")
-    add_doors(DungeonDoor, tiles, depth=1, key="crypt2")
-    return tiles
-
-
 class Room(collections.namedtuple("Room", ["x", "y", "w", "h"])):
 
     @property
@@ -329,6 +285,135 @@ def render_dungeon(width, height, rooms, tunnels):
         return Tile("wall3", blocked=True, blocked_sight=True) if cell else Tile("grey3")
 
     return [[_tile(cell) for cell in row] for row in rows]
+
+
+class Cardinal(Enum):
+    NORTH = 0, 1
+    EAST = 1, 0
+    SOUTH = 0, -1
+    WEST = -1, 0
+
+
+def generate_maze(width, height):
+
+    grid = [[False for _ in range(width)] for __ in range(height)]
+    x, y = random.randint(0, width - 1), random.randint(0, height - 1)
+    grid[y][x] = True
+
+    wall_list = [(x, y, w) for w in Cardinal]
+    while wall_list:
+        item = random.choice(wall_list)
+        wall_list.remove(item)
+        x, y, w = item
+
+        dx, dy = w.value
+        nx, ny = x + (2 * dx), y + (2 * dy)
+        if nx < 0 or nx >= width or ny < 0 or ny >= height:
+            continue
+
+        if grid[ny][nx]:
+            continue
+
+        count = 0
+        for passage in Cardinal:
+            cx, cy = passage.value
+            px, py = nx + (2 * cx), ny + (2 * cy)
+            if px < 0 or px >= width or py < 0 or py >= height:
+                continue
+
+            if grid[py][px]:
+                count += 1
+
+        if count > 1:
+            continue
+
+        grid[ny][nx] = True
+        px, py = x + dx, y + dy
+        grid[py][px] = True
+
+        wall_list.extend([(nx, ny, w) for w in Cardinal])
+
+    def _tile(cell):
+        return Tile("wall3", blocked=True, blocked_sight=True) if not cell else Tile("grey3")
+    return [[_tile(cell) for cell in row] for row in grid]
+
+
+class MazeDoor(Door):
+    WIDTH = HEIGHT = 50
+
+    def __init__(self, *args, **kwargs):
+        self.depth = kwargs.pop("depth", 0)
+        kwargs["message"] = "maze level {}".format(self.depth)
+        super(MazeDoor, self).__init__(*args, **kwargs)
+
+    def generate_maze(self, exit_area, exit_position):
+        tiles = generate_maze(random.randrange(self.WIDTH), random.randrange(self.HEIGHT))
+        while True:
+            dx = random.randrange(0, len(tiles[0]))
+            dy = random.randrange(0, len(tiles))
+            tile = tiles[dy][dx]
+            if not tile.blocked:
+                if self.depth > 1:
+                    message = "a door to maze level {}".format(self.depth - 1)
+                else:
+                    message = "an exit to the world"
+                tiles[dy][dx] = Door("stairsup1", area=exit_area, position=exit_position, message=message)
+                break
+        return Area(tiles), (dx, dy)
+
+    def get_area(self, world, exit_area, exit_position):
+        if not self.area:
+            log.info("generating maze...")
+        self.area, self.position = self.generate_maze(exit_area, exit_position)
+        populate_area(world, self.area)
+        log.info("maze done!")
+        return super(MazeDoor, self).get_area(world, exit_area, exit_position)
+
+
+def generate_map(size, iterations=500, max_radius=5):
+    heightmap = [[0. for _ in range(size)] for __ in range(size)]
+
+    for _ in range(iterations):
+
+        cx = random.randrange(0, size)
+        cy = random.randrange(0, size)
+        radius = random.randint(1, max_radius)
+        radius_squared = radius ** 2
+
+        for y in range(size):
+            for x in range(size):
+                height = radius_squared - (((x - cx)**2) + ((y - cy)**2))
+                if height > 0:
+                    heightmap[y][x] += height
+
+    min_height = min(height for row in heightmap for height in row)
+    max_height = max(height for row in heightmap for height in row)
+    delta = max_height - min_height
+
+    for y in range(size):
+        for x in range(size):
+            heightmap[y][x] = (heightmap[y][x] - min_height) / delta
+
+    def _tile(x, y, height):
+        if x == 0 or y == 0 or x == size - 1 or y == size - 1:
+            return Tile("water1", blocked=True, blocked_sight=False)
+
+        n = noise.snoise2(x, y)
+
+        if height < .05:
+            return Tile("water1", blocked=True)
+        elif height < .1:
+            return Tile("sand1")
+        elif height < .5:
+            return Tile("grass1")
+        else:
+            return Tile("mountains1", blocked=True, blocked_sight=True)
+
+    tiles = [[_tile(x, y, height) for x, height in enumerate(row)] for y, row in enumerate(heightmap)]
+    add_doors(CaveDoor, tiles, depth=1, key="crypt1")
+    add_doors(DungeonDoor, tiles, depth=1, key="crypt2")
+    add_doors(MazeDoor, tiles, depth=1, key="crypt3")
+    return tiles
 
 
 def generate_world(size):

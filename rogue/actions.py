@@ -143,7 +143,7 @@ class MeleeAttackAction(Action):
 
         attack_roll = random.randint(1, 20)
         if attack_roll <= 1:
-            actor.notice("you missed {}".format(self.target.name))
+            actor.notice("{} missed {}".format(actor.name, self.target.name))
             return
 
         damage = actor.attributes.strength + (random.randint(1, actor.weapon.damage) if actor.has_weapon else 0)
@@ -156,19 +156,19 @@ class MeleeAttackAction(Action):
             damage -= self.target.shield.damage
 
         if damage <= 0:
-            actor.notice("you did no damage")
+            actor.notice("{} did no damage to {}", actor.name, self.target.name)
             return
 
         self.target.attributes.hit_points -= damage
         self.target.hurt(actor, damage)
 
         if critical:
-            actor.notice("critical hit on {} for {} damage!!!".format(self.target.name, damage))
+            actor.notice("critical hit by {} on {} for {} damage!!!".format(actor.name, self.target.name, damage))
         else:
-            actor.notice("hit on {} for {} damage!".format(self.target.name, damage))
+            actor.notice("hit by {} on {} for {} damage!".format(actor.name, self.target.name, damage))
 
         if self.target.attributes.hit_points <= 0:
             self.target.die()
             world.remove_actor(self.target)
             actor.stats.kills += 1
-            actor.notice("you killed a {}".format(self.target.name))
+            actor.notice("{} killed a {}".format(actor.name, self.target.name))

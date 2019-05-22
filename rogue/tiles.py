@@ -42,6 +42,7 @@ TILEMAP = collections.OrderedDict((
     ("shield1", (100, 0)),
     ("potion1", (28, 8)),
     ("crypt2", (13, 22)),
+    ("crypt3", (14, 22)),
 ))
 
 

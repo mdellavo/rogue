@@ -11,6 +11,7 @@ log = logging.getLogger(__name__)
 
 @dataclasses.dataclass
 class NPC(Actor):
+
     def hurt(self, actor, damage):
         self.target = actor
 

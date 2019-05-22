@@ -6,3 +6,5 @@ bson
 pillow
 fabric
 boto3
+bson
+noise
