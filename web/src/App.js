@@ -1,7 +1,7 @@
 import React, {Component} from 'react';
 import './App.css';
 
-import msgpack from 'msgpack-lite'
+import msgpack from 'msgpack-lite';
 
 const API_URL = process.env.REACT_APP_API;
 const PING_DELAY = 10;
@@ -47,20 +47,11 @@ class DataStore {
         this.pingIntervalId = null;
         this.frames = 0;
         this.bytes = 0;
-        this.tile_cache = {};
+        this.tiles = null;
     }
 
     get tileset() {
         return this.manifest ? this.manifest.tileset : null;
-    }
-
-    getTile(tile_index, cb) {
-        if (!this.tile_cache[tile_index]) {
-            this.tile_cache[tile_index] = new Image();
-            this.tile_cache[tile_index].onload = cb;
-            this.tile_cache[tile_index].src = this.manifest.tile_url + tile_index.toString();
-        }
-        return this.tile_cache[tile_index];
     }
 
     loadManifest(manifest_url, cb) {
@@ -79,17 +70,12 @@ class DataStore {
     }
 
     loadTiles(cb) {
-        let num_complete = 0;
         const loaded = () => {
-            num_complete++;
-            if (num_complete === this.tileset.num_tiles) {
-                cb.onLoaded();
-            }
+            cb.onLoaded();
         };
-
-        for (let i=0; i<this.tileset.num_tiles; i++) {
-            this.getTile(i, loaded);
-        }
+        this.tiles = new Image();
+        this.tiles.onload = loaded;
+        this.tiles.src = this.manifest.tiles_url;
     }
 
     get music() {
@@ -185,8 +171,19 @@ class SfxUtil {
 class GfxUtil {
 
     static drawTile(ctx, x, y, tile_index) {
-        const img = DataStore.instance.getTile(tile_index);
-        ctx.drawImage(img, x, y);
+        const ds = DataStore.instance;
+        const pos = DataStore.instance.tileset.tilemap[tile_index];
+        ctx.drawImage(
+            ds.tiles,
+            pos[0] * ds.tileset.tilesize,
+            pos[1] * ds.tileset.tilesize,
+            ds.tileset.tilesize,
+            ds.tileset.tilesize,
+            x,
+            y,
+            ds.tileset.tilesize,
+            ds.tileset.tilesize,
+        );
     }
 
     static fillTile(ctx, x, y, color) {
@@ -249,13 +246,22 @@ class InventoryItem extends React.Component {
     }
 
     getClassName() {
-        return this.props.item.equipped ? "inventory-item equipped" : "inventory-item"
+        return this.props.item.equipped ? "inventory-item equipped" : "inventory-item";
+    }
+
+    get canvas() {
+        return this.refs.canvas;
+    }
+
+    componentDidMount() {
+        const ctx = this.canvas.getContext("2d");
+        GfxUtil.drawTile(ctx, 0, 0, this.props.item.idx);
     }
 
     render() {
         return (
             <div className={this.getClassName()} onClick={this.onClick}>
-                <img alt={this.props.item.type} src={DataStore.instance.getTile(this.props.item.idx).src}/>
+                <canvas tabIndex="0" ref="canvas" width={DataStore.instance.tileset.tilesize} height={DataStore.instance.tileset.tilesize} />
                 <p className="inventory-item-name">
                     {this.props.item.name}
                 </p>
@@ -297,7 +303,7 @@ class InventoryDialog extends Dialog {
         } else if (item.type === ObjectTypes.ITEM) {
             DataStore.instance.send({action: Actions.USE, item: item.id}, (msg) => {
                 this.setState({"inventory": this.state.inventory.filter((i) => {
-                    return i.id !== msg.id
+                    return i.id !== msg.id;
                 })});
             });
         }
@@ -306,7 +312,7 @@ class InventoryDialog extends Dialog {
 
     render() {
         const items = this.state.inventory.map((item) => {
-            return <InventoryItem key={item.id} item={item} handler={this}/>
+            return <InventoryItem key={item.id} item={item} handler={this}/>;
         });
 
         return (
@@ -342,7 +348,7 @@ class CanvasView extends React.Component {
         this.onKeyPress = this.onKeyPress.bind(this);
         this.onMouseDown = this.onMouseDown.bind(this);
         this.onMouseUp = this.onMouseUp.bind(this);
-        
+
         this.showPlayerDialog = this.showPlayerDialog.bind(this);
         this.showInventoryDialog = this.showInventoryDialog.bind(this);
         this.showHelpDialog = this.showHelpDialog.bind(this);
@@ -423,9 +429,7 @@ class CanvasView extends React.Component {
                         GfxUtil.fillTile(ctx, target_x, target_y, "red");
                     }
                 }
-
                 //ctx.fillText(`${x}, ${y}`, target_x + (tilesize/2), target_y + (tilesize/2));
-
             }
         }
     }
@@ -484,8 +488,8 @@ class CanvasView extends React.Component {
             Math.floor((event.clientX - event.target.offsetLeft) / tilesize),
             Math.floor((event.clientY - event.target.offsetTop) / tilesize),
         ];
-        this.clicked = pos
-        DataStore.instance.send({action: Actions.WAYPOINT, pos: pos})
+        this.clicked = pos;
+        DataStore.instance.send({action: Actions.WAYPOINT, pos: pos});
     }
 
     onMouseUp(event) {
@@ -587,7 +591,7 @@ class CanvasView extends React.Component {
 
                 {status}
                 {stats}
-                <canvas tabIndex="0" ref="canvas" width={704} height={704} onKeyDown={this.onKeyPress} onBlur={this.onBlur} onMouseDown={this.onMouseDown} onMouseUp={this.onMouseUp}XS/>
+                <canvas tabIndex="0" ref="canvas" width={704} height={704} onKeyDown={this.onKeyPress} onBlur={this.onBlur} onMouseDown={this.onMouseDown} onMouseUp={this.onMouseUp}/>
 
                 <div className="notices">
                     {notices}
@@ -600,7 +604,7 @@ class CanvasView extends React.Component {
                 {inventoryDialog}
                 {playerDialog}
             </div>
-        )
+        );
     }
 }
 
@@ -676,7 +680,7 @@ class App extends Component {
     }
 
     onError() {
-        this.setState({error: true})
+        this.setState({error: true});
     }
 
     render() {

@@ -19,6 +19,10 @@ COIN_KEYS = ["coin1", "coin2", "coin3", "coin4", "coin5"]
 log = logging.getLogger(__name__)
 
 
+def dump_tiles(tiles):
+    pass
+
+
 def add_doors(door_class, tiles, total_doors=NUM_DOORS, depth=0, key="crypt1"):
     width = len(tiles[0])
     height = len(tiles)
@@ -364,9 +368,11 @@ class MazeDoor(Door):
     def get_area(self, world, exit_area, exit_position):
         if not self.area:
             log.info("generating maze...")
-        self.area, self.position = self.generate_maze(exit_area, exit_position)
-        populate_area(world, self.area)
-        log.info("maze done!")
+            self.area, self.position = self.generate_maze(exit_area, exit_position)
+            add_npcs(world, self.area, 10)
+            add_coins(self.area, 10)
+            add_items(self.area, 10)
+            log.info("maze done!")
         return super(MazeDoor, self).get_area(world, exit_area, exit_position)
 
 

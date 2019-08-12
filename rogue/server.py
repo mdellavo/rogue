@@ -15,7 +15,7 @@ from .world import DAY
 from .actions import MoveAction, UseItemAction, PickupItemAction, EquipAction, MeleeAttackAction, EnterAction
 from .actor import Player, Actor
 from .util import project_enum
-from .tiles import ASSET_PATH, ASSET_TYPES, MUSIC
+from .tiles import ASSET_PATH, MUSIC, AssetTypes
 
 log = logging.getLogger(__name__)
 
@@ -26,7 +26,7 @@ QUEUE_SIZE = 100
 FRAME_SIZE = 11
 HEARTBEAT = 5
 RECV_TIMEOUT = 10
-UPDATE_TIMEOUT = .06666
+UPDATE_TIMEOUT = .1
 
 
 class ActionDispatcher(object):
@@ -209,9 +209,9 @@ async def get_root(request):
         "status": "ok",
         "tileset": {
             "tilesize": request.app["tileset"].tilesize,
-            "num_tiles": request.app["tileset"].num_tiles,
+            "tilemap": request.app["tileset"].indexed_map
         },
-        "tile_url": "http://{}/tile/".format(request.host),
+        "tiles_url": "http://{}/asset/gfx/tiles.png".format(request.host),
         "socket_url": "ws://{}/session".format(request.host),
         "music": ["http://{}/asset/music/{}".format(request.host, key) for key in MUSIC]
     })
@@ -337,24 +337,11 @@ async def session(request):
     return ws
 
 
-@routes.get("/tile/{idx}")
-async def get_tile(request):
-    idx = int(request.match_info["idx"])
-    digest, img = request.app["tileset"].get_tile_bitmap(idx)  # need memory cache
-    matching = request.headers.get("If-None-Match", "").strip('"')
-    if matching == digest:
-        return web.Response(status=304)
-    return web.Response(body=img, content_type="image/png", headers={
-        "Cache-Control": "public,max-age=86400",
-        "ETag": '"' + digest + '"'
-    })
-
-
 @routes.get(r"/asset/{asset_type:\w+}/{asset_key}")
 async def get_asset(request):
 
     asset_type = request.match_info["asset_type"]
-    if asset_type not in ASSET_TYPES:
+    if AssetTypes(asset_type) not in AssetTypes:
         return web.Response(status=404)
 
     asset_key = request.match_info["asset_key"]

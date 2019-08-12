@@ -6,7 +6,16 @@ import dataclasses
 
 from PIL import Image
 
-ASSET_TYPES = ("gfx", "sfx", "music")  # XXX enum
+from .util import StrEnum
+
+
+class AssetTypes(StrEnum):
+    GFX = "gfx"
+    SFX = "sfx"
+    MUSIC = "music"
+    TILEMAP = "tilemap"
+
+
 ASSET_PATH = os.path.join(os.path.dirname(__file__), "..", "data")
 TILES_PATH = os.path.join(ASSET_PATH, "gfx", "tiles.png")
 
@@ -53,6 +62,7 @@ class TileSet(object):
         self.tilesize = tilesize
         self.tiles = Image.open(TILES_PATH)
         self.tile_cache = {}
+        self.indexed_map = [self.tilemap[k] for k in self.tilemap]
 
     @property
     def num_tiles(self):
@@ -84,16 +94,6 @@ class TileSet(object):
             rv = (digest, img_bytes)
             self.tile_cache[idx] = rv
         return rv
-
-    def get_indexed_map(self):
-
-        def _tile(k):
-            return {
-                "key": k,
-                "coords": self.tilemap[k]
-            }
-
-        return [_tile(k) for k in self.tilemap.keys()]
 
 
 @dataclasses.dataclass

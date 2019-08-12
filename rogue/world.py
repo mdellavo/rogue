@@ -131,7 +131,8 @@ class Area(object):
         visible = self.fov(actor)
         for x, y in visible:
             tile = self.get_tile(x, y)
-            tile.explored = True
+            if tile:
+                tile.explored = True
         return visible
 
     def find_path(self, actor, waypoint):
