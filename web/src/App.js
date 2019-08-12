@@ -15,6 +15,7 @@ const Actions = {
     MELEE: "melee",
     PICKUP: "pickup",
     WAYPOINT: "waypoint",
+    PLAYER_INFO: "player_info",
 };
 
 const ObjectTypes = {
@@ -193,6 +194,25 @@ class GfxUtil {
     }
 }
 
+class ProgressBar extends React.Component {
+    constructor(props) {
+        super(props);
+        this.state = {"value": props.value, "max": props.max, "text": props.text};
+    }
+
+    setValue(value, max) {
+        this.setState({"value": value, "max": max});
+    }
+
+    render() {
+        return (
+                <div className="progress-bar">
+                    <span style={{width: this.state.max/this.state.value * 100 + "%"}}>{this.state.text}</span>
+                </div>
+        );
+    }
+}
+
 class Dialog extends React.Component {
     constructor(props) {
         super(props);
@@ -332,10 +352,49 @@ class InventoryDialog extends Dialog {
     }
 }
 
-class PlayerDialog extends Dialog {
+
+
+class PlayerValues extends React.Component {
     render() {
+        const parts = [];
+        for (var k in this.props.values) {
+            parts.push(<div key={k}>{k}: <strong>{this.props.values[k]}</strong></div>);
+        }
+        return (
+                <div className="player-values">
+                    {parts}
+                </div>
+        );
+    }
+}
+
+
+class PlayerDialog extends Dialog {
+    constructor(props) {
+        super(props);
+        this.state = {"player_info": null};
+    }
+
+    componentWillMount() {
+        DataStore.instance.send({action: Actions.PLAYER_INFO}, (msg) => {
+            this.setState({"player_info": msg.player_info});
+        });
+    }
+
+    render() {
+        var body = [];
+        if (this.state.player_info) {
+            body.push(<h3 key="h-attrs">Attributes</h3>);
+            body.push(<PlayerValues className="player-attrs" key="attrs" values={this.state.player_info.attributes}/>);
+            body.push(<h3 key="h-stats">Stats</h3>);
+            body.push(<PlayerValues className="player-stats" key="stats" values={this.state.player_info.stats}/>);
+        } else {
+            body.push(<div key="loading">Loading...</div>);
+        }
+
         return (
             <Dialog title="Player" callback={this.props.callback}>
+                {body}
             </Dialog>
         );
     }
@@ -574,9 +633,11 @@ class CanvasView extends React.Component {
 
         let stats;
         if (this.state.stats.tot) {
+            const text = (this.state.stats.hp >=0 ? this.state.stats.hp : 0) + " of " + this.state.stats.tot;
             stats = (
                 <div className="stats">
-                    Health: {this.state.stats.hp >=0 ? this.state.stats.hp : 0} of {this.state.stats.tot}
+                    Health:
+                    <ProgressBar value={this.state.stats.hp} max={this.state.stats.tot} text={text}/>
                 </div>
             );
         }

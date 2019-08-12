@@ -26,7 +26,8 @@ class ActorAttributes(object):
     hit_points: int = health
     max_inventory: int = 20
 
-    energy: int = 0
+    max_energy: int = 20
+    energy: int = max_energy
     energy_to_act: int = 10
     energy_recharge: int = 2
 
@@ -87,7 +88,8 @@ class Actor(Object):
         return self.attributes.energy >= self.attributes.energy_to_act
 
     def charge_energy(self):
-        self.attributes.energy += self.attributes.energy_recharge
+        self.attributes.energy = min(self.attributes.energy + self.attributes.energy_recharge, self.attributes.max_energy)
+
 
     def drain_energy(self):
         self.attributes.energy = 0

@@ -69,6 +69,16 @@ def handle_pickup(world, player, _):
 def handle_enter(world, player, _):
     player.next_action = EnterAction()
 
+@dispatcher.register("player_info")
+def handle_player_info(world, player, _):
+    rv = {"player_info": {
+        "name": player.name,
+        "age": player.age,
+        "stats": dataclasses.asdict(player.stats),
+        "attributes": dataclasses.asdict(player.attributes),
+    }}
+    return rv
+
 
 @dispatcher.register("inventory")
 def handle_inventory(_, player, __):

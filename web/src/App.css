@@ -66,6 +66,23 @@ canvas:focus {
 
 }
 
+.progress-bar {
+    display: inline-block;
+    height: 20px;
+    width: 100px;
+    position: relative;
+    padding: 10px;
+}
+
+.progress-bar>span {
+    text-align: center;
+    display: block;
+    background: red;
+    height: 100%;
+    position: relative;
+}
+
+
 .help {
     float: right;
 }
@@ -141,6 +158,10 @@ canvas:focus {
 
 .inventory-item img {
     margin: auto;
+}
+
+.player-values {
+    padding-bottom: 10px;
 }
 
 .notices {
