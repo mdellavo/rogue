@@ -384,6 +384,7 @@ class PlayerDialog extends Dialog {
     render() {
         var body = [];
         if (this.state.player_info) {
+            body.push(<h3 key="h-name">{}</h3>);
             body.push(<h3 key="h-attrs">Attributes</h3>);
             body.push(<PlayerValues className="player-attrs" key="attrs" values={this.state.player_info.attributes}/>);
             body.push(<h3 key="h-stats">Stats</h3>);
@@ -393,7 +394,7 @@ class PlayerDialog extends Dialog {
         }
 
         return (
-            <Dialog title="Player" callback={this.props.callback}>
+            <Dialog title={this.state.player_info ? this.state.player_info.name : "Player"} callback={this.props.callback}>
                 {body}
             </Dialog>
         );
