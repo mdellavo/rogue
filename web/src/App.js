@@ -444,13 +444,12 @@ class CanvasView extends React.Component {
         this.onKeyPress = this.onKeyPress.bind(this);
         this.onMouseDown = this.onMouseDown.bind(this);
         this.onMouseUp = this.onMouseUp.bind(this);
-
         this.showPlayerDialog = this.showPlayerDialog.bind(this);
         this.showInventoryDialog = this.showInventoryDialog.bind(this);
         this.showHelpDialog = this.showHelpDialog.bind(this);
         this.showSettingsDialog = this.showSettingsDialog.bind(this);
-
         this.closeDialogs = this.closeDialogs.bind(this);
+        this.onUnload = this.onUnload.bind(this);
 
         this.clicked = null;
 
@@ -478,20 +477,22 @@ class CanvasView extends React.Component {
         DataStore.instance.connect(this, this.props.profile);
         this.canvas.focus();
         SfxUtil.shuffleMusic();
+    }
 
-        window.addEventListener("beforeunload", function (event) {
-            event.preventDefault();
-            return "";
-        });
+    onUnload(event) {
+        event.preventDefault();
+        return "";
     }
 
     onConnected() {
         this.setState({connected: true, connecting: false});
+        window.addEventListener("beforeunload", this.onUnload);
     }
 
     onDisconnected() {
         this.setState({connected: false});
         SfxUtil.stopMusic();
+        window.removeEventListener("beforeunload", this.onUnload);
     }
 
     onError() {
