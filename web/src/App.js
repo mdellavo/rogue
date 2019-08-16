@@ -478,6 +478,11 @@ class CanvasView extends React.Component {
         DataStore.instance.connect(this, this.props.profile);
         this.canvas.focus();
         SfxUtil.shuffleMusic();
+
+        window.addEventListener("beforeunload", function (event) {
+            event.preventDefault();
+            return "";
+        });
     }
 
     onConnected() {

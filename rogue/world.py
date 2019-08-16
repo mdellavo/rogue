@@ -48,7 +48,8 @@ class Area(object):
         return len(self.get_objects(x, y)) > 0
 
     def is_tile_free(self, x, y):
-        if self.get_tile(x, y).blocked:
+        tile = self.get_tile(x, y)
+        if not tile or tile.blocked:
             return False
 
         objs = self.get_objects(x, y)
