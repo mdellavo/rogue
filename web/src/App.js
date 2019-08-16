@@ -152,6 +152,16 @@ class DataStore {
     cancelEventListener(event) {
         delete this.eventCallbacks[event];
     }
+
+    save(storage) {
+        storage.setItem("settings", JSON.stringify(this.settings));
+    }
+
+    load(storage) {
+        const settings = storage.getItem("settings");
+        if (settings)
+            this.settings = JSON.parse(settings);
+    }
 }
 
 DataStore.instance = new DataStore();
@@ -434,6 +444,8 @@ class SettingsDialog extends Dialog {
             SfxUtil.shuffleMusic();
         else
             SfxUtil.stopMusic();
+
+        DataStore.instance.save(window.localStorage);
     }
 }
 
@@ -781,6 +793,7 @@ class App extends Component {
 
     onLoaded() {
         this.setState({loaded: true});
+        DataStore.instance.load(window.localStorage);
     }
 
     onError() {
