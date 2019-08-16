@@ -221,9 +221,9 @@ async def get_root(request):
             "tilesize": request.app["tileset"].tilesize,
             "tilemap": request.app["tileset"].indexed_map
         },
-        "tiles_url": "http://{}/asset/gfx/tiles.png".format(request.host),
+        "tiles_url": "//{}/asset/gfx/tiles.png".format(request.host),
         "socket_url": "ws://{}/session".format(request.host),
-        "music": ["http://{}/asset/music/{}".format(request.host, key) for key in MUSIC]
+        "music": ["//{}/asset/music/{}".format(request.host, key) for key in MUSIC]
     })
 
 

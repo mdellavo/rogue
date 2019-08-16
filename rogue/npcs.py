@@ -26,6 +26,14 @@ class NPC(Actor):
             action = MeleeAttackAction(self)
             self.target = None
         else:
-            action = MoveAction(random.randint(-1, 1), random.randint(-1, 1))
+            action = None
+            for _ in range(100):
+                dx, dy = random.randint(-1, 1), random.randint(-1, 1)
+                x = self.x + dx
+                y = self.y + dy
+                area = world.get_area(self)
+                if area.is_tile_free(x, y):
+                    action = MoveAction(dx, dy)
+                    break
 
         return action

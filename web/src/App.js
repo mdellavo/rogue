@@ -49,6 +49,10 @@ class DataStore {
         this.frames = 0;
         this.bytes = 0;
         this.tiles = null;
+        this.settings = {
+            playMusic: true,
+            playSounds: true
+        };
     }
 
     get tileset() {
@@ -167,10 +171,16 @@ class SfxUtil {
             SfxUtil.musicPlayer = null;
         }
     }
+    static shuffleMusic() {
+        if (!DataStore.instance.settings.playMusic)
+            return;
+
+        const music = choice(DataStore.instance.music);
+        SfxUtil.playMusic(music);
+    }
 }
 
 class GfxUtil {
-
     static drawTile(ctx, x, y, tile_index) {
         const ds = DataStore.instance;
         const pos = DataStore.instance.tileset.tilemap[tile_index];
@@ -401,6 +411,32 @@ class PlayerDialog extends Dialog {
     }
 }
 
+class SettingsDialog extends Dialog {
+    constructor(props) {
+        super(props);
+        this.onMusicChanged = this.onMusicChanged.bind(this);
+    }
+
+    render() {
+        return (
+                <Dialog title="Settings" callback={this.props.callback}>
+                <div>
+                <input type="checkbox" name="play_music" defaultChecked={DataStore.instance.settings.playMusic} onChange={this.onMusicChanged}/>
+                <span>Music</span>
+                </div>
+                </Dialog>
+        );
+    }
+
+    onMusicChanged(event) {
+        DataStore.instance.settings.playMusic = event.target.checked;
+        if (event.target.checked)
+            SfxUtil.shuffleMusic();
+        else
+            SfxUtil.stopMusic();
+    }
+}
+
 class CanvasView extends React.Component {
     constructor(props) {
         super(props);
@@ -412,10 +448,9 @@ class CanvasView extends React.Component {
         this.showPlayerDialog = this.showPlayerDialog.bind(this);
         this.showInventoryDialog = this.showInventoryDialog.bind(this);
         this.showHelpDialog = this.showHelpDialog.bind(this);
+        this.showSettingsDialog = this.showSettingsDialog.bind(this);
 
-        this.closePlayerDialog = this.closePlayerDialog.bind(this);
-        this.closeInventoryDialog = this.closeInventoryDialog.bind(this);
-        this.closeHelpDialog = this.closeHelpDialog.bind(this);
+        this.closeDialogs = this.closeDialogs.bind(this);
 
         this.clicked = null;
 
@@ -423,6 +458,7 @@ class CanvasView extends React.Component {
             showHelp: true,
             showInventory: false,
             showPlayer: false,
+            showSettings: false,
             notices: [],
             connecting: true,
             connected: false,
@@ -441,7 +477,7 @@ class CanvasView extends React.Component {
         DataStore.instance.addEventListener("stats", (msg) => { this.onStats(msg.stats); });
         DataStore.instance.connect(this, this.props.profile);
         this.canvas.focus();
-        this.shuffleMusic();
+        SfxUtil.shuffleMusic();
     }
 
     onConnected() {
@@ -502,7 +538,7 @@ class CanvasView extends React.Component {
         }
         this.setState({notices: notices});
         if (event.mood) {
-            this.shuffleMusic();
+            SfxUtil.shuffleMusic();
         }
     }
 
@@ -556,33 +592,32 @@ class CanvasView extends React.Component {
         this.clicked = null;
     }
 
+    showDialog(dialog) {
+        const state = Object.assign(
+            {showPlayer: false, showInventory: false, showHelp: false, showSettings: false},
+            dialog
+        );
+        this.setState(state);
+    }
+
+    closeDialogs() {
+        this.showDialog({});
+    }
+
     showPlayerDialog() {
-        this.setState({showPlayer: true});
+        this.showDialog({showPlayer: true});
     }
 
     showInventoryDialog() {
-        this.setState({showInventory: true});
+        this.showDialog({showInventory: true});
     }
 
     showHelpDialog() {
-        this.setState({showHelp: true});
+        this.showDialog({showHelp: true});
     }
 
-    closePlayerDialog() {
-        this.setState({showPlayer: false});
-    }
-
-    closeInventoryDialog() {
-        this.setState({showInventory: false});
-    }
-
-    closeHelpDialog() {
-        this.setState({showHelp: false});
-    }
-
-    shuffleMusic() {
-        const music = choice(DataStore.instance.music);
-        SfxUtil.playMusic(music);
+    showSettingsDialog() {
+        this.showDialog({showSettings: true});
     }
 
     render() {
@@ -609,19 +644,21 @@ class CanvasView extends React.Component {
             );
         }
 
-        let helpDialog;
+        let dialog;
         if (this.state.showHelp) {
-            helpDialog = <HelpDialog callback={this.closeHelpDialog}/>;
+            dialog = <HelpDialog callback={this.closeDialogs}/>;
         }
 
-        let playerDialog;
         if (this.state.showPlayer) {
-            playerDialog = <PlayerDialog callback={this.closePlayerDialog}/>;
+            dialog = <PlayerDialog callback={this.closeDialogs}/>;
         }
 
-        let inventoryDialog;
         if (this.state.showInventory) {
-            inventoryDialog = <InventoryDialog callback={this.closeInventoryDialog} />;
+            dialog = <InventoryDialog callback={this.closeDialogs} />;
+        }
+
+        if (this.state.showSettings) {
+            dialog = <SettingsDialog callback={this.closeDialogs}/>;
         }
 
         const notices = this.state.notices.map((notice, i) => {
@@ -647,6 +684,7 @@ class CanvasView extends React.Component {
             <div>
                 <div className="toolbar">
                     <button className="help" onClick={this.showHelpDialog}>Help</button>
+                    <button className="settings" onClick={this.showSettingsDialog}>Settings</button>
                     <button className="player" onClick={this.showPlayerDialog}>Player</button>
                     <button className="inventory" onClick={this.showInventoryDialog}>Inventory</button>
                 </div>
@@ -662,9 +700,7 @@ class CanvasView extends React.Component {
                 <div className="footer">
                 </div>
 
-                {helpDialog}
-                {inventoryDialog}
-                {playerDialog}
+                {dialog}
             </div>
         );
     }
@@ -705,7 +741,7 @@ class JoinView extends Component {
 
     render() {
         return (
-            <div className="connect">
+            <div className="join">
                 <fieldset>
                     <legend>Join the game</legend>
 

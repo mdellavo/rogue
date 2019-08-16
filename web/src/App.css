@@ -83,7 +83,7 @@ canvas:focus {
 }
 
 
-.help {
+.help, .settings {
     float: right;
 }
 
@@ -126,6 +126,16 @@ canvas:focus {
     background: #666;
     height: 100%;
     min-height: 100px;
+}
+
+.dialog-body input[type=checkbox] {
+    -ms-transform: scale(2); /* IE */
+    -moz-transform: scale(2); /* FF */
+    -webkit-transform: scale(2); /* Safari and Chrome */
+    -o-transform: scale(2); /* Opera */
+    transform: scale(2);
+    padding: 10px;
+    margin-right: 20px;
 }
 
 .dialog-body p {
@@ -179,16 +189,43 @@ canvas:focus {
     right: 0;
 }
 
-.connect {
+.join {
     width: 60%;
-    margin: 10px auto;
+    margin: 50px auto;
     color: #fff;
 }
 
-.connect fieldset {
-    padding: 10px;
+.join label {
+    padding: 0px 5px;
+    font-weight: bold;
+    font-size: 18px;
 }
 
-.connect button {
-    padding: 5px 10px;
+.join fieldset {
+    padding: 50px 50px;
+    text-align: center;
+    background: #333;
+    border: 1px #666 solid;
+    box-shadow: 5px 5px 10px 1px #666;
+}
+
+.join legend {
+    background: #888;
+    padding: 15px 25px;
+    border: 1px #666 solid;
+    font-weight: bold;
+    font-size: 36px;
+    color: #eee;
+    box-shadow: 5px 5px 10px 1px #666;
+}
+
+.join input {
+    padding: 5px 5px;
+    margin-right: 10px;
+    font-size: 18px;
+    background: #ccc;
+}
+
+.join input[type=submit] {
+    font-weight: bold;
 }
