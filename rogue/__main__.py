@@ -1,10 +1,13 @@
-import sys
+import argparse
 import asyncio
 import logging
+import sys
+import time
+import random
 
 from . import procgen, server
-from .tiles import TileSet, TILEMAP
-from .world import TIMEOUT, DAY
+from .tiles import TILEMAP, TileSet
+from .world import DAY, TIMEOUT
 
 MAP_SIZE = 100
 TILESIZE = 64
@@ -15,6 +18,14 @@ log = logging.getLogger(__name__)
 
 
 async def main():
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--seed", type=int, default=int(time.time()))
+    args = parser.parse_args()
+
+    log.info("starting world with seed %s", args.seed)
+    random.seed(args.seed)
+
     world = procgen.generate_world(MAP_SIZE)
     tileset = TileSet(TILEMAP, TILESIZE)
 

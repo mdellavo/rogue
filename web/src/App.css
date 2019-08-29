@@ -33,7 +33,6 @@ canvas:focus {
 
 .toolbar {
     background: #444;
-    padding: 5px 5px;
     width: 100%;
 }
 
@@ -45,7 +44,7 @@ canvas:focus {
     text-decoration: none;
     background: none;
     border: none;
-    padding: 5px 5px;
+    padding: 10px 15px;
 }
 
 
@@ -101,31 +100,45 @@ canvas:focus {
     font-size: 12pt;
     color: #eee;
     text-shadow: #222222;
+    border: 1px #666 solid;
 }
 
 .dialog-titlebar {
-    padding: 5px 10px;
-    font-size: 18pt;
+    padding: 10px 20px;
+    font-size: 24pt;
+    line-height: 1;
+}
+
+
+.dialog-titlebar strong {
+    vertical-align: middle;
+    display: inline-block;
 }
 
 .dialog-close {
     float: right;
+    display: inline-block;
     font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New", monospace;
+    cursor: pointer;
     background: none;
-    font-size: 18pt;
+    font-size: 24pt;
     color: #eee;
     text-shadow: #222222;
     border: none;
-    font-weight: bold;
+    font-weight: bolder;
 }
 
 .dialog-body {
     clear: both;
     margin: auto;
-    padding: 10px;
+    padding: 10px 20px;
     background: #666;
     height: 100%;
     min-height: 100px;
+}
+
+.dialog-body h4 {
+    padding-bottom: 10px;
 }
 
 .dialog-body input[type=checkbox] {
@@ -140,7 +153,7 @@ canvas:focus {
 
 .dialog-body p {
     margin: auto;
-    padding-bottom: 10px;
+    padding-bottom: 25px;
 }
 
 .clear {
@@ -206,7 +219,6 @@ canvas:focus {
     text-align: center;
     background: #333;
     border: 1px #666 solid;
-    box-shadow: 5px 5px 10px 1px #666;
 }
 
 .join legend {
@@ -216,7 +228,6 @@ canvas:focus {
     font-weight: bold;
     font-size: 36px;
     color: #eee;
-    box-shadow: 5px 5px 10px 1px #666;
 }
 
 .join input {

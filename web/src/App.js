@@ -53,6 +53,7 @@ class DataStore {
             playMusic: true,
             playSounds: true
         };
+        this.map = null;
     }
 
     get tileset() {
@@ -116,8 +117,11 @@ class DataStore {
                 this.responseCallbacks[msg._id](msg);
                 delete this.responseCallbacks[msg._id];
             } else if (msg._event && this.eventCallbacks[msg._event]) {
-                if (msg._event === "frame")
+                if (msg._event === "frame") {
                     this.frames++;
+                    this.updateMap(msg);
+                }
+
                 this.eventCallbacks[msg._event](msg);
             }
         });
@@ -161,6 +165,43 @@ class DataStore {
         const settings = storage.getItem("settings");
         if (settings)
             this.settings = JSON.parse(settings);
+    }
+
+    updateMap(frame) {
+        if (!this.map) {
+            this.map = new Array(frame.height);
+            for(var i=0; i<frame.height; i++) {
+                this.map[i] = new Array(frame.width);
+            }
+        }
+
+        // frame 11x11
+        // pos at 5,5
+        //
+
+        // xxxxxxxxxxx
+        // xxxxxxxxxxx
+        // xxxxxxxxxxx
+        // xxxxxxxxxxx
+        // xxxxxxxxxxx
+        // xxxxx0xxxxx
+        // xxxxxxxxxxx
+        // xxxxxxxxxxx
+        // xxxxxxxxxxx
+        // xxxxxxxxxxx
+        // xxxxxxxxxxx
+
+        const height = frame.frame.length;
+        for (let y=0; y<height; y++) {
+            const row = frame.frame[y];
+            const width = row.length;
+            for (let x=0; x<width; x++) {
+                const tx = frame.y + y - Number.parseInt(height/2);
+                const ty = frame.x + x - Number.parseInt(width/2);
+                if (tx >= 0 && ty >= 0 && tx < frame.width && ty < frame.height)
+                    this.map[ty][tx] = row[x][2];
+            }
+        }
     }
 }
 
@@ -214,6 +255,61 @@ class GfxUtil {
     }
 }
 
+class MapRenderer {
+    static renderMap(ctx, frame) {
+        const tilesize = DataStore.instance.tileset.tilesize;
+        for (let y=0; y<frame.length; y++) {
+            const row = frame[y];
+            for (let x=0; x<row.length; x++) {
+                const [explored, in_fov, tile_index, obj_index] = row[x];
+                const [target_x, target_y] = [x * tilesize, y * tilesize];
+
+                if (explored) {
+                    if (tile_index >= 0) {
+                        GfxUtil.drawTile(ctx, target_x, target_y, tile_index);
+                    }
+
+                    if (!in_fov) {
+                        GfxUtil.fillTile(ctx, target_x, target_y, "rgba(0, 0, 0, .5)");
+                    } else if (obj_index >= 0) {
+                        GfxUtil.drawTile(ctx, target_x, target_y, obj_index);
+                    }
+                } else {
+                    GfxUtil.fillTile(ctx, target_x, target_y, "black");
+                }
+
+                if (this.clicked) {
+                    const [clickedX, clickedY] = this.clicked;
+                    if (explored && x === clickedX && y === clickedY) {
+                        GfxUtil.fillTile(ctx, target_x, target_y, "red");
+                    }
+                }
+            }
+        }
+    }
+
+    static renderMiniMap(ctx, x, y, scale, colormap) {
+        const map = DataStore.instance.map;
+        if (!map)
+            return;
+        for (let y=0; y<map.length; y++) {
+            const row = map[y];
+            for (let x=0; x<row.length; x++) {
+                const cx = x + (x * scale);
+                const cy = y + (y * scale);
+
+                var color;
+                if (x in row)
+                    color = map[y][x];
+                else
+                    color = -1;
+                ctx.fillStyle = colormap[color];
+                ctx.fillRect(cx, cy, scale + 1, scale + 1);
+            }
+        }
+    }
+}
+
 class ProgressBar extends React.Component {
     constructor(props) {
         super(props);
@@ -242,7 +338,7 @@ class Dialog extends React.Component {
         return (
             <div className="dialog">
                 <div className="dialog-titlebar">
-                    <button className="dialog-close" onClick={this.handleClose}>&#10005;</button>
+                    <a className="dialog-close" onClick={this.handleClose}><strong>&#10005;</strong></a>
                     <strong>{this.props.title}</strong>
                 </div>
                 <div className="dialog-body">
@@ -404,10 +500,9 @@ class PlayerDialog extends Dialog {
     render() {
         var body = [];
         if (this.state.player_info) {
-            body.push(<h3 key="h-name">{}</h3>);
-            body.push(<h3 key="h-attrs">Attributes</h3>);
+            body.push(<h4 key="h-attrs">Attributes</h4>);
             body.push(<PlayerValues className="player-attrs" key="attrs" values={this.state.player_info.attributes}/>);
-            body.push(<h3 key="h-stats">Stats</h3>);
+            body.push(<h4 key="h-stats">Stats</h4>);
             body.push(<PlayerValues className="player-stats" key="stats" values={this.state.player_info.stats}/>);
         } else {
             body.push(<div key="loading">Loading...</div>);
@@ -483,7 +578,11 @@ class CanvasView extends React.Component {
     }
 
     componentDidMount() {
-        DataStore.instance.addEventListener("frame", (msg) => { this.onFrame(msg.frame); });
+        DataStore.instance.addEventListener("frame", (msg) => {
+            requestAnimationFrame(() => {
+                this.onFrame(msg);
+            });
+        });
         DataStore.instance.addEventListener("notice", (msg) => { this.onNotice(msg); });
         DataStore.instance.addEventListener("stats", (msg) => { this.onStats(msg.stats); });
         DataStore.instance.connect(this, this.props.profile);
@@ -511,41 +610,27 @@ class CanvasView extends React.Component {
         this.setState({connected: false, error: true});
     }
 
-     onFrame(frame) {
+    onFrame(msg) {
         const ctx = this.canvas.getContext("2d");
-        const tilesize = DataStore.instance.tileset.tilesize;
+        MapRenderer.renderMap(ctx, msg.frame);
+        const colormap = {
+            "-1": "red",
+            "0": "yellow",
+            "2": "green",
+            "3": "green",
+            "4": "green",
+            "5": "blue",
+            "6": "blue",
+            "7": "blue",
+            "8": "gold",
+            "9": "gold",
+            "10": "gold",
+            "11": "grey",
+            "12": "grey",
+            "13": "grey",
+        };
 
-        ctx.font = '20px serif';
-
-        for (let y=0; y<frame.length; y++) {
-            const row = frame[y];
-            for (let x=0; x<row.length; x++) {
-                const [explored, in_fov, tile_index, obj_index] = row[x];
-                const [target_x, target_y] = [x * tilesize, y * tilesize];
-
-                if (explored) {
-                    if (tile_index >= 0) {
-                        GfxUtil.drawTile(ctx, target_x, target_y, tile_index);
-                    }
-
-                    if (!in_fov) {
-                        GfxUtil.fillTile(ctx, target_x, target_y, "rgba(0, 0, 0, .5)");
-                    } else if (obj_index >= 0) {
-                        GfxUtil.drawTile(ctx, target_x, target_y, obj_index);
-                    }
-                } else {
-                    GfxUtil.fillTile(ctx, target_x, target_y, "black");
-                }
-
-                if (this.clicked) {
-                    const [clickedX, clickedY] = this.clicked;
-                    if (explored && x === clickedX && y === clickedY) {
-                        GfxUtil.fillTile(ctx, target_x, target_y, "red");
-                    }
-                }
-                //ctx.fillText(`${x}, ${y}`, target_x + (tilesize/2), target_y + (tilesize/2));
-            }
-        }
+        MapRenderer.renderMiniMap(ctx, 0, 0, 2, colormap);
     }
 
     onNotice(event) {

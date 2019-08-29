@@ -69,6 +69,7 @@ def handle_pickup(world, player, _):
 def handle_enter(world, player, _):
     player.next_action = EnterAction()
 
+
 @dispatcher.register("player_info")
 def handle_player_info(world, player, _):
     rv = {"player_info": {
@@ -182,11 +183,19 @@ class WebSocketPlayer(Player):
             rv.append(row)
         return rv
 
-    def get_frame(self, world):
+    def queue_frame(self, world):
+        area = world.get_area(self)
+        frame = self.get_frame(area)
+        self.send_event("frame",
+                        frame=frame,
+                        x=self.x,
+                        y=self.y,
+                        width=area.map_width,
+                        height=area.map_height)
+
+    def get_frame(self, area):
         width = height = FRAME_SIZE
 
-        fov = world.explore(self)
-        area = world.get_area(self)
         tiles = self.visible_tiles(area, width, height)
 
         object_map = collections.defaultdict(list)
@@ -202,7 +211,7 @@ class WebSocketPlayer(Player):
             for cell in row:
                 pos, tile = cell
                 explored = tile and tile.explored
-                in_fov = explored and pos in fov
+                in_fov = explored and pos in self.fov
                 objs = object_map.get(pos)
                 obj = sorted(objs, key=keyfn)[0] if objs else None
                 tile_index = self.tilemap.get_index(tile.key) if tile else -1
@@ -284,12 +293,7 @@ async def session(request):
                 break
 
             t1 = time.time()
-            frame = player.get_frame(request.app["world"])
-            try:
-                await ws.send_bytes(msgpack.packb({"_event": "frame", "frame": frame}))
-            except Exception:
-                log.error("updater close")
-                break
+            player.queue_frame(request.app["world"])
             t2 = time.time()
             delta = t2 - t1
             timeout = max(UPDATE_TIMEOUT - delta, 0)
@@ -379,6 +383,6 @@ async def run_server(world, tileset):
         cors.add(route)
     runner = web.AppRunner(app)
     await runner.setup()
-    site = web.TCPSite(runner, '0.0.0.0', 8080)
+    site = web.TCPSite(runner, '0.0.0.0', 8000)
     log.info("starting server...")
     await site.start()

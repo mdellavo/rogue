@@ -1,7 +1,7 @@
 from __future__ import annotations
 import dataclasses
 import enum
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Tuple
 
 from .objects import Object, Equipment, BodyPart
 from .actions import Action, MeleeAttackAction, MoveAction, PickupItemAction, EnterAction
@@ -51,6 +51,8 @@ class Actor(Object):
     target: Optional[Actor] = None
     waypoint: Optional[NodeType] = None
 
+    fov: List[Tuple[int, int]] = dataclasses.field(default_factory=list)
+
     def get_action(self, world) -> Optional[Action]:
         if self.target:
             action = MeleeAttackAction(target=self.target)
@@ -89,7 +91,6 @@ class Actor(Object):
 
     def charge_energy(self):
         self.attributes.energy = min(self.attributes.energy + self.attributes.energy_recharge, self.attributes.max_energy)
-
 
     def drain_energy(self):
         self.attributes.energy = 0
@@ -148,6 +149,7 @@ class Player(Actor):
         return next((o for o in self.inventory if o.id == id_), None)
 
     def get_action(self, world):
+        self.fov = world.explore(self)
         if self.next_action:
             rv = self.next_action
             self.next_action = None

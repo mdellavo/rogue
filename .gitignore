@@ -3,3 +3,6 @@
 node_modules
 venv
 .mypy_cache
+GPATH
+GTAGS
+GRTAGS

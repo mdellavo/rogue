@@ -77,18 +77,19 @@ class Area(object):
         self.time += 1
         for obj in self.objects:
             obj.age += 1
-            if isinstance(obj, Actor):
-                obj.charge_energy()
-                if obj.can_act:
-                    action = obj.get_action(world)
-                    if action:
-                        try:
-                            success = action.perform(obj, world)
-                        except ActionError as e:
-                            obj.notice(str(e))
-                            success = False
-                        if success:
-                            obj.drain_energy()
+            if not isinstance(obj, Actor):
+                continue
+            obj.charge_energy()
+            if not obj.can_act:
+                continue
+            action = obj.get_action(world)
+            if not action:
+                continue
+            try:
+                action.perform(obj, world)
+                obj.drain_energy()
+            except ActionError as e:
+                obj.notice(str(e))
 
     def place(self, obj):
         for _ in range(100):
@@ -138,6 +139,25 @@ class Area(object):
 
     def find_path(self, actor, waypoint):
         return find_path(self, actor.pos, waypoint)
+
+    def generate_map(self, actor):
+        rows = []
+        for y in range(self.map_height):
+            row = []
+            for x in range(self.map_width):
+                tile = self.get_tile(x, y)
+                is_free = self.is_tile_free(x, y)
+                if actor.x == x and actor.y == y:
+                    val = 2
+                elif not tile or not tile.explored:
+                    val = -1
+                elif not is_free:
+                    val = 1
+                else:
+                    val = 0
+                row.append(val)
+            rows.append(row)
+        return rows
 
 
 class World(object):

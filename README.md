@@ -30,16 +30,12 @@ yarn start
 - player stats / modifiers
 - experience
 - leader board
-- health bar
 - loading progress
 - ranged weapons
 - magic
 - threejs ui
-- path finding
-- mouse/touch ui
 - noises / chat?
 - towns / prefabs / stores
-- sfx?
 - animations?
 
 ## Author
