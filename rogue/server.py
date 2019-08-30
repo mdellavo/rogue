@@ -366,7 +366,7 @@ async def get_asset(request):
     return web.FileResponse(asset_path)
 
 
-async def run_server(world, tileset):
+async def run_server(world, tileset, port):
     app = web.Application()
     app["world"] = world
     app["tileset"] = tileset
@@ -383,6 +383,6 @@ async def run_server(world, tileset):
         cors.add(route)
     runner = web.AppRunner(app)
     await runner.setup()
-    site = web.TCPSite(runner, '0.0.0.0', 8000)
-    log.info("starting server...")
+    site = web.TCPSite(runner, '0.0.0.0', port)
+    log.info("starting server on port %s...", port)
     await site.start()

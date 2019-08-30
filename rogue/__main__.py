@@ -11,17 +11,13 @@ from .world import DAY, TIMEOUT
 
 MAP_SIZE = 100
 TILESIZE = 64
-
+PORT = 8000
 
 logging.basicConfig(level=logging.DEBUG, format='[%(asctime)s] %(levelname)s/%(name)s - %(message)s')
 log = logging.getLogger(__name__)
 
 
-async def main():
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--seed", type=int, default=int(time.time()))
-    args = parser.parse_args()
+async def main(args):
 
     log.info("starting world with seed %s", args.seed)
     random.seed(args.seed)
@@ -42,12 +38,17 @@ async def main():
 
             await asyncio.sleep(TIMEOUT)
 
-    await asyncio.gather(run_world(), server.run_server(world, tileset))
+    await asyncio.gather(run_world(), server.run_server(world, tileset, args.port))
 
 if __name__ == "__main__":
-    debug = "--debug" in sys.argv
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--seed", type=int, default=int(time.time()))
+    parser.add_argument("--port", type=int, default=PORT)
+    parser.add_argument("--debug")
+    args = parser.parse_args()
     try:
-        asyncio.run(main(), debug=debug)
+        asyncio.run(main(args), debug=args.debug)
     except KeyboardInterrupt:
         pass
     sys.exit(0)
