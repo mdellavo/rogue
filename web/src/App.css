@@ -2,7 +2,7 @@ body {
     font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New", monospace;
 }
 
-canvas {
+.playarea {
     display: block;
     margin: auto;
     z-index: -100;
@@ -10,6 +10,14 @@ canvas {
 
 canvas:focus {
     outline: none;
+}
+
+.minimap {
+    position: absolute;
+    top: 100px;
+    right: 10px;
+    z-index: 100;
+    border: 1px solid #fff;
 }
 
 .splash {
@@ -46,7 +54,6 @@ canvas:focus {
     border: none;
     padding: 10px 15px;
 }
-
 
 .footer {
     position: absolute;
@@ -188,7 +195,6 @@ canvas:focus {
 }
 
 .notices {
-    position: absolute;
     bottom: 20px;
     padding: 10px;
     color: #cccccc;
@@ -200,6 +206,7 @@ canvas:focus {
     position: absolute;
     color: #eeeeee;
     right: 0;
+    top: 50px;
 }
 
 .join {

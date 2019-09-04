@@ -139,7 +139,10 @@ class WebSocketPlayer(Player):
         self.response_queue = asyncio.Queue(QUEUE_SIZE)
 
     def send_message(self,  **msg):
-        self.response_queue.put_nowait(msg)
+        try:
+            self.response_queue.put_nowait(msg)
+        except asyncio.queues.QueueFull:
+            log.warning("queue full")
 
     def send_event(self, event_name, **msg):
         msg["_event"] = event_name

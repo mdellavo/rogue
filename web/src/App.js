@@ -234,7 +234,7 @@ class SfxUtil {
 class GfxUtil {
     static drawTile(ctx, x, y, tile_index) {
         const ds = DataStore.instance;
-        const pos = DataStore.instance.tileset.tilemap[tile_index];
+        const pos = DataStore.instance.tileset.tilemap[tile_index][0];
         ctx.drawImage(
             ds.tiles,
             pos[0] * ds.tileset.tilesize,
@@ -288,22 +288,21 @@ class MapRenderer {
         }
     }
 
-    static renderMiniMap(ctx, x, y, scale, colormap) {
-        const map = DataStore.instance.map;
-        if (!map)
-            return;
-        for (let y=0; y<map.length; y++) {
-            const row = map[y];
+    static renderMiniMap(ctx, scale, frame) {
+        for (let y=0; y<frame.frame.length; y++) {
+            const row = frame.frame[y];
             for (let x=0; x<row.length; x++) {
-                const cx = x + (x * scale);
-                const cy = y + (y * scale);
+                const cx = (frame.x * scale) + (x * scale);
+                const cy = (frame.y * scale) + (y * scale);
 
                 var color;
-                if (x in row)
-                    color = map[y][x];
-                else
-                    color = -1;
-                ctx.fillStyle = colormap[color];
+                if (x in row) {
+                    const idx = frame.frame[y][x][2];
+                    color = idx >= 0 ? DataStore.instance.tileset.tilemap[idx][1] : "red";
+                } else {
+                    color = "red";
+                }
+                ctx.fillStyle = color;
                 ctx.fillRect(cx, cy, scale + 1, scale + 1);
             }
         }
@@ -577,6 +576,10 @@ class CanvasView extends React.Component {
         return this.refs.canvas;
     }
 
+    get minimap() {
+        return this.refs.minimap;
+    }
+
     componentDidMount() {
         DataStore.instance.addEventListener("frame", (msg) => {
             requestAnimationFrame(() => {
@@ -611,26 +614,8 @@ class CanvasView extends React.Component {
     }
 
     onFrame(msg) {
-        const ctx = this.canvas.getContext("2d");
-        MapRenderer.renderMap(ctx, msg.frame);
-        const colormap = {
-            "-1": "red",
-            "0": "yellow",
-            "2": "green",
-            "3": "green",
-            "4": "green",
-            "5": "blue",
-            "6": "blue",
-            "7": "blue",
-            "8": "gold",
-            "9": "gold",
-            "10": "gold",
-            "11": "grey",
-            "12": "grey",
-            "13": "grey",
-        };
-
-        MapRenderer.renderMiniMap(ctx, 0, 0, 2, colormap);
+        MapRenderer.renderMap(this.canvas.getContext("2d"), msg.frame);
+        MapRenderer.renderMiniMap(this.minimap.getContext("2d"), 2, msg);
     }
 
     onNotice(event) {
@@ -794,7 +779,9 @@ class CanvasView extends React.Component {
 
                 {status}
                 {stats}
-                <canvas tabIndex="0" ref="canvas" width={704} height={704} onKeyDown={this.onKeyPress} onBlur={this.onBlur} onMouseDown={this.onMouseDown} onMouseUp={this.onMouseUp}/>
+
+                <canvas className="minimap" ref="minimap" width={200} height={200} />
+                <canvas className="playarea" tabIndex="0" ref="canvas" width={704} height={704} onKeyDown={this.onKeyPress} onBlur={this.onBlur} onMouseDown={this.onMouseDown} onMouseUp={this.onMouseUp}/>
 
                 <div className="notices">
                     {notices}

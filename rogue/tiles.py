@@ -22,36 +22,47 @@ TILES_PATH = os.path.join(ASSET_PATH, "gfx", "tiles.png")
 MUSIC_PATH = os.path.join(ASSET_PATH, "music")
 MUSIC = os.listdir(MUSIC_PATH)
 
+
+class TerrainMap(StrEnum):
+    PLAYER = "gold"
+    GRASS = "green"
+    WATER = "blue"
+    SAND = "yellow"
+    MOUNTAINS = "grey"
+    DOOR = "purple"
+    WALL = "grey"
+
+
 TILEMAP = collections.OrderedDict((
-    ("player", (0, 3)),
-    ("orc1", (14, 13)),
-    ("grass1", (9, 23)),
-    ("grass2", (10, 23)),
-    ("grass3", (11, 23)),
-    ("water1", (15, 23)),
-    ("water2", (16, 23)),
-    ("water3", (17, 23)),
-    ("sand1", (12, 23)),
-    ("sand2", (13, 23)),
-    ("sand3", (14, 23)),
-    ("mountains1", (117, 23)),
-    ("mountains2", (118, 23)),
-    ("mountains3", (119, 23)),
-    ("crypt1", (7, 22)),
-    ("stairsdown1", (3, 24)),
-    ("stairsup1", (0, 24)),
-    ("grey3", (8, 24)),
-    ("wall3", (2, 22)),
-    ("coin1", (7, 7)),
-    ("coin2", (8, 7)),
-    ("coin3", (9, 7)),
-    ("coin4", (10, 7)),
-    ("coin5", (11, 7)),
-    ("sword1", (8, 10)),
-    ("shield1", (100, 0)),
-    ("potion1", (28, 8)),
-    ("crypt2", (13, 22)),
-    ("crypt3", (14, 22)),
+    ("player", ((0, 3), TerrainMap.PLAYER)),
+    ("orc1", ((14, 13), None)),
+    ("grass1", ((9, 23), TerrainMap.GRASS)),
+    ("grass2", ((10, 23), TerrainMap.GRASS)),
+    ("grass3", ((11, 23), TerrainMap.GRASS)),
+    ("water1", ((15, 23), TerrainMap.WATER)),
+    ("water2", ((16, 23), TerrainMap.WATER)),
+    ("water3", ((17, 23), TerrainMap.WATER)),
+    ("sand1", ((12, 23), TerrainMap.SAND)),
+    ("sand2", ((13, 23), TerrainMap.SAND)),
+    ("sand3", ((14, 23), TerrainMap.SAND)),
+    ("mountains1", ((117, 23), TerrainMap.MOUNTAINS)),
+    ("mountains2", ((118, 23), TerrainMap.MOUNTAINS)),
+    ("mountains3", ((119, 23), TerrainMap.MOUNTAINS)),
+    ("crypt1", ((7, 22), TerrainMap.DOOR)),
+    ("crypt2", ((13, 22), TerrainMap.DOOR)),
+    ("crypt3", ((14, 22), TerrainMap.DOOR)),
+    ("stairsdown1", ((3, 24), TerrainMap.DOOR)),
+    ("stairsup1", ((0, 24), TerrainMap.DOOR)),
+    ("grey3", ((8, 24), TerrainMap.WALL)),
+    ("wall3", ((2, 22), TerrainMap.WALL)),
+    ("coin1", ((7, 7), None)),
+    ("coin2", ((8, 7), None)),
+    ("coin3", ((9, 7), None)),
+    ("coin4", ((10, 7), None)),
+    ("coin5", ((11, 7), None)),
+    ("sword1", ((8, 10), None)),
+    ("shield1", ((100, 0), None)),
+    ("potion1", ((28, 8), None)),
 ))
 
 
@@ -62,7 +73,7 @@ class TileSet(object):
         self.tilesize = tilesize
         self.tiles = Image.open(TILES_PATH)
         self.tile_cache = {}
-        self.indexed_map = [self.tilemap[k] for k in self.tilemap]
+        self.indexed_map = list(self.tilemap.values())
 
     @property
     def num_tiles(self):
