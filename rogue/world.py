@@ -9,6 +9,7 @@ from .actor import Player, Actor
 from .tiles import Tile
 from .actions import ActionError
 from .annotations import NodeType
+from . import util
 
 TIMEOUT = .1
 DAY = 86400 / 6. * TIMEOUT
@@ -16,6 +17,7 @@ DAY = 86400 / 6. * TIMEOUT
 
 class Area(object):
     def __init__(self, tiles):
+        self.id = util.generate_uid()
         self.tiles = tiles
         self.objects = []
         self.time = 0

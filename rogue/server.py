@@ -190,6 +190,7 @@ class WebSocketPlayer(Player):
         area = world.get_area(self)
         frame = self.get_frame(area)
         self.send_event("frame",
+                        id=area.id,
                         frame=frame,
                         x=self.x,
                         y=self.y,
@@ -217,7 +218,7 @@ class WebSocketPlayer(Player):
                 in_fov = explored and pos in self.fov
                 objs = object_map.get(pos)
                 obj = sorted(objs, key=keyfn)[0] if objs else None
-                tile_index = self.tilemap.get_index(tile.key) if tile else -1
+                tile_index = self.tilemap.get_index(tile.key) if explored else -1
                 obj_index = self.tilemap.get_index(obj.key) if obj else -1
                 rv_row.append([explored, in_fov, tile_index, obj_index])  # FIXME only supports one obj
             rv.append(rv_row)

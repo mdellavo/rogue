@@ -63,7 +63,7 @@ class EnterAction(Action):
             x, y = position
             new_area.add_object(actor, x, y)
             area.remove_object(actor)
-            actor.notice("you have entered {}".format(pt), mood=True)
+            actor.notice("you have entered {}".format(pt), mood=True, entered=True)
 
 
 class EquipAction(Action):

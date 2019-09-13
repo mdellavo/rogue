@@ -53,7 +53,7 @@ class DataStore {
             playMusic: true,
             playSounds: true
         };
-        this.map = null;
+        this.maps = {};
     }
 
     get tileset() {
@@ -168,10 +168,10 @@ class DataStore {
     }
 
     updateMap(frame) {
-        if (!this.map) {
-            this.map = new Array(frame.height);
+        if (!(frame.id in this.maps)) {
+            this.maps[frame.id] = new Array(frame.height);
             for(var i=0; i<frame.height; i++) {
-                this.map[i] = new Array(frame.width);
+                this.maps[frame.id][i] = new Array(frame.width);
             }
         }
 
@@ -199,7 +199,7 @@ class DataStore {
                 const tx = frame.y + y - Number.parseInt(height/2);
                 const ty = frame.x + x - Number.parseInt(width/2);
                 if (tx >= 0 && ty >= 0 && tx < frame.width && ty < frame.height)
-                    this.map[ty][tx] = row[x][2];
+                    this.maps[frame.id][ty][tx] = row[x][2];
             }
         }
     }
@@ -298,9 +298,9 @@ class MapRenderer {
                 var color;
                 if (x in row) {
                     const idx = frame.frame[y][x][2];
-                    color = idx >= 0 ? DataStore.instance.tileset.tilemap[idx][1] : "red";
+                    color = idx >= 0 ? DataStore.instance.tileset.tilemap[idx][1] : "black";
                 } else {
-                    color = "red";
+                    color = "black";
                 }
                 ctx.fillStyle = color;
                 ctx.fillRect(cx, cy, scale + 1, scale + 1);

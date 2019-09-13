@@ -63,7 +63,7 @@ class Actor(Object):
 
         if self.waypoint:
             if self.pos == self.waypoint:
-                objs = [obj for obj in  area.get_objects(self.x, self.y) if obj is not self]
+                objs = [obj for obj in area.get_objects(self.x, self.y) if obj is not self]
                 if objs:
                     return PickupItemAction()
                 tile = area.get_tile(self.x, self.y)

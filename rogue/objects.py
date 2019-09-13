@@ -2,7 +2,8 @@ import abc
 import enum
 import dataclasses
 import logging
-import bson
+
+from . import util
 
 
 log = logging.getLogger(__name__)
@@ -38,7 +39,7 @@ class Object(object, metaclass=abc.ABCMeta):
     anchored: bool = False
     age: int = 0
 
-    id: str = dataclasses.field(default_factory=lambda: str(bson.ObjectId()))
+    id: str = dataclasses.field(default_factory=util.generate_uid)
 
     def __str__(self):
         return self.name
