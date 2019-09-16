@@ -30,7 +30,8 @@ class TerrainMap(StrEnum):
     SAND = "yellow"
     MOUNTAINS = "grey"
     DOOR = "purple"
-    WALL = "grey"
+    FLOOR = "lightgrey"
+    WALL = "dimgrey"
 
 
 TILEMAP = collections.OrderedDict((
@@ -53,7 +54,7 @@ TILEMAP = collections.OrderedDict((
     ("crypt3", ((14, 22), TerrainMap.DOOR)),
     ("stairsdown1", ((3, 24), TerrainMap.DOOR)),
     ("stairsup1", ((0, 24), TerrainMap.DOOR)),
-    ("grey3", ((8, 24), TerrainMap.WALL)),
+    ("grey3", ((8, 24), TerrainMap.FLOOR)),
     ("wall3", ((2, 22), TerrainMap.WALL)),
     ("coin1", ((7, 7), None)),
     ("coin2", ((8, 7), None)),

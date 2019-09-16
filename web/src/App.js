@@ -288,20 +288,34 @@ class MapRenderer {
         }
     }
 
+    static clearMiniMap(ctx, width, height) {
+        ctx.fillStyle = "black";
+        ctx.fillRect(0, 0, width, height);
+    }
+
+    static redrawMiniMap(ctx, map, scale) {
+        for (let y=0; y<map.length; y++) {
+            const row = map[y];
+            for (let x=0; x<row.length; x++) {
+                const idx = map[y][x];
+                const color = idx >= 0 ? DataStore.instance.tileset.tilemap[idx][1] : "black";
+                const cx = x * scale;
+                const cy = y * scale;
+                ctx.fillStyle = color;
+                ctx.fillRect(cx, cy, scale + 1, scale + 1);
+            }
+        }
+    }
+
     static renderMiniMap(ctx, scale, frame) {
         for (let y=0; y<frame.frame.length; y++) {
             const row = frame.frame[y];
             for (let x=0; x<row.length; x++) {
+                const idx = frame.frame[y][x][2];
+
                 const cx = (frame.x * scale) + (x * scale);
                 const cy = (frame.y * scale) + (y * scale);
-
-                var color;
-                if (x in row) {
-                    const idx = frame.frame[y][x][2];
-                    color = idx >= 0 ? DataStore.instance.tileset.tilemap[idx][1] : "black";
-                } else {
-                    color = "black";
-                }
+                const color = idx >= 0 ? DataStore.instance.tileset.tilemap[idx][1] : "black";
                 ctx.fillStyle = color;
                 ctx.fillRect(cx, cy, scale + 1, scale + 1);
             }
@@ -591,6 +605,8 @@ class CanvasView extends React.Component {
         DataStore.instance.connect(this, this.props.profile);
         this.canvas.focus();
         SfxUtil.shuffleMusic();
+
+        MapRenderer.clearMiniMap(this.minimap.getContext("2d"), this.minimap.width, this.minimap.height);
     }
 
     onUnload(event) {
@@ -627,6 +643,12 @@ class CanvasView extends React.Component {
         this.setState({notices: notices});
         if (event.mood) {
             SfxUtil.shuffleMusic();
+        }
+        if (event.entered) {
+            MapRenderer.clearMiniMap(this.minimap.getContext("2d"), this.minimap.width, this.minimap.height);
+            if (event.entered in DataStore.instance.maps) {
+                MapRenderer.redrawMiniMap(this.minimap.getContext("2d"), DataStore.instance.maps[event.entered], 2);
+            }
         }
     }
 
