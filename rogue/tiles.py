@@ -114,7 +114,6 @@ class Tile(object):
         self.key = key
         self.blocked = blocked
         self.blocked_sight = blocked_sight
-        self.explored = False
 
 
 @dataclasses.dataclass

@@ -149,7 +149,6 @@ class Player(Actor):
         return next((o for o in self.inventory if o.id == id_), None)
 
     def get_action(self, world):
-        self.fov = world.explore(self)
         if self.next_action:
             rv = self.next_action
             self.next_action = None

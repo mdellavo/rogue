@@ -21,6 +21,9 @@ python -m rogue
 
 # run react dev server
 yarn start
+
+# with docker
+docker run --rm  -i -t -v `pwd`:/home/rogue -p 8000:8000 mdellavo/rogue
 ```
 
 ## Todo / Bugs

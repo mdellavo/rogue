@@ -11,7 +11,7 @@ from .world import DAY, TIMEOUT
 
 MAP_SIZE = 100
 TILESIZE = 64
-PORT = 8000
+PORT = 6543
 
 logging.basicConfig(level=logging.DEBUG, format='[%(asctime)s] %(levelname)s/%(name)s - %(message)s')
 log = logging.getLogger(__name__)

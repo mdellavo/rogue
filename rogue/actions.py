@@ -59,6 +59,7 @@ class EnterAction(Action):
         pt = area.get_tile(actor.x, actor.y)
         if isinstance(pt, Door):
             new_area, position = pt.get_area(world, area, (actor.x, actor.y))
+            area.add_area(new_area)
             world.add_actor(actor, area=new_area)
             x, y = position
             new_area.add_object(actor, x, y)

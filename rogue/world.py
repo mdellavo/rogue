@@ -21,6 +21,10 @@ class Area(object):
         self.tiles = tiles
         self.objects = []
         self.time = 0
+        self.areas = []
+
+    def add_area(self, area):
+        self.areas.append(area)
 
     @property
     def players(self):
@@ -131,14 +135,6 @@ class Area(object):
 
         return visible
 
-    def explore(self, actor):
-        visible = self.fov(actor)
-        for x, y in visible:
-            tile = self.get_tile(x, y)
-            if tile:
-                tile.explored = True
-        return visible
-
     def find_path(self, actor, waypoint):
         return find_path(self, actor.pos, waypoint)
 
@@ -151,7 +147,7 @@ class Area(object):
                 is_free = self.is_tile_free(x, y)
                 if actor.x == x and actor.y == y:
                     val = 2
-                elif not tile or not tile.explored:
+                elif not tile:
                     val = -1
                 elif not is_free:
                     val = 1
@@ -171,6 +167,10 @@ class World(object):
     @property
     def players(self):
         return itertools.chain.from_iterable(area.players for area in self.areas)
+
+    @property
+    def num_players(self):
+        return sum(1 for _ in self.players)
 
     def add_actor(self, actor, area=None):
         if not area:
@@ -199,10 +199,6 @@ class World(object):
     def fov(self, actor: Actor):
         area = self.get_area(actor)
         return area.fov(actor)
-
-    def explore(self, actor: Actor):
-        area = self.get_area(actor)
-        return area.explore(actor)
 
     def inspect(self, actor: Actor):
         rv = []
@@ -263,7 +259,7 @@ def find_path(area: Area, start: NodeType, goal: NodeType) -> List[NodeType]:
         x, y = node
 
         tile: Tile = area.get_tile(x, y)
-        if tile.blocked or not tile.explored:
+        if tile.blocked:
             continue
 
         for dy in (-1, 0, 1):

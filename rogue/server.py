@@ -10,6 +10,7 @@ import aiohttp
 from aiohttp import web
 import aiohttp_cors
 import msgpack
+from jinja2 import Environment, PackageLoader, select_autoescape
 
 from .world import DAY
 from .actions import MoveAction, UseItemAction, PickupItemAction, EquipAction, MeleeAttackAction, EnterAction
@@ -199,7 +200,6 @@ class WebSocketPlayer(Player):
 
     def get_frame(self, area):
         width = height = FRAME_SIZE
-
         tiles = self.visible_tiles(area, width, height)
 
         object_map = collections.defaultdict(list)
@@ -209,18 +209,18 @@ class WebSocketPlayer(Player):
         def keyfn(o):
             return isinstance(o, Actor)
 
+        fov = area.fov(self)
         rv = []
         for row in tiles:
             rv_row = []
             for cell in row:
                 pos, tile = cell
-                explored = tile and tile.explored
-                in_fov = explored and pos in self.fov
+                in_fov = pos in fov
                 objs = object_map.get(pos)
                 obj = sorted(objs, key=keyfn)[0] if objs else None
-                tile_index = self.tilemap.get_index(tile.key) if explored else -1
+                tile_index = self.tilemap.get_index(tile.key) if in_fov else -1
                 obj_index = self.tilemap.get_index(obj.key) if obj else -1
-                rv_row.append([explored, in_fov, tile_index, obj_index])  # FIXME only supports one obj
+                rv_row.append([in_fov, tile_index, obj_index])  # FIXME only supports one obj
             rv.append(rv_row)
         rv[int(height/2)][int(width/2)][-1] = self.tilemap.get_index(self.key)
         return rv
@@ -236,7 +236,9 @@ async def get_root(request):
         },
         "tiles_url": "//{}/asset/gfx/tiles.png".format(request.host),
         "socket_url": "ws://{}/session".format(request.host),
-        "music": ["//{}/asset/music/{}".format(request.host, key) for key in MUSIC]
+        "music": ["//{}/asset/music/{}".format(request.host, key) for key in MUSIC],
+        "num_players_online": request.app["world"].num_players,
+        "server_age": request.app["world"].age,
     })
 
 
@@ -370,10 +372,27 @@ async def get_asset(request):
     return web.FileResponse(asset_path)
 
 
+def _render(request, name, **kwargs):
+    template = request.app["jinja"].get_template(name)
+    return web.Response(
+        text=template.render(**kwargs),
+        content_type="text/html"
+    )
+
+
+@routes.get(r"/admin")
+async def admin(request):
+    return _render(request, "admin.html")
+
+
 async def run_server(world, tileset, port):
     app = web.Application()
     app["world"] = world
     app["tileset"] = tileset
+    app["jinja"] = Environment(
+        loader=PackageLoader("rogue", 'templates'),
+        autoescape=select_autoescape(['html', 'xml'])
+    )
     cors = aiohttp_cors.setup(app, defaults={
         "*": aiohttp_cors.ResourceOptions(
             allow_credentials=True,

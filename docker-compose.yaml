@@ -4,15 +4,9 @@ services:
     image: mdellavo/rogue
     volumes:
       - .:/home/rogue
-    ports:
-      - "8080:8080"
-    command: python3.7 -m rogue
   web:
     image: mdellavo/rogue-web
     volumes:
       - ./web:/home/rogue-web
-    ports:
-      - "3000:3000"
-    command: yarn start
     depends_on:
       - api

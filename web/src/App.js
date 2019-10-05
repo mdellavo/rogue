@@ -2,6 +2,7 @@ import React, {Component} from 'react';
 import './App.css';
 
 import msgpack from 'msgpack-lite';
+import {sprintf} from 'sprintf-js';
 
 const API_URL = process.env.REACT_APP_API;
 const PING_DELAY = 10;
@@ -174,6 +175,7 @@ class DataStore {
                 this.maps[frame.id][i] = new Array(frame.width);
             }
         }
+        const map = this.maps[frame.id];
 
         // frame 11x11
         // pos at 5,5
@@ -191,17 +193,36 @@ class DataStore {
         // xxxxxxxxxxx
         // xxxxxxxxxxx
 
-        const height = frame.frame.length;
-        for (let y=0; y<height; y++) {
+        const map_height = frame.frame.length;
+        const map_width = frame.frame[0].length;
+        const map_min_x = Math.max(frame.x - Math.floor(map_width/2), 0);
+        const map_max_x = Math.min(frame.x + Math.floor(map_width/2), map_width);
+        const map_min_y = Math.max(frame.y - Math.floor(map_height/2), 0);
+        const map_max_y = Math.min(frame.y + Math.floor(map_height/2), map_height);
+
+        if (false)
+            console.log(sprintf("patching from (%s, %s) x (%s, %s)", map_min_x, map_min_y, map_max_x, map_max_y));
+
+        for (let y=0; y<map_height; y++) {
             const row = frame.frame[y];
-            const width = row.length;
-            for (let x=0; x<width; x++) {
-                const tx = frame.y + y - Number.parseInt(height/2);
-                const ty = frame.x + x - Number.parseInt(width/2);
-                if (tx >= 0 && ty >= 0 && tx < frame.width && ty < frame.height)
-                    this.maps[frame.id][ty][tx] = row[x][2];
+            for (let x=0; x<map_width; x++) {
+                const tx = map_min_x + x;
+                const ty = map_min_y + y;
+                if (row[x][1] > 0)
+                    map[ty][tx] = row[x][1];
             }
         }
+
+        //this.dumpMap(map);
+    }
+
+    dumpMap(map) {
+        const parts = [];
+        for (let y=0; y<map.length; y++) {
+            const row = map[y];
+            parts.push(row.join(","));
+        }
+        console.log(parts.join("\n") + "\n");
     }
 }
 
@@ -256,39 +277,68 @@ class GfxUtil {
 }
 
 class MapRenderer {
-    static renderMap(ctx, frame) {
+    static renderMap(ctx, map, msg) {
+
         const tilesize = DataStore.instance.tileset.tilesize;
-        for (let y=0; y<frame.length; y++) {
-            const row = frame[y];
-            for (let x=0; x<row.length; x++) {
-                const [explored, in_fov, tile_index, obj_index] = row[x];
+        const canvas_width = ctx.canvas.clientWidth;
+        const canvas_height = ctx.canvas.clientHeight;
+        const canvas_tile_width = Math.floor(canvas_width / tilesize);
+        const canvas_tile_height = Math.floor(canvas_height / tilesize);
+
+        const map_min_x = Math.max(msg.x - Math.floor(canvas_tile_width/2), 0);
+        const map_max_x = Math.min(msg.x + Math.floor(canvas_tile_width/2), msg.width-1);
+        const map_min_y = Math.max(msg.y - Math.floor(canvas_tile_height/2), 0);
+        const map_max_y = Math.min(msg.y + Math.floor(canvas_tile_height/2), msg.height-1);
+
+        const frame_min_x = Math.max(Math.floor(canvas_tile_width/2) - Math.floor(msg.frame[0].length/2), 0);
+        const frame_min_y = Math.max(Math.floor(canvas_tile_height/2) - Math.floor(msg.frame.length/2), 0);
+        const frame_max_x = Math.min(Math.floor(canvas_tile_width/2) + Math.floor(msg.frame[0].length/2), msg.width-1);
+        const frame_max_y = Math.min(Math.floor(canvas_tile_height/2) + Math.floor(msg.frame.length/2), msg.height-1);
+
+        //this.clearMap(ctx, canvas_width, canvas_height);
+
+        for (let y=0; y<canvas_tile_height; y++) {
+            const row = map[map_min_y + y];
+            for (let x=0; x<canvas_tile_width; x++) {
+                const tile_index = row ? row[map_min_x + x] : -1;
                 const [target_x, target_y] = [x * tilesize, y * tilesize];
 
-                if (explored) {
-                    if (tile_index >= 0) {
-                        GfxUtil.drawTile(ctx, target_x, target_y, tile_index);
-                    }
+                const in_range = x >= frame_min_x && x < (frame_max_x + 1) && y >= frame_min_y && y < (frame_max_y + 1);
 
-                    if (!in_fov) {
+                if (tile_index > 0) {
+                    GfxUtil.drawTile(ctx, target_x, target_y, tile_index);
+                    if (!in_range)
                         GfxUtil.fillTile(ctx, target_x, target_y, "rgba(0, 0, 0, .5)");
-                    } else if (obj_index >= 0) {
-                        GfxUtil.drawTile(ctx, target_x, target_y, obj_index);
-                    }
                 } else {
                     GfxUtil.fillTile(ctx, target_x, target_y, "black");
                 }
 
                 if (this.clicked) {
                     const [clickedX, clickedY] = this.clicked;
-                    if (explored && x === clickedX && y === clickedY) {
+                    if (x === clickedX && y === clickedY) {
                         GfxUtil.fillTile(ctx, target_x, target_y, "red");
                     }
                 }
             }
         }
+
+        for (let y=0; y<msg.frame.length; y++) {
+            const row = msg.frame[y];
+            for (let x=0; x<row.length; x++) {
+                const in_fov = row[x][0];
+                const obj_index = row[x][2];
+
+                const [target_x, target_y] = [(x + frame_min_x) * tilesize, (y + frame_min_y) * tilesize];
+                if (!in_fov) {
+                    GfxUtil.fillTile(ctx, target_x, target_y, "rgba(0, 0, 0, .5)");
+                } else if (obj_index >= 0) {
+                    GfxUtil.drawTile(ctx, target_x, target_y, obj_index);
+                }
+            }
+        }
     }
 
-    static clearMiniMap(ctx, width, height) {
+    static clearMap(ctx, width, height) {
         ctx.fillStyle = "black";
         ctx.fillRect(0, 0, width, height);
     }
@@ -298,11 +348,13 @@ class MapRenderer {
             const row = map[y];
             for (let x=0; x<row.length; x++) {
                 const idx = map[y][x];
-                const color = idx >= 0 ? DataStore.instance.tileset.tilemap[idx][1] : "black";
-                const cx = x * scale;
-                const cy = y * scale;
-                ctx.fillStyle = color;
-                ctx.fillRect(cx, cy, scale + 1, scale + 1);
+                if (idx >= 0) {
+                    const color = DataStore.instance.tileset.tilemap[idx][1];
+                    const cx = x * scale;
+                    const cy = y * scale;
+                    ctx.fillStyle = color;
+                    ctx.fillRect(cx, cy, scale + 1, scale + 1);
+                }
             }
         }
     }
@@ -311,13 +363,14 @@ class MapRenderer {
         for (let y=0; y<frame.frame.length; y++) {
             const row = frame.frame[y];
             for (let x=0; x<row.length; x++) {
-                const idx = frame.frame[y][x][2];
-
+                const idx = frame.frame[y][x][1];
                 const cx = (frame.x * scale) + (x * scale);
                 const cy = (frame.y * scale) + (y * scale);
-                const color = idx >= 0 ? DataStore.instance.tileset.tilemap[idx][1] : "black";
-                ctx.fillStyle = color;
-                ctx.fillRect(cx, cy, scale + 1, scale + 1);
+                if (idx >= 0) {
+                    const color = DataStore.instance.tileset.tilemap[idx][1];
+                    ctx.fillStyle = color;
+                    ctx.fillRect(cx, cy, scale + 1, scale + 1);
+                }
             }
         }
     }
@@ -603,10 +656,19 @@ class CanvasView extends React.Component {
         DataStore.instance.addEventListener("notice", (msg) => { this.onNotice(msg); });
         DataStore.instance.addEventListener("stats", (msg) => { this.onStats(msg.stats); });
         DataStore.instance.connect(this, this.props.profile);
-        this.canvas.focus();
+
+        const canvas = this.canvas;
+        function resize() {
+            canvas.width = window.innerWidth;
+        }
+        window.addEventListener("resize", resize);
+        resize();
+
+        canvas.focus();
         SfxUtil.shuffleMusic();
 
-        MapRenderer.clearMiniMap(this.minimap.getContext("2d"), this.minimap.width, this.minimap.height);
+        MapRenderer.clearMap(this.minimap.getContext("2d"), this.minimap.width, this.minimap.height);
+        MapRenderer.clearMap(this.canvas.getContext("2d"), this.canvas.width, this.canvas.height);
     }
 
     onUnload(event) {
@@ -630,7 +692,8 @@ class CanvasView extends React.Component {
     }
 
     onFrame(msg) {
-        MapRenderer.renderMap(this.canvas.getContext("2d"), msg.frame);
+        const map = DataStore.instance.maps[msg.id];
+        MapRenderer.renderMap(this.canvas.getContext("2d"), map, msg);
         MapRenderer.renderMiniMap(this.minimap.getContext("2d"), 2, msg);
     }
 
@@ -645,7 +708,8 @@ class CanvasView extends React.Component {
             SfxUtil.shuffleMusic();
         }
         if (event.entered) {
-            MapRenderer.clearMiniMap(this.minimap.getContext("2d"), this.minimap.width, this.minimap.height);
+            MapRenderer.clearMap(this.minimap.getContext("2d"), this.minimap.width, this.minimap.height);
+            MapRenderer.clearMap(this.canvas.getContext("2d"), this.canvas.width, this.canvas.height);
             if (event.entered in DataStore.instance.maps) {
                 MapRenderer.redrawMiniMap(this.minimap.getContext("2d"), DataStore.instance.maps[event.entered], 2);
             }
@@ -803,7 +867,7 @@ class CanvasView extends React.Component {
                 {stats}
 
                 <canvas className="minimap" ref="minimap" width={200} height={200} />
-                <canvas className="playarea" tabIndex="0" ref="canvas" width={704} height={704} onKeyDown={this.onKeyPress} onBlur={this.onBlur} onMouseDown={this.onMouseDown} onMouseUp={this.onMouseUp}/>
+                <canvas className="playarea" tabIndex="0" ref="canvas" width={800} height={800} onKeyDown={this.onKeyPress} onBlur={this.onBlur} onMouseDown={this.onMouseDown} onMouseUp={this.onMouseUp}/>
 
                 <div className="notices">
                     {notices}
@@ -870,6 +934,17 @@ class JoinView extends Component {
 
 }
 
+class StatsView extends Component {
+    render() {
+        return (
+                <div className="server-stats">
+                <p><em>{DataStore.instance.manifest.num_players_online}</em> players online now!</p>
+                <p>Server age: {DataStore.instance.manifest.server_age}</p>
+                </div>
+        );
+    }
+}
+
 class App extends Component {
 
     constructor(props) {
@@ -897,14 +972,18 @@ class App extends Component {
     render() {
 
         let contents;
-        if (this.state.profile)
+        if (this.state.profile) {
             contents = <CanvasView profile={this.state.profile}/>;
-        else if (this.state.loaded)
-            contents = <JoinView handler={this}/>;
-        else if (this.state.error)
+        } else if (this.state.loaded) {
+            contents = <div>
+                <JoinView handler={this}/>
+                <StatsView/>
+            </div>;
+        } else if (this.state.error) {
             contents = <ErrorView/>;
-        else
+        } else {
             contents = <LoadingView />;
+        }
 
         return (
             <div className="App">

@@ -8,3 +8,4 @@ fabric
 boto3
 noise
 ipython
+jinja2

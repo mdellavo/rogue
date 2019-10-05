@@ -2,7 +2,7 @@ FROM ubuntu
 MAINTAINER Marc DellaVolpe "marc.dellavolpe@gmail.com"
 
 VOLUME /home/rogue
-
+EXPOSE 6543
 ENV DEBIAN_FRONTEND noninteractive
 ENV HOME /home/rogue
 WORKDIR /home/rogue
