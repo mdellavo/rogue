@@ -1,4 +1,5 @@
 import os
+import io
 import time
 import logging
 import collections
@@ -11,8 +12,9 @@ from aiohttp import web
 import aiohttp_cors
 import msgpack
 from jinja2 import Environment, PackageLoader, select_autoescape
+from PIL import Image
 
-from .world import DAY
+from .world import DAY, AreaRegistry
 from .actions import MoveAction, UseItemAction, PickupItemAction, EquipAction, MeleeAttackAction, EnterAction
 from .actor import Player, Actor
 from .util import project_enum
@@ -125,8 +127,10 @@ def handle_melee(world, player, _):
 
 @dispatcher.register("waypoint")
 def handle_waypoint(world, player, action):
-    player_relative = (action["pos"][0] - int(FRAME_SIZE/2), action["pos"][1] - int(FRAME_SIZE/2))
-    waypoint = (player.pos[0] + player_relative[0], player.pos[1] + player_relative[1])
+    waypoint = (
+        player.pos[0] + action["pos"][0],
+        player.pos[1] + action["pos"][1]
+    )
     player.set_waypoint(waypoint)
 
 
@@ -382,7 +386,36 @@ def _render(request, name, **kwargs):
 
 @routes.get(r"/admin")
 async def admin(request):
-    return _render(request, "admin.html")
+    return _render(request, "admin.html", world=request.app["world"])
+
+
+def _render_map(area, tileset):
+    image = Image.new("RGB", (area.map_width * tileset.tilesize, area.map_height * tileset.tilesize))
+
+    cache = {}
+    def _get_bitmap(key):
+        idx = tileset.get_index(key)
+        bitmap = cache.get(key) or tileset.get_tile_bitmap(idx)
+        cache[key] = bitmap
+        return bitmap
+
+
+    for y in range(area.map_height):
+        for x in range(area.map_width):
+            tile = area.get_tile(x, y)
+            bitmap = _get_bitmap(tile.key)
+            image.paste(bitmap, (x * tileset.tilesize, y * tileset.tilesize))
+    return image
+
+
+@routes.get(r"/admin/map/{area_id}")
+def render_map(request):
+    area = AreaRegistry.get(request.match_info["area_id"])
+    tileset = request.app["tileset"]
+    image = _render_map(area, tileset)
+    out = io.BytesIO()
+    image.save(out, format="png")
+    return web.Response(body=out.getvalue(), content_type="image/png")
 
 
 async def run_server(world, tileset, port):

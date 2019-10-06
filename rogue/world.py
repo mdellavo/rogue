@@ -14,14 +14,22 @@ from . import util
 TIMEOUT = .1
 DAY = 86400 / 6. * TIMEOUT
 
+AreaRegistry = {}
+
 
 class Area(object):
-    def __init__(self, tiles):
+    def __init__(self, name, tiles, depth):
         self.id = util.generate_uid()
+        self.name = name
         self.tiles = tiles
+        self.depth = depth
         self.objects = []
         self.time = 0
         self.areas = []
+        AreaRegistry[self.id] = self
+
+    def __str__(self):
+        return "{} level {}".format(self.name, self.depth)
 
     def add_area(self, area):
         self.areas.append(area)

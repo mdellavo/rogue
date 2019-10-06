@@ -2,6 +2,14 @@
     <head>
         <title>Rogue Admin</title>
     </head>
+    <body>
+        <h1>Rogue Admin</h1>
 
-
+        <h2>Maps</h2>
+        <ul>
+        {% for area in world.areas %}
+        <li><a href="/admin/map/{{area.id}}">{{area}}</a></li>
+        {% endfor %}
+        </ul>
+    </body>
 </html>

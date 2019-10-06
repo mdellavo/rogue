@@ -277,7 +277,7 @@ class GfxUtil {
 }
 
 class MapRenderer {
-    static renderMap(ctx, map, msg) {
+    static renderMap(ctx, map, msg, clicked) {
 
         const tilesize = DataStore.instance.tileset.tilesize;
         const canvas_width = ctx.canvas.clientWidth;
@@ -286,9 +286,7 @@ class MapRenderer {
         const canvas_tile_height = Math.floor(canvas_height / tilesize);
 
         const map_min_x = Math.max(msg.x - Math.floor(canvas_tile_width/2), 0);
-        const map_max_x = Math.min(msg.x + Math.floor(canvas_tile_width/2), msg.width-1);
         const map_min_y = Math.max(msg.y - Math.floor(canvas_tile_height/2), 0);
-        const map_max_y = Math.min(msg.y + Math.floor(canvas_tile_height/2), msg.height-1);
 
         const frame_min_x = Math.max(Math.floor(canvas_tile_width/2) - Math.floor(msg.frame[0].length/2), 0);
         const frame_min_y = Math.max(Math.floor(canvas_tile_height/2) - Math.floor(msg.frame.length/2), 0);
@@ -312,11 +310,10 @@ class MapRenderer {
                 } else {
                     GfxUtil.fillTile(ctx, target_x, target_y, "black");
                 }
-
-                if (this.clicked) {
-                    const [clickedX, clickedY] = this.clicked;
+                if (clicked) {
+                    const [clickedX, clickedY] = clicked;
                     if (x === clickedX && y === clickedY) {
-                        GfxUtil.fillTile(ctx, target_x, target_y, "red");
+                        GfxUtil.fillTile(ctx, target_x, target_y, "rgba(255, 0, 0, .5)");
                     }
                 }
             }
@@ -404,7 +401,7 @@ class Dialog extends React.Component {
         return (
             <div className="dialog">
                 <div className="dialog-titlebar">
-                    <a className="dialog-close" onClick={this.handleClose}><strong>&#10005;</strong></a>
+                    <a className="dialog-close" onClick={this.handleClose} href="?close"><strong>&#10005;</strong></a>
                     <strong>{this.props.title}</strong>
                 </div>
                 <div className="dialog-body">
@@ -413,7 +410,8 @@ class Dialog extends React.Component {
             </div>
         );
     }
-    handleClose() {
+    handleClose(e) {
+        e.preventDefault();
         this.props.callback();
     }
 }
@@ -693,7 +691,7 @@ class CanvasView extends React.Component {
 
     onFrame(msg) {
         const map = DataStore.instance.maps[msg.id];
-        MapRenderer.renderMap(this.canvas.getContext("2d"), map, msg);
+        MapRenderer.renderMap(this.canvas.getContext("2d"), map, msg, this.clicked);
         MapRenderer.renderMiniMap(this.minimap.getContext("2d"), 2, msg);
     }
 
@@ -752,14 +750,20 @@ class CanvasView extends React.Component {
         this.canvas.focus();
     }
 
-    onMouseDown(event) {
+    onMouseDown(e) {
         const tilesize = DataStore.instance.tileset.tilesize;
-        const pos = [
-            Math.floor((event.clientX - event.target.offsetLeft) / tilesize),
-            Math.floor((event.clientY - event.target.offsetTop) / tilesize),
-        ];
+        const width = this.canvas.width / tilesize;
+        const height = this.canvas.height / tilesize;
+        const rect = this.canvas.getBoundingClientRect();
+        const x = Math.floor((e.clientX - rect.left) / tilesize);
+        const y = Math.floor((e.clientY - rect.top) / tilesize);
+        const pos = [x, y];
         this.clicked = pos;
-        DataStore.instance.send({action: Actions.WAYPOINT, pos: pos});
+        console.log("clicked", x, y);
+        DataStore.instance.send({action: Actions.WAYPOINT, pos: [
+            pos[0] - Math.floor(width / 2),
+            pos[1] - Math.floor(height / 2)
+        ]});
     }
 
     onMouseUp(event) {

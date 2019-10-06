@@ -94,18 +94,11 @@ class TileSet(object):
         return self.index_map[key]
 
     def get_tile_bitmap(self, idx):
-        rv = self.tile_cache.get(idx)
-        if not rv:
-            x, y = self.get_tile_by_index(idx)
-            box = self.bounding(x, y)
-            cropped = self.tiles.crop(box)
-            out = io.BytesIO()
-            cropped.save(out, format="PNG")
-            img_bytes = out.getvalue()
-            digest = hashlib.sha1(img_bytes).hexdigest()
-            rv = (digest, img_bytes)
-            self.tile_cache[idx] = rv
-        return rv
+        coords, _ = self.get_tile_by_index(idx)
+        x, y = coords
+        box = self.bounding(x, y)
+        cropped = self.tiles.crop(box)
+        return cropped
 
 
 @dataclasses.dataclass

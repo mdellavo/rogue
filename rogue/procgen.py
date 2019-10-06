@@ -120,8 +120,7 @@ class CaveDoor(Door):
         super(CaveDoor, self).__init__(*args, **kwargs)
 
     def generate_cave(self, exit_area, exit_position):
-        min_size, max_size = self.SIZE // 2, self.SIZE * 2
-        tiles = generate_cave(random.randrange(min_size), random.randrange(max_size), depth=self.depth + 1)
+        tiles = generate_cave(self.SIZE, self.SIZE, depth=self.depth + 1)
 
         while True:
             dx = random.randrange(0, len(tiles[0]))
@@ -135,7 +134,7 @@ class CaveDoor(Door):
                 tiles[dy][dx] = Door("stairsup1", area=exit_area, position=exit_position, message=message)
                 break
 
-        return Area(tiles), (dx, dy)
+        return Area("Cave", tiles, self.depth), (dx, dy)
 
     def get_area(self, world, exit_area, exit_position):
         if not self.area:
@@ -156,8 +155,7 @@ class DungeonDoor(Door):
         super(DungeonDoor, self).__init__(*args, **kwargs)
 
     def generate_dungeon(self, exit_area, exit_position):
-        min_size, max_size = self.SIZE // 2, self.SIZE * 2
-        tiles = generate_dungeon(random.randrange(min_size), random.randrange(max_size), self.MIN_SIZE)
+        tiles = generate_dungeon(self.SIZE, self.SIZE, self.MIN_SIZE)
         while True:
             dx = random.randrange(0, len(tiles[0]))
             dy = random.randrange(0, len(tiles))
@@ -169,7 +167,7 @@ class DungeonDoor(Door):
                     message = "an exit to the world"
                 tiles[dy][dx] = Door("stairsup1", area=exit_area, position=exit_position, message=message)
                 break
-        return Area(tiles), (dx, dy)
+        return Area("Dungeon", tiles, self.depth), (dx, dy)
 
     def get_area(self, world, exit_area, exit_position):
         if not self.area:
@@ -343,7 +341,7 @@ def generate_maze(width, height):
 
 
 class MazeDoor(Door):
-    WIDTH = HEIGHT = 50
+    WIDTH = HEIGHT = 100
 
     def __init__(self, *args, **kwargs):
         self.depth = kwargs.pop("depth", 0)
@@ -351,7 +349,7 @@ class MazeDoor(Door):
         super(MazeDoor, self).__init__(*args, **kwargs)
 
     def generate_maze(self, exit_area, exit_position):
-        tiles = generate_maze(random.randrange(self.WIDTH), random.randrange(self.HEIGHT))
+        tiles = generate_maze(self.WIDTH, self.HEIGHT)
         while True:
             dx = random.randrange(0, len(tiles[0]))
             dy = random.randrange(0, len(tiles))
@@ -363,7 +361,7 @@ class MazeDoor(Door):
                     message = "an exit to the world"
                 tiles[dy][dx] = Door("stairsup1", area=exit_area, position=exit_position, message=message)
                 break
-        return Area(tiles), (dx, dy)
+        return Area("Maze", tiles, self.depth), (dx, dy)
 
     def get_area(self, world, exit_area, exit_position):
         if not self.area:
@@ -425,7 +423,7 @@ def generate_map(size, iterations=500, max_radius=5):
 def generate_world(size):
     log.info("generating world...")
 
-    area = Area(generate_map(size, iterations=500))
+    area = Area("The world", generate_map(size, iterations=500), 0)
     world = World(area)
     populate_area(world, area)
 
