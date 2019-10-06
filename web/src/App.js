@@ -662,7 +662,9 @@ class CanvasView extends React.Component {
 
         const canvas = this.canvas;
         function resize() {
-            canvas.width = window.innerWidth;
+            const tilesize = DataStore.instance.tileset.tilesize;
+            canvas.width = Math.floor(window.innerWidth / tilesize) * tilesize;
+            canvas.height = Math.floor(window.innerHeight / tilesize) * tilesize;
         }
         window.addEventListener("resize", resize);
         resize();

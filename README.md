@@ -23,17 +23,17 @@ python -m rogue
 yarn start
 
 # with docker
-docker run --rm  -i -t -v `pwd`:/home/rogue -p 8000:8000 mdellavo/rogue
+docker build . -t mdellavo/rogue
+docker run --rm  -i -t -v `pwd`:/home/rogue -p 6543:6543 --name rogue mdellavo/rogue
+
+# deploy web to s3
+./venv/bin/fab build-web deploy-web
 ```
 
 ## Todo / Bugs
 
-- per player fov
-- bitmap map api
-- player stats / modifiers
 - experience
 - leader board
-- loading progress
 - ranged weapons
 - magic
 - threejs ui
