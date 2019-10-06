@@ -60,8 +60,9 @@ class Actor(Object):
             return action
 
         area = world.get_area(self)
-
         if self.waypoint:
+            next_to_waypoint = all(abs(self.waypoint[i] - self.pos[i]) <= 1 for i in range(0, 2))
+            actors_at_waypoint = [actor for actor in area.get_objects(*self.waypoint) if isinstance(actor, Actor)]
             if self.pos == self.waypoint:
                 objs = [obj for obj in area.get_objects(self.x, self.y) if obj is not self]
                 if objs:
@@ -70,6 +71,10 @@ class Actor(Object):
                 if tile and isinstance(tile, Door):
                     return EnterAction()
                 self.waypoint = None
+            elif next_to_waypoint and actors_at_waypoint:
+                if actors_at_waypoint:
+                    self.waypoint = None
+                    return MeleeAttackAction(target=actors_at_waypoint[0])
             else:
                 path = area.find_path(self, self.waypoint)
                 if path:

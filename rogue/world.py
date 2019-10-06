@@ -2,6 +2,7 @@ import math
 import random
 import itertools
 import collections
+import logging
 
 from typing import Set, Dict, List, DefaultDict
 
@@ -15,6 +16,8 @@ TIMEOUT = .1
 DAY = 86400 / 6. * TIMEOUT
 
 AreaRegistry = {}
+
+log = logging.getLogger(__name__)
 
 
 class Area(object):
@@ -104,6 +107,8 @@ class Area(object):
                 obj.drain_energy()
             except ActionError as e:
                 obj.notice(str(e))
+            except:
+                log.exception("error performing action %s", action)
 
     def place(self, obj):
         for _ in range(100):
