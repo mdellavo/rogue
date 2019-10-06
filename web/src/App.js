@@ -139,6 +139,7 @@ class DataStore {
     }
 
     send(obj, callback) {
+        console.log(obj);
         if (this.socket.readyState !== 1) {
             return;
         }
@@ -612,7 +613,8 @@ class CanvasView extends React.Component {
     constructor(props) {
         super(props);
         this.onBlur = this.onBlur.bind(this);
-        this.onKeyPress = this.onKeyPress.bind(this);
+        this.onKeyDown = this.onKeyDown.bind(this);
+        this.onKeyUp = this.onKeyUp.bind(this);
         this.onMouseDown = this.onMouseDown.bind(this);
         this.onMouseUp = this.onMouseUp.bind(this);
         this.onTouchStart = this.onTouchStart.bind(this);
@@ -624,6 +626,7 @@ class CanvasView extends React.Component {
         this.closeDialogs = this.closeDialogs.bind(this);
         this.onUnload = this.onUnload.bind(this);
 
+        this.pressed = {};
         this.clicked = null;
 
         this.state = {
@@ -722,32 +725,59 @@ class CanvasView extends React.Component {
         this.setState({stats: event});
     }
 
-    onKeyPress(event) {
+    handleKeyPress(event) {
         const key = event.key.toLowerCase();
-        if (key === "w")
-            DataStore.instance.send({action: Actions.MOVE, direction: [0, -1]});
-        else if (key === "a")
-            DataStore.instance.send({action: Actions.MOVE, direction: [-1, 0]});
-        else if (key === "s")
-            DataStore.instance.send({action: Actions.MOVE, direction: [0, 1]});
-        else if (key === "d")
-            DataStore.instance.send({action: Actions.MOVE, direction: [1, 0]});
-        else if (key === "p")
-            DataStore.instance.send({action: Actions.PICKUP});
-        else if (key === ".")
-            DataStore.instance.send({action: Actions.ENTER});
-        else if (key === "f")
-            DataStore.instance.send({action: Actions.MELEE});
-        else if (key === "i")
-            if (this.state.showInventory)
-                this.closeInventoryDialog();
-            else
-                this.showInventoryDialog();
-        else if (key === "h")
-            if (this.state.showHelp)
-                this.closeHelpDialog();
-            else
-                this.showHelpDialog();
+        this.pressed[key] = event.type == 'keydown';
+        return key;
+    }
+
+    onKeyDown(event) {
+        this.handleKeyPress(event);
+    }
+
+    onKeyUp(event) {
+        this.handleKeyPress(event);
+        var dx = 0;
+        var dy = 0;
+
+
+        const handlers = {
+            w: function() { dy-- },
+            a: function() { dx-- },
+            s: function() { dy++ },
+            d: function() { dx++ },
+            p: function() {
+                DataStore.instance.send({action: Actions.PICKUP});
+            },
+            ".": function () {
+                DataStore.instance.send({action: Actions.ENTER});
+            },
+            f: function() {
+                DataStore.instance.send({action: Actions.MELEE});
+            },
+            i: function() {
+                if (this.state.showInventory)
+                    this.closeInventoryDialog();
+                else
+                    this.showInventoryDialog();
+            },
+            h: function() {
+                if (this.state.showHelp)
+                    this.closeHelpDialog();
+                else
+                    this.showHelpDialog();
+            }
+        };
+        for (let pressed in this.pressed) {
+            if (handlers[pressed]) {
+                handlers[pressed].bind(this)();
+            }
+        }
+
+        if (dx !== 0 || dy !== 0) {
+            DataStore.instance.send({action: Actions.MOVE, direction: [dx, dy]});
+        }
+        this.pressed = {};
     }
 
     onBlur() {
@@ -820,8 +850,16 @@ class CanvasView extends React.Component {
         this.showDialog({showInventory: true});
     }
 
+    closeInventoryDialog() {
+        this.showDialog({showInventory: false});
+    }
+
     showHelpDialog() {
         this.showDialog({showHelp: true});
+    }
+
+    closeHelpDialog() {
+        this.showDialog({showHelp: false});
     }
 
     showSettingsDialog() {
@@ -903,7 +941,8 @@ class CanvasView extends React.Component {
                 <canvas className="minimap" ref="minimap" width={200} height={200} />
                 <canvas className="playarea" tabIndex="0" ref="canvas"
                         width={800} height={800}
-                        onKeyDown={this.onKeyPress}
+                        onKeyDown={this.onKeyDown}
+                        onKeyUp={this.onKeyUp}
                         onBlur={this.onBlur}
                         onMouseDown={this.onMouseDown}
                         onMouseUp={this.onMouseUp}
