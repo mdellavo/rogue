@@ -615,6 +615,8 @@ class CanvasView extends React.Component {
         this.onKeyPress = this.onKeyPress.bind(this);
         this.onMouseDown = this.onMouseDown.bind(this);
         this.onMouseUp = this.onMouseUp.bind(this);
+        this.onTouchStart = this.onTouchStart.bind(this);
+        this.onTouchEnd = this.onTouchEnd.bind(this);
         this.showPlayerDialog = this.showPlayerDialog.bind(this);
         this.showInventoryDialog = this.showInventoryDialog.bind(this);
         this.showHelpDialog = this.showHelpDialog.bind(this);
@@ -661,6 +663,8 @@ class CanvasView extends React.Component {
         }
         window.addEventListener("resize", resize);
         resize();
+
+        canvas.addEventListener("touchstart", this.onTouchStart,  {passive: false});
 
         canvas.focus();
         SfxUtil.shuffleMusic();
@@ -750,24 +754,50 @@ class CanvasView extends React.Component {
         this.canvas.focus();
     }
 
-    onMouseDown(e) {
+    setWaypoint(x, y) {
+        if (this.clicked && x === this.clicked[0] && y === this.clicked[1])
+            return;
+        const pos = [x, y];
         const tilesize = DataStore.instance.tileset.tilesize;
         const width = this.canvas.width / tilesize;
         const height = this.canvas.height / tilesize;
-        const rect = this.canvas.getBoundingClientRect();
-        const x = Math.floor((e.clientX - rect.left) / tilesize);
-        const y = Math.floor((e.clientY - rect.top) / tilesize);
-        const pos = [x, y];
         this.clicked = pos;
-        console.log("clicked", x, y);
         DataStore.instance.send({action: Actions.WAYPOINT, pos: [
-            pos[0] - Math.floor(width / 2),
-            pos[1] - Math.floor(height / 2)
+            x - Math.floor(width / 2),
+            y - Math.floor(height / 2)
         ]});
     }
 
-    onMouseUp(event) {
+    clearWaypoint() {
         this.clicked = null;
+    }
+
+    onMouseDown(event) {
+        const tilesize = DataStore.instance.tileset.tilesize;
+        const rect = this.canvas.getBoundingClientRect();
+        const x = Math.floor((event.clientX - rect.left) / tilesize);
+        const y = Math.floor((event.clientY - rect.top) / tilesize);
+        this.setWaypoint(x, y);
+        return false;
+    }
+
+    onMouseUp(event) {
+        this.clearWaypoint();
+    }
+
+    onTouchStart(event) {
+        event.preventDefault();
+        const tilesize = DataStore.instance.tileset.tilesize;
+        const rect = this.canvas.getBoundingClientRect();
+        const touch = event.touches[0];
+        const x = Math.floor((touch.clientX - rect.left) / tilesize);
+        const y = Math.floor((touch.clientY - rect.top) / tilesize);
+        this.setWaypoint(x, y);
+    }
+
+    onTouchEnd(event) {
+        event.preventDefault();
+        this.clearWaypoint();
     }
 
     showDialog(dialog) {
@@ -871,7 +901,14 @@ class CanvasView extends React.Component {
                 {stats}
 
                 <canvas className="minimap" ref="minimap" width={200} height={200} />
-                <canvas className="playarea" tabIndex="0" ref="canvas" width={800} height={800} onKeyDown={this.onKeyPress} onBlur={this.onBlur} onMouseDown={this.onMouseDown} onMouseUp={this.onMouseUp}/>
+                <canvas className="playarea" tabIndex="0" ref="canvas"
+                        width={800} height={800}
+                        onKeyDown={this.onKeyPress}
+                        onBlur={this.onBlur}
+                        onMouseDown={this.onMouseDown}
+                        onMouseUp={this.onMouseUp}
+                        onTouchEnd={this.onTouchEnd}
+                        />
 
                 <div className="notices">
                     {notices}
