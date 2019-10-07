@@ -26,6 +26,14 @@ const ObjectTypes = {
     COIN: "coin",
 };
 
+const LogTypes = {
+    NOTICE: "notice",
+    DEBUG: "debug",
+    INFO: "info"
+}
+
+
+const LOG_LIMIT = 1000;
 
 function choice(items) {
     return items[Math.floor(Math.random() * items.length)];
@@ -55,6 +63,7 @@ class DataStore {
             playSounds: true
         };
         this.maps = {};
+        this.log = [];
     }
 
     get tileset() {
@@ -118,9 +127,12 @@ class DataStore {
                 this.responseCallbacks[msg._id](msg);
                 delete this.responseCallbacks[msg._id];
             } else if (msg._event && this.eventCallbacks[msg._event]) {
+
                 if (msg._event === "frame") {
                     this.frames++;
                     this.updateMap(msg);
+                } else if (msg._event === "notice") {
+                    this.addLog(LogTypes.NOTICE, msg.notice);
                 }
 
                 this.eventCallbacks[msg._event](msg);
@@ -224,6 +236,17 @@ class DataStore {
             parts.push(row.join(","));
         }
         console.log(parts.join("\n") + "\n");
+    }
+
+    addLog(log_type, message){
+        this.log.unshift({type: log_type, message: message});
+        while(this.log.length > LOG_LIMIT) {
+            this.log.pop();
+        }
+    }
+
+    debugLog(msg) {
+        this.addLog(LogTypes.DEBUG, msg);
     }
 }
 
@@ -705,12 +728,6 @@ class CanvasView extends React.Component {
     }
 
     onNotice(event) {
-        const notices = this.state.notices;
-        notices.unshift(event);
-        while(notices.length > 10) {
-            notices.pop();
-        }
-        this.setState({notices: notices});
         if (event.mood) {
             SfxUtil.shuffleMusic();
         }
@@ -729,7 +746,7 @@ class CanvasView extends React.Component {
 
     handleKeyPress(event) {
         const key = event.key.toLowerCase();
-        this.pressed[key] = event.type == 'keydown';
+        this.pressed[key] = event.type === 'keydown';
         return key;
     }
 
@@ -909,10 +926,10 @@ class CanvasView extends React.Component {
             dialog = <SettingsDialog callback={this.closeDialogs}/>;
         }
 
-        const notices = this.state.notices.map((notice, i) => {
+        const log = DataStore.instance.log.map((l, i) => {
             return (
-                <div key={i}>
-                    {notice.notice}
+                <div key={i} className={l.type}>
+                    {l.message}
                 </div>
             );
         });
@@ -951,8 +968,8 @@ class CanvasView extends React.Component {
                         onTouchEnd={this.onTouchEnd}
                         />
 
-                <div className="notices">
-                    {notices}
+                <div className="log">
+                    {log}
                 </div>
 
                 <div className="footer">

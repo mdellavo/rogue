@@ -197,7 +197,7 @@ canvas:focus {
     padding-bottom: 10px;
 }
 
-.notices {
+.log {
     bottom: 20px;
     padding: 10px;
     color: #cccccc;
@@ -205,6 +205,19 @@ canvas:focus {
     width: 100%;
     position: absolute;
 }
+
+.log .debug {
+    text-shadow: 1px 1px 2px #f55;
+}
+
+.log .notice {
+    text-shadow: 1px 1px 2px #ff5;
+}
+
+.log .info {
+    text-shadow: 1px 1px 2px #55f;
+}
+
 
 .stats {
     position: absolute;
