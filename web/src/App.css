@@ -1,4 +1,4 @@
-body {
+* {
     font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New", monospace;
 }
 
@@ -48,7 +48,6 @@ canvas:focus {
 }
 
 .toolbar button {
-    font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New", monospace;
     font-size: 10pt;
     color: #eee;
     text-shadow: #222222;
@@ -106,7 +105,6 @@ canvas:focus {
     left: 100px;
     background: #444;
     width: 500px;
-    font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New", monospace;
     font-size: 12pt;
     color: #eee;
     text-shadow: #222222;
@@ -128,7 +126,6 @@ canvas:focus {
 .dialog-close {
     float: right;
     display: inline-block;
-    font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New", monospace;
     cursor: pointer;
     background: none;
     font-size: 24pt;

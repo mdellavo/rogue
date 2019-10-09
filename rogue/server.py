@@ -26,7 +26,6 @@ routes = web.RouteTableDef()
 
 
 QUEUE_SIZE = 100
-FRAME_SIZE = 11
 HEARTBEAT = 5
 RECV_TIMEOUT = 10
 UPDATE_TIMEOUT = .1
@@ -203,7 +202,7 @@ class WebSocketPlayer(Player):
                         height=area.map_height)
 
     def get_frame(self, area):
-        width = height = FRAME_SIZE
+        width = height = 2 * self.attributes.view_distance
         tiles = self.visible_tiles(area, width, height)
 
         object_map = collections.defaultdict(list)

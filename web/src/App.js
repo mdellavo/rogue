@@ -6,6 +6,9 @@ import {sprintf} from 'sprintf-js';
 
 const API_URL = process.env.REACT_APP_API;
 const PING_DELAY = 10;
+const SCALE = 2;
+const LOG_LIMIT = 1000;
+
 
 const Actions = {
     INVENTORY: "inventory",
@@ -31,9 +34,6 @@ const LogTypes = {
     DEBUG: "debug",
     INFO: "info"
 }
-
-
-const LOG_LIMIT = 1000;
 
 function choice(items) {
     return items[Math.floor(Math.random() * items.length)];
@@ -101,10 +101,12 @@ class DataStore {
     onPing() {
         const fps = this.frames / PING_DELAY;
         const kb = this.bytes / PING_DELAY / 1024;
+        var _this = this;
         this.send({ping: new Date().getTime()}, (pong) => {
             const time = (new Date().getTime()) - pong.pong;
-            if (console)
-                console.log("fps=", fps, "kb/s=", kb, "time=", time);
+            const msg = sprintf("fps=%s / kb/s=%.02f / time=%s", fps, kb, time);
+            _this.debugLog(msg);
+            console.log(msg);
         });
         this.frames = this.bytes = 0;
     }
@@ -306,8 +308,8 @@ class MapRenderer {
         const tilesize = DataStore.instance.tileset.tilesize;
         const canvas_width = ctx.canvas.clientWidth;
         const canvas_height = ctx.canvas.clientHeight;
-        const canvas_tile_width = Math.floor(canvas_width / tilesize);
-        const canvas_tile_height = Math.floor(canvas_height / tilesize);
+        const canvas_tile_width = Math.floor(canvas_width / tilesize) * SCALE;
+        const canvas_tile_height = Math.floor(canvas_height / tilesize) * SCALE;
 
         const map_min_x = Math.max(msg.x - Math.floor(canvas_tile_width/2), 0);
         const map_min_y = Math.max(msg.y - Math.floor(canvas_tile_height/2), 0);
@@ -325,7 +327,7 @@ class MapRenderer {
                 const tile_index = row ? row[map_min_x + x] : -1;
                 const [target_x, target_y] = [x * tilesize, y * tilesize];
 
-                const in_range = x >= frame_min_x && x < (frame_max_x + 1) && y >= frame_min_y && y < (frame_max_y + 1);
+                const in_range = x >= frame_min_x && x < frame_max_x && y >= frame_min_y && y < frame_max_y;
 
                 if (tile_index > 0) {
                     GfxUtil.drawTile(ctx, target_x, target_y, tile_index);
@@ -657,7 +659,6 @@ class CanvasView extends React.Component {
             showInventory: false,
             showPlayer: false,
             showSettings: false,
-            notices: [],
             connecting: true,
             connected: false,
             error: false,
@@ -686,8 +687,8 @@ class CanvasView extends React.Component {
         const canvas = this.canvas;
         function resize() {
             const tilesize = DataStore.instance.tileset.tilesize;
-            canvas.width = Math.floor(window.innerWidth / tilesize) * tilesize;
-            canvas.height = Math.floor(window.innerHeight / tilesize) * tilesize;
+            canvas.width = Math.floor(window.innerWidth / tilesize) * tilesize * SCALE;
+            canvas.height = Math.floor(window.innerHeight / tilesize) * tilesize * SCALE;
         }
         window.addEventListener("resize", resize);
         resize();
@@ -728,6 +729,7 @@ class CanvasView extends React.Component {
     }
 
     onNotice(event) {
+        this.forceUpdate();
         if (event.mood) {
             SfxUtil.shuffleMusic();
         }
@@ -808,8 +810,8 @@ class CanvasView extends React.Component {
             return;
         const pos = [x, y];
         const tilesize = DataStore.instance.tileset.tilesize;
-        const width = this.canvas.width / tilesize;
-        const height = this.canvas.height / tilesize;
+        const width = Math.round(this.canvas.width / tilesize * SCALE);
+        const height = Math.round(this.canvas.height / tilesize * SCALE);
         this.clicked = pos;
         DataStore.instance.send({action: Actions.WAYPOINT, pos: [
             x - Math.floor(width / 2),
@@ -824,8 +826,8 @@ class CanvasView extends React.Component {
     onMouseDown(event) {
         const tilesize = DataStore.instance.tileset.tilesize;
         const rect = this.canvas.getBoundingClientRect();
-        const x = Math.floor((event.clientX - rect.left) / tilesize);
-        const y = Math.floor((event.clientY - rect.top) / tilesize);
+        const x = Math.floor((event.clientX - rect.left) / tilesize * SCALE);
+        const y = Math.floor((event.clientY - rect.top) / tilesize * SCALE);
         this.setWaypoint(x, y);
         return false;
     }
@@ -839,8 +841,8 @@ class CanvasView extends React.Component {
         const tilesize = DataStore.instance.tileset.tilesize;
         const rect = this.canvas.getBoundingClientRect();
         const touch = event.touches[0];
-        const x = Math.floor((touch.clientX - rect.left) / tilesize);
-        const y = Math.floor((touch.clientY - rect.top) / tilesize);
+        const x = Math.floor((touch.clientX - rect.left) / tilesize * SCALE);
+        const y = Math.floor((touch.clientY - rect.top) / tilesize * SCALE);
         this.setWaypoint(x, y);
     }
 
