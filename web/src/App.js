@@ -153,7 +153,7 @@ class DataStore {
     }
 
     send(obj, callback) {
-        console.log(obj);
+        // console.log(obj);
         if (this.socket.readyState !== 1) {
             return;
         }
@@ -331,8 +331,9 @@ class MapRenderer {
 
                 if (tile_index > 0) {
                     GfxUtil.drawTile(ctx, target_x, target_y, tile_index);
-                    if (!in_range)
+                    if (!in_range) {
                         GfxUtil.fillTile(ctx, target_x, target_y, "rgba(0, 0, 0, .5)");
+                    }
                 } else {
                     GfxUtil.fillTile(ctx, target_x, target_y, "black");
                 }
@@ -349,14 +350,19 @@ class MapRenderer {
             const row = msg.frame[y];
             for (let x=0; x<row.length; x++) {
                 const in_fov = row[x][0];
-                const obj_index = row[x][2];
-
                 const [target_x, target_y] = [(x + frame_min_x) * tilesize, (y + frame_min_y) * tilesize];
                 if (!in_fov) {
-                    GfxUtil.fillTile(ctx, target_x, target_y, "rgba(0, 0, 0, .5)");
-                } else if (obj_index >= 0) {
-                    GfxUtil.drawTile(ctx, target_x, target_y, obj_index);
+                    GfxUtil.fillTile(ctx, target_x, target_y , "rgba(0, 0, 0, .5)");
+                    continue
+
                 }
+
+                for (let i=2; i<row[x].length; i++) {
+                    const obj_index = row[x][i];
+                    if (obj_index >= 0)
+                        GfxUtil.drawTile(ctx, target_x, target_y, obj_index);
+                }
+
             }
         }
     }
@@ -808,11 +814,16 @@ class CanvasView extends React.Component {
     setWaypoint(x, y) {
         if (this.clicked && x === this.clicked[0] && y === this.clicked[1])
             return;
-        const pos = [x, y];
         const tilesize = DataStore.instance.tileset.tilesize;
-        const width = Math.round(this.canvas.width / tilesize * SCALE);
-        const height = Math.round(this.canvas.height / tilesize * SCALE);
+        const width = Math.round(this.canvas.width / tilesize);
+        const height = Math.round(this.canvas.height / tilesize);
+        const pos = [x, y];
         this.clicked = pos;
+        console.log("waypoint",
+                    width, height,
+                    x - Math.floor(width / 2),
+                    y - Math.floor(height / 2)
+                   );
         DataStore.instance.send({action: Actions.WAYPOINT, pos: [
             x - Math.floor(width / 2),
             y - Math.floor(height / 2)
@@ -826,8 +837,10 @@ class CanvasView extends React.Component {
     onMouseDown(event) {
         const tilesize = DataStore.instance.tileset.tilesize;
         const rect = this.canvas.getBoundingClientRect();
+
         const x = Math.floor((event.clientX - rect.left) / tilesize * SCALE);
         const y = Math.floor((event.clientY - rect.top) / tilesize * SCALE);
+        console.log("clicked", x, y);
         this.setWaypoint(x, y);
         return false;
     }

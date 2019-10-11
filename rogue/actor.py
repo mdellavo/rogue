@@ -18,7 +18,7 @@ class ActorState(enum.Enum):
 
 @dataclasses.dataclass
 class ActorAttributes(object):
-    view_distance: int = 10
+    view_distance: int = 5
     strength: int = 5
 
     armor_class: int = 1
@@ -76,7 +76,10 @@ class Actor(Object):
                     self.waypoint = None
                     return MeleeAttackAction(target=actors_at_waypoint[0])
             else:
+                import time
+                t1 = time.time()
                 path = area.find_path(self, self.waypoint)
+                t2 = time.time()
                 if path:
                     x, y = path.pop(0)
                     dx, dy = x - self.x, y - self.y

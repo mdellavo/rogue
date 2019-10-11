@@ -28,7 +28,7 @@ routes = web.RouteTableDef()
 QUEUE_SIZE = 100
 HEARTBEAT = 5
 RECV_TIMEOUT = 10
-UPDATE_TIMEOUT = .1
+UPDATE_TIMEOUT = .2
 
 
 class ActionDispatcher(object):
@@ -219,11 +219,12 @@ class WebSocketPlayer(Player):
             for cell in row:
                 pos, tile = cell
                 in_fov = pos in fov
-                objs = object_map.get(pos)
-                obj = sorted(objs, key=keyfn)[0] if objs else None
                 tile_index = self.tilemap.get_index(tile.key) if in_fov else -1
-                obj_index = self.tilemap.get_index(obj.key) if obj else -1
-                rv_row.append([in_fov, tile_index, obj_index])  # FIXME only supports one obj
+
+                objs = object_map.get(pos)
+                obs = sorted(objs, key=keyfn, reverse=True) if objs else None
+                obj_indexes = [self.tilemap.get_index(obj.key) for obj in objs] if objs else [-1]
+                rv_row.append([in_fov, tile_index] + obj_indexes)
             rv.append(rv_row)
         rv[int(height/2)][int(width/2)][-1] = self.tilemap.get_index(self.key)
         return rv

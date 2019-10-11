@@ -47,8 +47,9 @@ if __name__ == "__main__":
     parser.add_argument("--port", type=int, default=PORT)
     parser.add_argument("--debug")
     args = parser.parse_args()
+    print(args.debug)
     try:
-        asyncio.run(main(args), debug=args.debug)
+        asyncio.run(main(args), debug=True)
     except KeyboardInterrupt:
         pass
     sys.exit(0)

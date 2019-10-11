@@ -29,3 +29,4 @@ RUN useradd -ms /bin/bash rogue
 USER rogue
 
 CMD python3.7 -m rogue
+ENTRYPOINT python3.7 -m rogue
