@@ -45,7 +45,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--seed", type=int, default=int(time.time()))
     parser.add_argument("--port", type=int, default=PORT)
-    parser.add_argument("--debug")
+    parser.add_argument("--debug", action="store_true")
     args = parser.parse_args()
     print(args.debug)
     try:

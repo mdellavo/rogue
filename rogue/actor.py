@@ -76,10 +76,7 @@ class Actor(Object):
                     self.waypoint = None
                     return MeleeAttackAction(target=actors_at_waypoint[0])
             else:
-                import time
-                t1 = time.time()
                 path = area.find_path(self, self.waypoint)
-                t2 = time.time()
                 if path:
                     x, y = path.pop(0)
                     dx, dy = x - self.x, y - self.y

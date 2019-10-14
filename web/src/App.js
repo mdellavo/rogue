@@ -33,7 +33,7 @@ const LogTypes = {
     NOTICE: "notice",
     DEBUG: "debug",
     INFO: "info"
-}
+};
 
 function choice(items) {
     return items[Math.floor(Math.random() * items.length)];
@@ -227,8 +227,6 @@ class DataStore {
                     map[ty][tx] = row[x][1];
             }
         }
-
-        //this.dumpMap(map);
     }
 
     dumpMap(map) {
@@ -311,23 +309,25 @@ class MapRenderer {
         const canvas_tile_width = Math.floor(canvas_width / tilesize) * SCALE;
         const canvas_tile_height = Math.floor(canvas_height / tilesize) * SCALE;
 
-        const map_min_x = Math.max(msg.x - Math.floor(canvas_tile_width/2), 0);
-        const map_min_y = Math.max(msg.y - Math.floor(canvas_tile_height/2), 0);
+        const map_min_x = msg.x - Math.floor(canvas_tile_width/2);
+        const map_min_y = msg.y - Math.floor(canvas_tile_height/2);
 
-        const frame_min_x = Math.max(Math.floor(canvas_tile_width/2) - Math.floor(msg.frame[0].length/2), 0);
-        const frame_min_y = Math.max(Math.floor(canvas_tile_height/2) - Math.floor(msg.frame.length/2), 0);
-        const frame_max_x = Math.min(Math.floor(canvas_tile_width/2) + Math.floor(msg.frame[0].length/2), msg.width-1);
-        const frame_max_y = Math.min(Math.floor(canvas_tile_height/2) + Math.floor(msg.frame.length/2), msg.height-1);
+        const frame_min_x = msg.x - Math.floor(msg.frame[0].length/2);
+        const frame_min_y = msg.y - Math.floor(msg.frame.length/2);
+        const frame_max_x = msg.x + Math.floor(msg.frame[0].length/2);
+        const frame_max_y = msg.y + Math.floor(msg.frame.length/2);
 
         //this.clearMap(ctx, canvas_width, canvas_height);
 
         for (let y=0; y<canvas_tile_height; y++) {
-            const row = map[map_min_y + y];
+            const y_idx = map_min_y + y;
+            const row = map[y_idx];
             for (let x=0; x<canvas_tile_width; x++) {
-                const tile_index = row ? row[map_min_x + x] : -1;
-                const [target_x, target_y] = [x * tilesize, y * tilesize];
 
-                const in_range = x >= frame_min_x && x < frame_max_x && y >= frame_min_y && y < frame_max_y;
+                const x_idx = map_min_x + x;
+                const in_range = x_idx >= frame_min_x && x_idx < frame_max_x && y_idx >= frame_min_y && y_idx < frame_max_y;
+                const tile_index = row ? row[x_idx] : -1;
+                const [target_x, target_y] = [x * tilesize, y * tilesize];
 
                 if (tile_index > 0) {
                     GfxUtil.drawTile(ctx, target_x, target_y, tile_index);
@@ -346,23 +346,24 @@ class MapRenderer {
             }
         }
 
+        const obj_min_x = Math.floor(canvas_tile_width / 2) - Math.floor(msg.frame[0].length/2);
+        const obj_min_y = Math.floor(canvas_tile_height / 2) - Math.floor(msg.frame.length/2);
         for (let y=0; y<msg.frame.length; y++) {
             const row = msg.frame[y];
             for (let x=0; x<row.length; x++) {
-                const in_fov = row[x][0];
-                const [target_x, target_y] = [(x + frame_min_x) * tilesize, (y + frame_min_y) * tilesize];
+                const cell = row[x];
+                const in_fov = cell[0];
+                const [target_x, target_y] = [(x + obj_min_x) * tilesize, (y + obj_min_y) * tilesize];
                 if (!in_fov) {
                     GfxUtil.fillTile(ctx, target_x, target_y , "rgba(0, 0, 0, .5)");
-                    continue
-
+                    continue;
                 }
 
-                for (let i=2; i<row[x].length; i++) {
-                    const obj_index = row[x][i];
+                for (let i=1; i<row[x].length; i++) {
+                    const obj_index = cell[i];
                     if (obj_index >= 0)
                         GfxUtil.drawTile(ctx, target_x, target_y, obj_index);
                 }
-
             }
         }
     }
@@ -704,8 +705,8 @@ class CanvasView extends React.Component {
         canvas.focus();
         SfxUtil.shuffleMusic();
 
-        MapRenderer.clearMap(this.minimap.getContext("2d"), this.minimap.width, this.minimap.height);
-        MapRenderer.clearMap(this.canvas.getContext("2d"), this.canvas.width, this.canvas.height);
+        MapRenderer.clearMap(this.minimap.getContext("2d"), this.minimap.clientWidth, this.minimap.clientHeight);
+        MapRenderer.clearMap(this.canvas.getContext("2d"), this.canvas.clientWidth, this.canvas.clientHeight);
     }
 
     onUnload(event) {
@@ -735,13 +736,12 @@ class CanvasView extends React.Component {
     }
 
     onNotice(event) {
-        this.forceUpdate();
         if (event.mood) {
             SfxUtil.shuffleMusic();
         }
         if (event.entered) {
-            MapRenderer.clearMap(this.minimap.getContext("2d"), this.minimap.width, this.minimap.height);
-            MapRenderer.clearMap(this.canvas.getContext("2d"), this.canvas.width, this.canvas.height);
+            MapRenderer.clearMap(this.minimap.getContext("2d"), this.minimap.clientWidth, this.minimap.clientHeight);
+            MapRenderer.clearMap(this.canvas.getContext("2d"), this.canvas.clientWidth, this.canvas.clientHeight);
             if (event.entered in DataStore.instance.maps) {
                 MapRenderer.redrawMiniMap(this.minimap.getContext("2d"), DataStore.instance.maps[event.entered], 2);
             }
@@ -814,9 +814,9 @@ class CanvasView extends React.Component {
     setWaypoint(x, y) {
         if (this.clicked && x === this.clicked[0] && y === this.clicked[1])
             return;
-        const tilesize = DataStore.instance.tileset.tilesize;
-        const width = Math.round(this.canvas.width / tilesize);
-        const height = Math.round(this.canvas.height / tilesize);
+        const tilesize = DataStore.instance.tileset.tilesize / SCALE;
+        const width = Math.round(this.canvas.clientWidth / tilesize);
+        const height = Math.round(this.canvas.clientHeight / tilesize);
         const pos = [x, y];
         this.clicked = pos;
         console.log("waypoint",
@@ -824,10 +824,11 @@ class CanvasView extends React.Component {
                     x - Math.floor(width / 2),
                     y - Math.floor(height / 2)
                    );
-        DataStore.instance.send({action: Actions.WAYPOINT, pos: [
+        const relpos = [
             x - Math.floor(width / 2),
             y - Math.floor(height / 2)
-        ]});
+        ];
+        DataStore.instance.send({action: Actions.WAYPOINT, pos: relpos});
     }
 
     clearWaypoint() {
@@ -835,11 +836,10 @@ class CanvasView extends React.Component {
     }
 
     onMouseDown(event) {
-        const tilesize = DataStore.instance.tileset.tilesize;
+        const tilesize = DataStore.instance.tileset.tilesize / SCALE;
         const rect = this.canvas.getBoundingClientRect();
-
-        const x = Math.floor((event.clientX - rect.left) / tilesize * SCALE);
-        const y = Math.floor((event.clientY - rect.top) / tilesize * SCALE);
+        const x = Math.floor((event.clientX - rect.left) / tilesize);
+        const y = Math.floor((event.clientY - rect.top) / tilesize);
         console.log("clicked", x, y);
         this.setWaypoint(x, y);
         return false;

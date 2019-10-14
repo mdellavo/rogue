@@ -26,7 +26,7 @@ class Area(object):
         self.name = name
         self.tiles = tiles
         self.depth = depth
-        self.objects = []
+        self.object_index = collections.defaultdict(list)
         self.time = 0
         self.areas = []
         AreaRegistry[self.id] = self
@@ -36,6 +36,10 @@ class Area(object):
 
     def add_area(self, area):
         self.areas.append(area)
+
+    @property
+    def objects(self):
+        return itertools.chain.from_iterable(self.object_index.values())
 
     @property
     def players(self):
@@ -59,7 +63,7 @@ class Area(object):
         return self.tiles[y][x]
 
     def get_objects(self, x, y):
-        return [obj for obj in self.objects if obj.x == x and obj.y == y]
+        return self.object_index.get((x, y), [])
 
     def has_objects(self, x, y):
         return len(self.get_objects(x, y)) > 0
@@ -82,17 +86,18 @@ class Area(object):
         if self.is_tile_free(x, y):
             obj.x = x
             obj.y = y
-            self.objects.append(obj)
+            self.object_index[(x, y)].append(obj)
             return True
         return False
 
     def remove_object(self, obj):
-        if obj in self.objects:
-            self.objects.remove(obj)
+        objs = self.object_index[(obj.x, obj.y)]
+        if obj in objs:
+            objs.remove(obj)
 
     def tick(self, world):
         self.time += 1
-        for obj in self.objects:
+        for obj in list(self.objects):
             obj.age += 1
             if not isinstance(obj, Actor):
                 continue
@@ -169,6 +174,12 @@ class Area(object):
                 row.append(val)
             rows.append(row)
         return rows
+
+    def move_actor(self, actor, x, y):
+        self.object_index[(actor.x, actor.y)].remove(actor)
+        actor.x = x
+        actor.y = y
+        self.object_index[(actor.x, actor.y)].append(actor)
 
 
 class World(object):

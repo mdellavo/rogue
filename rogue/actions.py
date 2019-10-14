@@ -45,8 +45,7 @@ class MoveAction(Action):
         if tile.blocked or any(obj.blocks for obj in area.get_objects(x, y)):
             return False
 
-        actor.x = x
-        actor.y = y
+        area.move_actor(actor, x, y)
 
         return True
 
@@ -65,6 +64,7 @@ class EnterAction(Action):
             new_area.add_object(actor, x, y)
             area.remove_object(actor)
             actor.notice("you have entered {}".format(pt), mood=True, entered=new_area.id)
+            actor.waypoint = None
 
 
 class EquipAction(Action):
