@@ -28,7 +28,7 @@ routes = web.RouteTableDef()
 QUEUE_SIZE = 100
 HEARTBEAT = 5
 RECV_TIMEOUT = 10
-UPDATE_TIMEOUT = .2
+UPDATE_TIMEOUT = .1
 
 
 class ActionDispatcher(object):

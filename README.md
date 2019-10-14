@@ -39,7 +39,7 @@ docker run --rm  -i -t -v `pwd`:/home/rogue -p 6543:6543 --name rogue mdellavo/r
 - threejs ui
 - noises / chat?
 - towns / prefabs / stores
-- animations?
+- animations
 
 ## Author
 
