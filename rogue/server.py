@@ -222,11 +222,11 @@ class WebSocketPlayer(Player):
                 tile_index = self.tilemap.get_index(tile.key) if in_fov else -1
 
                 objs = object_map.get(pos)
-                obs = sorted(objs, key=keyfn, reverse=True) if objs else None
+                objs = sorted(objs, key=keyfn, reverse=True) if objs else None
                 obj_indexes = [self.tilemap.get_index(obj.key) for obj in objs] if objs else [-1]
                 rv_row.append([in_fov, tile_index] + obj_indexes)
             rv.append(rv_row)
-        rv[int(height/2)][int(width/2)][-1] = self.tilemap.get_index(self.key)
+        rv[int(height / 2)][int(width / 2)][-1] = self.tilemap.get_index(self.key)
         return rv
 
 
