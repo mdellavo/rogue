@@ -7,7 +7,7 @@ import {sprintf} from 'sprintf-js';
 const API_URL = process.env.REACT_APP_API;
 const PING_DELAY = 10;
 const SCALE = 2;
-const LOG_LIMIT = 1000;
+const LOG_LIMIT = 10;
 
 
 const Actions = {
