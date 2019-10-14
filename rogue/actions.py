@@ -34,10 +34,10 @@ class MoveAction(Action):
         self.dy = dy
 
     def perform(self, actor, world):
-        x = actor.x + self.dx
-        y = actor.y + self.dy
         area = world.get_area(actor)
 
+        x = actor.x + self.dx
+        y = actor.y + self.dy
         if x < 0 or x >= area.map_width or y < 0 or y >= area.map_height:
             return False
 
@@ -58,6 +58,7 @@ class EnterAction(Action):
         pt = area.get_tile(actor.x, actor.y)
         if isinstance(pt, Door):
             new_area, position = pt.get_area(world, area, (actor.x, actor.y))
+            print("xxx", (actor.x, actor.y), position)
             area.add_area(new_area)
             world.add_actor(actor, area=new_area)
             x, y = position

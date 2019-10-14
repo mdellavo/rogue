@@ -80,10 +80,8 @@ class Area(object):
         return True
 
     def add_object(self, obj, x, y):
-        if self.is_tile_free(x, y):
-            self.move_actor(obj, x, y)
-            return True
-        return False
+        self.move_actor(obj, x, y)
+        return True
 
     def remove_object(self, obj):
         objs = self.get_objects(obj.x, obj.y)
@@ -114,7 +112,8 @@ class Area(object):
         for _ in range(100):
             x = random.randrange(0, self.map_width)
             y = random.randrange(0, self.map_height)
-            if self.add_object(obj, x, y):
+            if self.is_tile_free(x, y):
+                self.add_object(obj, x, y)
                 return
         raise ValueError("could not place object")
 
@@ -171,8 +170,6 @@ class Area(object):
         return rows
 
     def move_actor(self, actor, x, y):
-        if actor in self.get_objects(x, y):
-            return
         self.remove_object(actor)
         actor.x = x
         actor.y = y

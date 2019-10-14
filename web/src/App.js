@@ -243,6 +243,9 @@ class DataStore {
         while(this.log.length > LOG_LIMIT) {
             this.log.pop();
         }
+        if (this.eventCallbacks["_log"]) {
+            this.eventCallbacks["_log"]();
+        }
     }
 
     debugLog(msg) {
@@ -661,6 +664,7 @@ class CanvasView extends React.Component {
         this.showSettingsDialog = this.showSettingsDialog.bind(this);
         this.closeDialogs = this.closeDialogs.bind(this);
         this.onUnload = this.onUnload.bind(this);
+        this.onLog = this.onLog.bind(this);
 
         this.pressed = {};
         this.clicked = null;
@@ -693,6 +697,7 @@ class CanvasView extends React.Component {
         });
         DataStore.instance.addEventListener("notice", (msg) => { this.onNotice(msg); });
         DataStore.instance.addEventListener("stats", (msg) => { this.onStats(msg.stats); });
+        DataStore.instance.addEventListener("_log", (msg) => { this.onLog(); });
         DataStore.instance.connect(this, this.props.profile);
 
         const canvas = this.canvas;
@@ -737,6 +742,10 @@ class CanvasView extends React.Component {
         const map = DataStore.instance.maps[msg.id];
         MapRenderer.renderMap(this.canvas.getContext("2d"), map, msg, this.clicked);
         MapRenderer.renderMiniMap(this.minimap.getContext("2d"), 2, msg);
+    }
+
+    onLog() {
+        this.forceUpdate();
     }
 
     onNotice(event) {

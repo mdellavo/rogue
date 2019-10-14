@@ -124,4 +124,3 @@ class Door(Tile):
         if not self.area:
             return ValueError("door needs area")
         return self.area, self.position
-
