@@ -337,12 +337,6 @@ class MapRenderer {
                 } else {
                     GfxUtil.fillTile(ctx, target_x, target_y, "black");
                 }
-                if (clicked) {
-                    const [clickedX, clickedY] = clicked;
-                    if (x === clickedX && y === clickedY) {
-                        GfxUtil.fillTile(ctx, target_x, target_y, "rgba(255, 0, 0, .5)");
-                    }
-                }
             }
         }
 
@@ -366,6 +360,16 @@ class MapRenderer {
                 }
             }
         }
+
+
+        if (clicked) {
+            const [clickedX, clickedY] = clicked;
+            const [target_x, target_y] = [
+                clickedX * tilesize, clickedY * tilesize
+            ];
+            GfxUtil.fillTile(ctx, target_x, target_y, "rgba(255, 0, 0, .5)");
+        }
+
     }
 
     static clearMap(ctx, width, height) {

@@ -18,7 +18,7 @@ class ActorState(enum.Enum):
 
 @dataclasses.dataclass
 class ActorAttributes(object):
-    view_distance: int = 5
+    view_distance: int = 10
     strength: int = 5
 
     armor_class: int = 1

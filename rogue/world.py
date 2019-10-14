@@ -80,18 +80,13 @@ class Area(object):
         return True
 
     def add_object(self, obj, x, y):
-        if obj in self.objects:
-            return
-
         if self.is_tile_free(x, y):
-            obj.x = x
-            obj.y = y
-            self.object_index[(x, y)].append(obj)
+            self.move_actor(obj, x, y)
             return True
         return False
 
     def remove_object(self, obj):
-        objs = self.object_index[(obj.x, obj.y)]
+        objs = self.get_objects(obj.x, obj.y)
         if obj in objs:
             objs.remove(obj)
 
@@ -112,7 +107,7 @@ class Area(object):
                 obj.drain_energy()
             except ActionError as e:
                 obj.notice(str(e))
-            except:
+            except Exception:
                 log.exception("error performing action %s", action)
 
     def place(self, obj):
@@ -176,10 +171,14 @@ class Area(object):
         return rows
 
     def move_actor(self, actor, x, y):
-        self.object_index[(actor.x, actor.y)].remove(actor)
+        if actor in self.get_objects(x, y):
+            return
+        self.remove_object(actor)
         actor.x = x
         actor.y = y
-        self.object_index[(actor.x, actor.y)].append(actor)
+        objs = self.object_index[(actor.x, actor.y)]
+        if actor not in objs:
+            objs.append(actor)
 
 
 class World(object):
