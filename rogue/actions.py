@@ -135,11 +135,6 @@ class MeleeAttackAction(Action):
 
     def perform(self, actor, world):
         if not self.target:
-            targets = world.surrounding_actors(actor)
-            if targets:
-                self.target = targets[0]
-
-        if not self.target:
             return
 
         attack_roll = random.randint(1, 20)

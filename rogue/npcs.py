@@ -23,7 +23,7 @@ class NPC(Actor):
                 self.target = random.choice(actors)
 
         if self.target:
-            action = MeleeAttackAction(self)
+            action = MeleeAttackAction(self.target)
             self.target = None
         else:
             action = None

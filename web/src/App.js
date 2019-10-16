@@ -368,11 +368,11 @@ class MapRenderer {
         if (clicked) {
             const [clickedX, clickedY] = clicked;
             const [target_x, target_y] = [
-                clickedX * tilesize, clickedY * tilesize
+                (clickedX * SCALE) - (tilesize),
+                (clickedY * SCALE) - (tilesize)
             ];
             GfxUtil.fillTile(ctx, target_x, target_y, "rgba(255, 0, 0, .5)");
         }
-
     }
 
     static clearMap(ctx, width, height) {
@@ -825,21 +825,23 @@ class CanvasView extends React.Component {
     }
 
     setWaypoint(x, y) {
-        if (this.clicked && x === this.clicked[0] && y === this.clicked[1])
-            return;
         const tilesize = DataStore.instance.tileset.tilesize / SCALE;
-        const width = Math.round(this.canvas.clientWidth / tilesize);
-        const height = Math.round(this.canvas.clientHeight / tilesize);
+        const width = Math.floor(this.canvas.clientWidth / tilesize);
+        const height = Math.floor(this.canvas.clientHeight / tilesize);
         const pos = [x, y];
         this.clicked = pos;
         console.log("waypoint",
+                    "dim",
                     width, height,
-                    x - Math.floor(width / 2),
-                    y - Math.floor(height / 2)
+                    "ev", x, y,
+                    Math.floor(x / tilesize),
+                    Math.floor(y / tilesize),
+                    Math.floor(x / tilesize) - Math.floor(width / 2),
+                    Math.floor(y / tilesize) - Math.floor(height / 2)
                    );
         const relpos = [
-            x - Math.floor(width / 2),
-            y - Math.floor(height / 2)
+            Math.floor(x / tilesize) - Math.floor(width / 2),
+            Math.floor(y / tilesize) - Math.floor(height / 2)
         ];
         DataStore.instance.send({action: Actions.WAYPOINT, pos: relpos});
     }
@@ -849,10 +851,9 @@ class CanvasView extends React.Component {
     }
 
     onMouseDown(event) {
-        const tilesize = DataStore.instance.tileset.tilesize / SCALE;
         const rect = this.canvas.getBoundingClientRect();
-        const x = Math.floor((event.clientX - rect.left) / tilesize);
-        const y = Math.floor((event.clientY - rect.top) / tilesize);
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
         console.log("clicked", x, y);
         this.setWaypoint(x, y);
         return false;
@@ -864,11 +865,10 @@ class CanvasView extends React.Component {
 
     onTouchStart(event) {
         event.preventDefault();
-        const tilesize = DataStore.instance.tileset.tilesize;
         const rect = this.canvas.getBoundingClientRect();
         const touch = event.touches[0];
-        const x = Math.floor((touch.clientX - rect.left) / tilesize * SCALE);
-        const y = Math.floor((touch.clientY - rect.top) / tilesize * SCALE);
+        const x = touch.clientX - rect.left;
+        const y = touch.clientY - rect.top;
         this.setWaypoint(x, y);
     }
 
