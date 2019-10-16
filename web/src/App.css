@@ -86,8 +86,9 @@ canvas:focus {
     text-align: center;
     display: block;
     background: red;
+    overflow: visible;
     height: 100%;
-    position: relative;
+    white-space: nowrap;
 }
 
 
@@ -221,6 +222,7 @@ canvas:focus {
     color: #eeeeee;
     right: 0;
     top: 50px;
+    width: 200px;
 }
 
 .join {

@@ -413,24 +413,6 @@ class MapRenderer {
     }
 }
 
-class ProgressBar extends React.Component {
-    constructor(props) {
-        super(props);
-        this.state = {"value": props.value, "max": props.max, "text": props.text};
-    }
-
-    setValue(value, max) {
-        this.setState({"value": value, "max": max});
-    }
-
-    render() {
-        return (
-                <div className="progress-bar">
-                    <span style={{width: this.state.max/this.state.value * 100 + "%"}}>{this.state.text}</span>
-                </div>
-        );
-    }
-}
 
 class Dialog extends React.Component {
     constructor(props) {
@@ -696,7 +678,7 @@ class CanvasView extends React.Component {
             });
         });
         DataStore.instance.addEventListener("notice", (msg) => { this.onNotice(msg); });
-        DataStore.instance.addEventListener("stats", (msg) => { this.onStats(msg.stats); });
+        DataStore.instance.addEventListener("stats", (msg) => { this.onStats(msg); });
         DataStore.instance.addEventListener("_log", (msg) => { this.onLog(); });
         DataStore.instance.connect(this, this.props.profile);
 
@@ -762,7 +744,7 @@ class CanvasView extends React.Component {
     }
 
     onStats(event) {
-        this.setState({stats: event});
+        this.setState({stats: event.stats});
     }
 
     handleKeyPress(event) {
@@ -968,7 +950,9 @@ class CanvasView extends React.Component {
             stats = (
                 <div className="stats">
                     Health:
-                    <ProgressBar value={this.state.stats.hp} max={this.state.stats.tot} text={text}/>
+                    <div className="progress-bar">
+                    <span style={{width: this.state.stats.hp/this.state.stats.tot * 100 + "%"}}>{text}</span>
+                    </div>
                 </div>
             );
         }

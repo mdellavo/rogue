@@ -142,7 +142,7 @@ class WebSocketPlayer(Player):
         self.tilemap = tileset
         self.response_queue = asyncio.Queue(QUEUE_SIZE)
 
-    def send_message(self,  **msg):
+    def send_message(self, **msg):
         try:
             self.response_queue.put_nowait(msg)
         except asyncio.queues.QueueFull:
@@ -171,7 +171,7 @@ class WebSocketPlayer(Player):
 
     def die(self):
         self.send_stats()
-        age = int(round(self.age/DAY))
+        age = int(round(self.age / DAY))
         self.notice("you are dead. You lasted {} days and you killed {} things".format(age, self.stats.kills))
         self.response_queue.put_nowait(None)
 
