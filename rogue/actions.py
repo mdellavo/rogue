@@ -46,7 +46,6 @@ class MoveAction(Action):
             return False
 
         area.move_actor(actor, x, y)
-
         return True
 
 
@@ -135,6 +134,11 @@ class MeleeAttackAction(Action):
 
     def perform(self, actor, world):
         if not self.target:
+            targets = world.surrounding_actors(actor)
+            if targets:
+                self.target = targets[0]
+
+        if not self.target:
             return
 
         attack_roll = random.randint(1, 20)
@@ -167,4 +171,5 @@ class MeleeAttackAction(Action):
             self.target.die()
             world.remove_actor(self.target)
             actor.stats.kills += 1
+            actor.attributes.experience += self.target.attributes.experience
             actor.notice("{} killed a {}".format(actor.name, self.target.name))

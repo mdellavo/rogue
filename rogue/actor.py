@@ -20,6 +20,7 @@ class ActorState(enum.Enum):
 class ActorAttributes(object):
     view_distance: int = 10
     strength: int = 5
+    experience: int = 1
 
     armor_class: int = 1
     health: int = 50

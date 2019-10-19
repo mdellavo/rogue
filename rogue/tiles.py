@@ -23,58 +23,38 @@ MUSIC_PATH = os.path.join(ASSET_PATH, "music")
 MUSIC = os.listdir(MUSIC_PATH)
 
 
-class TerrainMap(StrEnum):
-    PLAYER = "gold"
-    GRASS = "green"
-    WATER = "blue"
-    SAND = "yellow"
-    MOUNTAINS = "grey"
-    DOOR = "purple"
-    FLOOR = "lightgrey"
-    WALL = "dimgrey"
+class TerrainTypes(StrEnum):
+    PLAYER = "player"
+    GRASS = "grass"
+    WATER = "water"
+    SAND = "sand"
+    MOUNTAINS = "mountains"
+    DOOR = "door"
+    FLOOR = "floor"
+    WALL = "wall"
 
 
-TILEMAP = collections.OrderedDict((
-    ("player", ((0, 3), TerrainMap.PLAYER)),
-    ("orc1", ((14, 13), None)),
-    ("grass1", ((9, 23), TerrainMap.GRASS)),
-    ("grass2", ((10, 23), TerrainMap.GRASS)),
-    ("grass3", ((11, 23), TerrainMap.GRASS)),
-    ("water1", ((15, 23), TerrainMap.WATER)),
-    ("water2", ((16, 23), TerrainMap.WATER)),
-    ("water3", ((17, 23), TerrainMap.WATER)),
-    ("sand1", ((12, 23), TerrainMap.SAND)),
-    ("sand2", ((13, 23), TerrainMap.SAND)),
-    ("sand3", ((14, 23), TerrainMap.SAND)),
-    ("mountains1", ((117, 23), TerrainMap.MOUNTAINS)),
-    ("mountains2", ((118, 23), TerrainMap.MOUNTAINS)),
-    ("mountains3", ((119, 23), TerrainMap.MOUNTAINS)),
-    ("crypt1", ((7, 22), TerrainMap.DOOR)),
-    ("crypt2", ((13, 22), TerrainMap.DOOR)),
-    ("crypt3", ((14, 22), TerrainMap.DOOR)),
-    ("stairsdown1", ((3, 24), TerrainMap.DOOR)),
-    ("stairsup1", ((0, 24), TerrainMap.DOOR)),
-    ("grey3", ((8, 24), TerrainMap.FLOOR)),
-    ("wall3", ((2, 22), TerrainMap.WALL)),
-    ("coin1", ((7, 7), None)),
-    ("coin2", ((8, 7), None)),
-    ("coin3", ((9, 7), None)),
-    ("coin4", ((10, 7), None)),
-    ("coin5", ((11, 7), None)),
-    ("sword1", ((8, 10), None)),
-    ("shield1", ((100, 0), None)),
-    ("potion1", ((28, 8), None)),
-))
-
+TERRAIN_COLORMAP = {
+    TerrainTypes.PLAYER: "gold",
+    TerrainTypes.GRASS: "green",
+    TerrainTypes.WATER: "blue",
+    TerrainTypes.SAND: "yellow",
+    TerrainTypes.MOUNTAINS: "grey",
+    TerrainTypes.DOOR: "purple",
+    TerrainTypes.FLOOR: "lightgrey",
+    TerrainTypes.WALL: "dimgrey",
+}
 
 class TileSet(object):
     def __init__(self, tilemap, tilesize):
         self.tilemap = tilemap  # XXX build a map of rects
         self.index_map = {k: i for i, k in enumerate(self.tilemap)}
         self.tilesize = tilesize
-        self.tiles = Image.open(TILES_PATH)
         self.tile_cache = {}
-        self.indexed_map = list(self.tilemap.values())
+        self.indexed_map = [
+            ((tile["x"], tile["y"]),
+             TERRAIN_COLORMAP.get(tile.get("type"))) for tile in self.tilemap.values()
+        ]
 
     @property
     def num_tiles(self):

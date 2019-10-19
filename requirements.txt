@@ -9,3 +9,4 @@ boto3
 noise
 ipython
 jinja2
+pyyaml

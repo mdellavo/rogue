@@ -253,7 +253,7 @@ def _total_path(came_from:Dict[NodeType, NodeType], node: NodeType) -> List[Node
     return list(reversed(total))[1:]
 
 
-def find_path( area: Area, start: NodeType, goal: NodeType) -> List[NodeType]:
+def find_path(area: Area, start: NodeType, goal: NodeType) -> List[NodeType]:
     open_nodes: Set[NodeType] = set()
     open_nodes.add(start)
 

@@ -2,7 +2,7 @@ import random
 import logging
 import dataclasses
 
-from .actor import Actor, Player
+from .actor import Actor
 from .actions import MeleeAttackAction, MoveAction
 
 
@@ -16,11 +16,6 @@ class NPC(Actor):
         self.target = actor
 
     def get_action(self, world):
-
-        if not self.target:
-            actors = [actor for actor in world.surrounding_actors(self) if isinstance(actor, Player)]
-            if actors:
-                self.target = random.choice(actors)
 
         if self.target:
             action = MeleeAttackAction(self.target)

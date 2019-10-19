@@ -1,3 +1,4 @@
+import os
 import argparse
 import asyncio
 import logging
@@ -5,13 +6,17 @@ import sys
 import time
 import random
 
+import yaml
+
 from . import procgen, server
-from .tiles import TILEMAP, TileSet
+from .tiles import TileSet
 from .world import DAY, TIMEOUT
 
 MAP_SIZE = 100
-TILESIZE = 64
 PORT = 6543
+
+TILESET_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "tileset.yaml")
+
 
 logging.basicConfig(level=logging.DEBUG, format='[%(asctime)s] %(levelname)s/%(name)s - %(message)s')
 log = logging.getLogger(__name__)
@@ -23,7 +28,11 @@ async def main(args):
     random.seed(args.seed)
 
     world = procgen.generate_world(MAP_SIZE)
-    tileset = TileSet(TILEMAP, TILESIZE)
+
+    with open(TILESET_PATH, "rb") as f:
+        tileset_data = yaml.safe_load(f)
+
+    tileset = TileSet(tileset_data["tilemap"], tileset_data["tilesize"])
 
     async def run_world():
         log.info("starting world...")

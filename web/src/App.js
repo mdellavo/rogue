@@ -280,7 +280,7 @@ class SfxUtil {
 }
 
 class GfxUtil {
-    static drawTile(ctx, x, y, tile_index) {
+    static drawTile(ctx, x, y, tile_index, width, height) {
         const ds = DataStore.instance;
         const pos = DataStore.instance.tileset.tilemap[tile_index][0];
         ctx.drawImage(
@@ -291,16 +291,36 @@ class GfxUtil {
             ds.tileset.tilesize,
             x,
             y,
-            ds.tileset.tilesize,
-            ds.tileset.tilesize,
+            width || ds.tileset.tilesize,
+            height || ds.tileset.tilesize,
         );
     }
 
-    static fillTile(ctx, x, y, color) {
+    static fillTile(ctx, x, y, color, width, height) {
         const tilesize = DataStore.instance.tileset.tilesize;
         ctx.fillStyle = color;
-        ctx.fillRect(x, y, tilesize, tilesize);
+        ctx.fillRect(x, y, width || tilesize, height || tilesize);
     }
+}
+
+const Tiles = {
+    N: 1,
+    E: 2,
+    S: 4,
+    W: 8
+};
+function compute_index(map, x, y) {
+    const val = map[y][x];
+    var rv = 0;
+    if(map[y-1][x] != val)
+        rv += Tiles.N;
+    if(map[y+1][x] != val)
+        rv += Tiles.S;
+    if(map[y][x-1] != val)
+        rv += Tiles.W;
+    if(map[y+1][x+1] != val)
+        rv += Tiles.E;
+    return rv;
 }
 
 class MapRenderer {
@@ -320,13 +340,11 @@ class MapRenderer {
         const frame_max_x = msg.x + Math.floor(msg.frame[0].length/2);
         const frame_max_y = msg.y + Math.floor(msg.frame.length/2);
 
-        //this.clearMap(ctx, canvas_width, canvas_height);
-
+        // Render Base
         for (let y=0; y<canvas_tile_height; y++) {
             const y_idx = map_min_y + y;
             const row = map[y_idx];
             for (let x=0; x<canvas_tile_width; x++) {
-
                 const x_idx = map_min_x + x;
                 const in_range = x_idx >= frame_min_x && x_idx < frame_max_x && y_idx >= frame_min_y && y_idx < frame_max_y;
                 const tile_index = row ? row[x_idx] : -1;
@@ -334,15 +352,18 @@ class MapRenderer {
 
                 if (tile_index > 0) {
                     GfxUtil.drawTile(ctx, target_x, target_y, tile_index);
+
                     if (!in_range) {
                         GfxUtil.fillTile(ctx, target_x, target_y, "rgba(0, 0, 0, .5)");
                     }
+
                 } else {
                     GfxUtil.fillTile(ctx, target_x, target_y, "black");
                 }
             }
         }
 
+        // Render Objects
         const obj_min_x = Math.floor(canvas_tile_width / 2) - Math.floor(msg.frame[0].length/2);
         const obj_min_y = Math.floor(canvas_tile_height / 2) - Math.floor(msg.frame.length/2);
         for (let y=0; y<msg.frame.length; y++) {
@@ -352,7 +373,6 @@ class MapRenderer {
                 const in_fov = cell[0];
                 const [target_x, target_y] = [(x + obj_min_x) * tilesize, (y + obj_min_y) * tilesize];
                 if (!in_fov) {
-                    GfxUtil.fillTile(ctx, target_x, target_y , "rgba(0, 0, 0, .5)");
                     continue;
                 }
 
@@ -363,15 +383,38 @@ class MapRenderer {
                 }
             }
         }
+        for (let y=0; y<msg.frame.length; y++) {
+            const row = msg.frame[y];
+            for (let x=0; x<row.length; x++) {
+                const cell = row[x];
+                const in_fov = cell[0];
+                if (in_fov) {
+                    continue;
+                }
+                const [target_x, target_y] = [(x + obj_min_x) * tilesize, (y + obj_min_y) * tilesize];
+                GfxUtil.fillTile(ctx, target_x, target_y , "rgba(0, 0, 0, .5)");
+            }
+        }
 
+        // Render fov layer
 
         if (clicked) {
             const [clickedX, clickedY] = clicked;
             const [target_x, target_y] = [
+
                 (clickedX * SCALE) - (tilesize),
                 (clickedY * SCALE) - (tilesize)
             ];
-            GfxUtil.fillTile(ctx, target_x, target_y, "rgba(255, 0, 0, .5)");
+
+
+            var grd = ctx.createRadialGradient(target_x, target_y, 0, target_x, target_y, tilesize);
+            grd.addColorStop(0, "rgba(200, 0, 0, .5)");
+            grd.addColorStop(1, "rgba(200, 0, 0, 0)");
+
+            // Fill with gradient
+            ctx.fillStyle = grd;
+            ctx.fillRect(target_x - tilesize, target_y - tilesize,2* tilesize, 2*tilesize);
+
         }
     }
 
@@ -443,6 +486,9 @@ class HelpDialog extends Dialog {
         return (
             <Dialog title="Help" callback={this.props.callback}>
                 <h4>Controls</h4>
+                <h5>Mouse</h5>
+                <p>Click on a position, item, enemy or door to interact</p>
+                <h5>Keyboard</h5>
                 <pre>
                     <strong>w/a/s/d</strong> - to move N/W/S/E<br/>
                     <strong>.</strong>       - to enter doors<br/>
@@ -816,14 +862,14 @@ class CanvasView extends React.Component {
                     "dim",
                     width, height,
                     "ev", x, y,
-                    Math.floor(x / tilesize),
-                    Math.floor(y / tilesize),
+                    Math.round(x / tilesize),
+                    Math.round(y / tilesize),
                     Math.floor(x / tilesize) - Math.floor(width / 2),
                     Math.floor(y / tilesize) - Math.floor(height / 2)
                    );
         const relpos = [
-            Math.floor(x / tilesize) - Math.floor(width / 2),
-            Math.floor(y / tilesize) - Math.floor(height / 2)
+            Math.round(x / tilesize) - Math.floor(width / 2) -1,  // WTF
+            Math.round(y / tilesize) - Math.floor(height / 2) -1
         ];
         DataStore.instance.send({action: Actions.WAYPOINT, pos: relpos});
     }
@@ -836,7 +882,6 @@ class CanvasView extends React.Component {
         const rect = this.canvas.getBoundingClientRect();
         const x = event.clientX - rect.left;
         const y = event.clientY - rect.top;
-        console.log("clicked", x, y);
         this.setWaypoint(x, y);
         return false;
     }

@@ -144,9 +144,11 @@ class WebSocketPlayer(Player):
 
     def send_message(self, **msg):
         try:
-            self.response_queue.put_nowait(msg)
+            self.response_queue.put_nowait(msg or None)
         except asyncio.queues.QueueFull:
             log.warning("queue full")
+            if not self.socket.closed:
+                asyncio.get_event_lop().run_until_complete(self.socket.close())
 
     def send_event(self, event_name, **msg):
         msg["_event"] = event_name
@@ -173,7 +175,7 @@ class WebSocketPlayer(Player):
         self.send_stats()
         age = int(round(self.age / DAY))
         self.notice("you are dead. You lasted {} days and you killed {} things".format(age, self.stats.kills))
-        self.response_queue.put_nowait(None)
+        self.send_message()
 
     def visible_tiles(self, area, width, height):
         rv = []
@@ -337,7 +339,7 @@ async def session(request):
         elif msg.type == aiohttp.WSMsgType.ERROR:
             log.error('ws connection closed with exception %s', ws.exception())
 
-    player.response_queue.put_nowait(None)
+    player.send_message()
     updater_queue.put_nowait(None)
 
     log.info("reader stopped")
@@ -393,12 +395,12 @@ def _render_map(area, tileset):
     image = Image.new("RGB", (area.map_width * tileset.tilesize, area.map_height * tileset.tilesize))
 
     cache = {}
+
     def _get_bitmap(key):
         idx = tileset.get_index(key)
         bitmap = cache.get(key) or tileset.get_tile_bitmap(idx)
         cache[key] = bitmap
         return bitmap
-
 
     for y in range(area.map_height):
         for x in range(area.map_width):

@@ -1,0 +1,109 @@
+tilesize: 64
+tilemap:
+  player:
+    x: 0
+    y: 3
+    type: player
+  orc1:
+    x: 14
+    y: 13
+  grass1:
+    x: 9
+    y: 23
+    type: grass
+  grass2:
+    x: 10
+    y: 23
+    type: grass
+  grass3:
+    x: 11
+    y: 23
+    type: grass
+  water1:
+    x: 15
+    y: 23
+    type: water
+  water2:
+    x: 16
+    y: 23
+    type: water
+  water3:
+    x: 17
+    y: 23
+    type: water
+  sand1:
+    x: 12
+    y: 23
+    type: sand
+  sand2:
+    x: 13
+    y: 23
+    type: sand
+  sand3:
+    x: 14
+    y: 23
+    type: sand
+  mountains1:
+    x: 117
+    y: 23
+    type: mountains
+  mountains2:
+    x: 118
+    y: 23
+    type: mountains
+  mountains3:
+    x: 119
+    y: 23
+    type: mountains
+  crypt1:
+    x: 7
+    y: 22
+    type: door
+  crypt2:
+    x: 13
+    y: 22
+    type: door
+  crypt3:
+    x: 14
+    y: 22
+    type: door
+  stairsdown1:
+    x: 3
+    y: 24
+    type: door
+  stairsup1:
+    x: 0
+    y: 24
+    type: door
+  grey3:
+    x: 8
+    y: 24
+    type: floor
+  wall3:
+    x: 2
+    y: 22
+    type: wall
+  coin1:
+    x: 7
+    y: 7
+  coin2:
+    x: 8
+    y: 7
+  coin3:
+    x: 9
+    y: 7
+  coin4:
+    x: 10
+    y: 7
+  coin5:
+    x: 11
+    y: 7
+  sword1:
+    x: 8
+    y: 10
+  shield1:
+    x: 100
+    y: 0
+  potion1:
+    x: 28
+    y: 8
