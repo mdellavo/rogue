@@ -107,3 +107,6 @@ tilemap:
   potion1:
     x: 28
     y: 8
+  lava1:
+    x: 36
+    y: 23

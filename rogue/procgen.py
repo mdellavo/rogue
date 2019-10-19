@@ -5,7 +5,7 @@ import logging
 from enum import Enum
 
 from .world import World, Area
-from .tiles import Door, Tile
+from .tiles import Door, Tile, Trap
 from .objects import Coin, Shield, Sword, HealthPotion
 from .npcs import NPC
 
@@ -13,6 +13,7 @@ NUM_NPCS = 100
 NUM_DOORS = 100
 NUM_COINS = 100
 NUM_ITEMS = 100
+NUM_TRAPS = 100
 
 COIN_KEYS = ["coin1", "coin2", "coin3", "coin4", "coin5"]
 
@@ -55,10 +56,24 @@ def add_items(area, num_items=NUM_ITEMS):
         area.place(HealthPotion("potion1"))
 
 
+def add_traps(area, num_traps=NUM_TRAPS):
+    width = len(area.tiles[0])
+    height = len(area.tiles)
+    count = 0
+    while count < num_traps:
+        dx = random.randrange(0, width)
+        dy = random.randrange(0, height)
+        tile = area.tiles[dy][dx]
+        if not tile.blocked:
+            area.tiles[dy][dx] = Trap(tile.key)
+            count += 1
+
+
 def populate_area(world, area):
     add_npcs(world, area)
     add_coins(area)
     add_items(area)
+    add_traps(area)
 
 
 def generate_cave(width, height, iterations=5, depth=0):

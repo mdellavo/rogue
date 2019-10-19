@@ -4,7 +4,6 @@ import random
 from .tiles import Door
 from .objects import Item, Equipment, BodyPart, Weapon, Shield
 from .util import project_enum
-
 ACTIONS = {}
 
 
@@ -44,7 +43,6 @@ class MoveAction(Action):
         tile = area.get_tile(x, y)
         if tile.blocked or any(obj.blocks for obj in area.get_objects(x, y)):
             return False
-
         area.move_actor(actor, x, y)
         return True
 

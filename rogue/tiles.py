@@ -88,6 +88,9 @@ class Tile(object):
         self.blocked = blocked
         self.blocked_sight = blocked_sight
 
+    def activate(self, actor, world):
+        pass
+
 
 @dataclasses.dataclass
 class Door(Tile):
@@ -104,3 +107,9 @@ class Door(Tile):
         if not self.area:
             return ValueError("door needs area")
         return self.area, self.position
+
+
+class Trap(Tile):
+    def activate(self, actor, area):
+        actor.notice("you stepped on a trap")
+        self.key = "lava1"

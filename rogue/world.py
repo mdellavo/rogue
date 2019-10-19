@@ -176,6 +176,9 @@ class Area(object):
         objs = self.object_index[(actor.x, actor.y)]
         if actor not in objs:
             objs.append(actor)
+        tile = self.tiles[y][x]
+        if isinstance(actor, Player):
+            tile.activate(actor, self)
 
 
 class World(object):
