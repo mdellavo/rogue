@@ -174,7 +174,7 @@ class WebSocketPlayer(Player):
     def die(self):
         self.send_stats()
         age = int(round(self.age / DAY))
-        self.notice("you are dead. You lasted {} days and you killed {} things".format(age, self.stats.kills))
+        self.notice("you are dead. You lasted {} days and you killed {} things with an experience of {}".format(age, self.stats.kills, self.attributes.experience))
         self.send_message()
 
     def visible_tiles(self, area, width, height):
