@@ -199,21 +199,21 @@ canvas:focus {
     bottom: 20px;
     padding: 10px;
     color: #cccccc;
-    font-size: 8pt;
+    font-size: 10pt;
     width: 100%;
     position: absolute;
 }
 
 .log .debug {
-    text-shadow: 1px 1px 2px #f55;
+    text-shadow: 1px 1px 1px #f55;
 }
 
 .log .notice {
-    text-shadow: 1px 1px 2px #ff5;
+    text-shadow: 1px 1px 1px #ff5;
 }
 
 .log .info {
-    text-shadow: 1px 1px 2px #55f;
+    text-shadow: 1px 1px 1px #55f;
 }
 
 

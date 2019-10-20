@@ -108,3 +108,7 @@ class Shield(Equipment):
     damage: int = 2
 
 
+@dataclasses.dataclass
+class Bones(Object):
+    key: str = "bones1"
+    name: str = "bones"

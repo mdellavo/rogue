@@ -2,7 +2,7 @@ import abc
 import random
 
 from .tiles import Door
-from .objects import Item, Equipment, BodyPart, Weapon, Shield
+from .objects import Item, Equipment, BodyPart, Weapon, Shield, Bones
 from .util import project_enum
 ACTIONS = {}
 
@@ -168,6 +168,9 @@ class MeleeAttackAction(Action):
         if self.target.attributes.hit_points <= 0:
             self.target.die()
             world.remove_actor(self.target)
+            area = world.get_area(actor)
+            area.add_object(Bones(name="bones of " + actor.name), actor.x, actor.y)
+
             actor.stats.kills += 1
             actor.attributes.experience += self.target.attributes.experience
             actor.notice("{} killed a {}".format(actor.name, self.target.name))

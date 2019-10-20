@@ -110,3 +110,6 @@ tilemap:
   lava1:
     x: 36
     y: 23
+  bones1:
+    x: 45
+    y: 7

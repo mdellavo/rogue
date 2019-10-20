@@ -136,19 +136,23 @@ def handle_waypoint(world, player, action):
 @dataclasses.dataclass
 class WebSocketPlayer(Player):
 
-    def __init__(self, key, socket, tileset, *args, **kwargs):
+    def __init__(self, key, socket, tileset, world, *args, **kwargs):
         super(Player, self).__init__(key, *args, **kwargs)
         self.socket = socket
         self.tilemap = tileset
         self.response_queue = asyncio.Queue(QUEUE_SIZE)
+        self.world = world
 
     def send_message(self, **msg):
         try:
             self.response_queue.put_nowait(msg or None)
         except asyncio.queues.QueueFull:
-            log.warning("queue full")
+            log.warning("queue full - dropping client")
+
             if not self.socket.closed:
                 asyncio.get_event_lop().run_until_complete(self.socket.close())
+
+            self.world.remove_actor(self)
 
     def send_event(self, event_name, **msg):
         msg["_event"] = event_name
@@ -262,8 +266,8 @@ def _handle_message(world, player, message):
         player.send_message(**response)
 
 
-def _generate_player(ws, player_name, tileset):
-    player = WebSocketPlayer("player", ws, tileset, name=player_name)
+def _generate_player(ws, player_name, tileset, world):
+    player = WebSocketPlayer("player", ws, tileset, world, name=player_name)
     player.attributes.energy_recharge = 7
     return player
 
@@ -291,7 +295,7 @@ async def session(request):
 
     player_name = obj["profile"]["name"]
 
-    player = _generate_player(ws, player_name, request.app["tileset"])
+    player = _generate_player(ws, player_name, request.app["tileset"], request.app["world"])
     request.app["world"].place_actor(player)
 
     player.send_stats()
