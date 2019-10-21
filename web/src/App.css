@@ -205,15 +205,15 @@ canvas:focus {
 }
 
 .log .debug {
-    text-shadow: 1px 1px 1px #f55;
+    text-shadow: 0px 0px 5px #f55;
 }
 
 .log .notice {
-    text-shadow: 1px 1px 1px #ff5;
+    text-shadow: 0px 0px 5px #ff5;
 }
 
 .log .info {
-    text-shadow: 1px 1px 1px #55f;
+    text-shadow: 0px 0px 5px #55f;
 }
 
 

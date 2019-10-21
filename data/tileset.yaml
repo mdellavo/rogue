@@ -1,3 +1,4 @@
+path: gfx/tiles.png
 tilesize: 64
 tilemap:
   player:

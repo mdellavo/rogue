@@ -3,6 +3,7 @@ import os
 import collections
 import hashlib
 import dataclasses
+import yaml
 
 from PIL import Image
 
@@ -45,16 +46,30 @@ TERRAIN_COLORMAP = {
     TerrainTypes.WALL: "dimgrey",
 }
 
+
 class TileSet(object):
-    def __init__(self, tilemap, tilesize):
-        self.tilemap = tilemap  # XXX build a map of rects
+    def __init__(self, path):
+        self.path = path
+        with open(path, "rb") as f:
+            self.data = yaml.safe_load(f)
+
         self.index_map = {k: i for i, k in enumerate(self.tilemap)}
-        self.tilesize = tilesize
-        self.tile_cache = {}
         self.indexed_map = [
             ((tile["x"], tile["y"]),
              TERRAIN_COLORMAP.get(tile.get("type"))) for tile in self.tilemap.values()
         ]
+
+    @property
+    def tiles_path(self):
+        return os.path.join(os.path.dirname(self.path), self.data["path"])
+
+    @property
+    def tilemap(self):
+        return self.data["tilemap"]
+
+    @property
+    def tilesize(self):
+        return self.data["tilesize"]
 
     @property
     def num_tiles(self):
@@ -73,12 +88,11 @@ class TileSet(object):
     def get_index(self, key):
         return self.index_map[key]
 
-    def get_tile_bitmap(self, idx):
-        coords, _ = self.get_tile_by_index(idx)
-        x, y = coords
-        box = self.bounding(x, y)
-        cropped = self.tiles.crop(box)
-        return cropped
+    def get_tile_rect(self, key):
+        t = self.tilemap[key]
+        x, y = t["x"], t["y"]
+        r = self.bounding(x, y)
+        return r
 
 
 @dataclasses.dataclass

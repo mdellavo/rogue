@@ -147,12 +147,12 @@ class WebSocketPlayer(Player):
         try:
             self.response_queue.put_nowait(msg or None)
         except asyncio.queues.QueueFull:
+            self.world.remove_actor(self)
             log.warning("queue full - dropping client")
 
             if not self.socket.closed:
                 asyncio.get_event_lop().run_until_complete(self.socket.close())
 
-            self.world.remove_actor(self)
 
     def send_event(self, event_name, **msg):
         msg["_event"] = event_name
@@ -314,6 +314,7 @@ async def session(request):
             delta = t2 - t1
             timeout = max(UPDATE_TIMEOUT - delta, 0)
             await asyncio.sleep(timeout)
+        player.queue_frame(request.app["world"])
         if not ws.closed:
             await ws.close()
 
@@ -396,14 +397,17 @@ async def admin(request):
 
 
 def _render_map(area, tileset):
+    tiles = Image.open(tileset.tiles_path)
     image = Image.new("RGB", (area.map_width * tileset.tilesize, area.map_height * tileset.tilesize))
 
     cache = {}
 
     def _get_bitmap(key):
-        idx = tileset.get_index(key)
-        bitmap = cache.get(key) or tileset.get_tile_bitmap(idx)
-        cache[key] = bitmap
+        bitmap = cache.get(key)
+        if not bitmap:
+            r = tileset.get_tile_rect(key)
+            bitmap = tiles.crop(r)
+            cache[key] = bitmap
         return bitmap
 
     for y in range(area.map_height):
@@ -411,6 +415,11 @@ def _render_map(area, tileset):
             tile = area.get_tile(x, y)
             bitmap = _get_bitmap(tile.key)
             image.paste(bitmap, (x * tileset.tilesize, y * tileset.tilesize))
+
+            for obj in area.get_objects(x, y):
+                bitmap = _get_bitmap(obj.key)
+                image.paste(bitmap, (x * tileset.tilesize, y * tileset.tilesize), bitmap)
+
     return image
 
 

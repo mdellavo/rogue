@@ -167,9 +167,14 @@ class MeleeAttackAction(Action):
 
         if self.target.attributes.hit_points <= 0:
             self.target.die()
+            area = world.get_area(self.target)
+            area.add_object(Bones(name="bones of " + self.target.name), self.target.x, self.target.y)
+
+            pos = area.immediate_area(self.target)
+            for obj in self.target.inventory:
+                area.add_object(obj, *random.choice(pos))
+
             world.remove_actor(self.target)
-            area = world.get_area(actor)
-            area.add_object(Bones(name="bones of " + actor.name), actor.x, actor.y)
 
             actor.stats.kills += 1
             actor.attributes.experience += self.target.attributes.experience

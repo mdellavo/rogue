@@ -29,10 +29,7 @@ async def main(args):
 
     world = procgen.generate_world(MAP_SIZE)
 
-    with open(TILESET_PATH, "rb") as f:
-        tileset_data = yaml.safe_load(f)
-
-    tileset = TileSet(tileset_data["tilemap"], tileset_data["tilesize"])
+    tileset = TileSet(TILESET_PATH)
 
     async def run_world():
         log.info("starting world...")
