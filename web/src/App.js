@@ -684,6 +684,7 @@ class CanvasView extends React.Component {
         this.onKeyUp = this.onKeyUp.bind(this);
         this.onMouseDown = this.onMouseDown.bind(this);
         this.onMouseUp = this.onMouseUp.bind(this);
+        this.onContextMenu = this.onContextMenu.bind(this);
         this.onTouchStart = this.onTouchStart.bind(this);
         this.onTouchEnd = this.onTouchEnd.bind(this);
         this.showPlayerDialog = this.showPlayerDialog.bind(this);
@@ -890,6 +891,10 @@ class CanvasView extends React.Component {
         this.clearWaypoint();
     }
 
+    onContextMenu(event) {
+        event.preventDefault();
+    }
+
     onTouchStart(event) {
         event.preventDefault();
         const rect = this.canvas.getBoundingClientRect();
@@ -1023,6 +1028,7 @@ class CanvasView extends React.Component {
                         onMouseDown={this.onMouseDown}
                         onMouseUp={this.onMouseUp}
                         onTouchEnd={this.onTouchEnd}
+                        onContextMenu={this.onContextMenu}
                         />
 
                 <div className="log">
