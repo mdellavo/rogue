@@ -299,7 +299,7 @@ def render_dungeon(width, height, rooms, tunnels):
             rows[y][a_cx] = True
 
     def _tile(cell):
-        return Tile("wall3", blocked=True, blocked_sight=True) if cell else Tile("grey3")
+        return Tile("grey3") if cell else Tile("wall3", blocked=True, blocked_sight=True)
 
     return [[_tile(cell) for cell in row] for row in rows]
 

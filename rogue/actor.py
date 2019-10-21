@@ -130,6 +130,10 @@ class Actor(Object):
         else:
             return ActorState.DEAD
 
+    @property
+    def has_inventory_space(self):
+        return len(self.inventory) < self.attributes.max_inventory
+
     def healed(self, actor, damage):
         pass
 

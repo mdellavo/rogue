@@ -3,7 +3,7 @@ import logging
 import dataclasses
 
 from .actor import Actor, Player
-from .actions import MeleeAttackAction, MoveAction
+from .actions import MeleeAttackAction, MoveAction, PickupItemAction
 
 
 log = logging.getLogger(__name__)
@@ -19,10 +19,13 @@ class NPC(Actor):
         if not self.target:
             for actor in world.surrounding_actors(self):
                 self.target = actor
-
+        area = world.get_area(self)
+        objs = [obj for obj in area.get_objects(self.x, self.y) if not isinstance(obj, Actor)]
         if self.target:
             action = MeleeAttackAction(self.target)
             self.target = None
+        elif objs and self.has_inventory_space:
+            return PickupItemAction()
         else:
             action = None
 
@@ -30,7 +33,6 @@ class NPC(Actor):
                 dx, dy = random.randint(-1, 1), random.randint(-1, 1)
                 x = self.x + dx
                 y = self.y + dy
-                area = world.get_area(self)
                 if area.is_tile_free(x, y):
                     action = MoveAction(dx, dy)
                     break

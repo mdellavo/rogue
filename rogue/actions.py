@@ -91,7 +91,7 @@ class PickupItemAction(Action):
 
             if obj in actor.inventory:
                 actor.notice("you are already holding {}".format(obj))
-            elif len(actor.inventory) < actor.attributes.max_inventory:
+            elif actor.has_inventory_space:
                 actor.inventory.append(obj)
                 actor.notice("you picked up a {}".format(obj))
             else:
@@ -171,8 +171,13 @@ class MeleeAttackAction(Action):
             area.add_object(Bones(name="bones of " + self.target.name), self.target.x, self.target.y)
 
             pos = area.immediate_area(self.target)
-            for obj in self.target.inventory:
-                area.add_object(obj, *random.choice(pos))
+            while self.target.inventory:
+                obj = self.target.inventory.pop()
+                for _ in range(10):
+                    x, y = random.choice(pos)
+                    if area.is_tile_free(x, y):
+                        area.add_object(obj, x, y)
+                        break
 
             world.remove_actor(self.target)
 
