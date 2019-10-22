@@ -179,8 +179,6 @@ class MeleeAttackAction(Action):
                         area.add_object(obj, x, y)
                         break
 
-            world.remove_actor(self.target)
-
             actor.stats.kills += 1
             actor.attributes.experience += self.target.attributes.experience
             actor.notice("{} killed a {}".format(actor.name, self.target.name))

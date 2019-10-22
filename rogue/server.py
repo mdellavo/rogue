@@ -147,12 +147,9 @@ class WebSocketPlayer(Player):
         try:
             self.response_queue.put_nowait(msg or None)
         except asyncio.queues.QueueFull:
-            self.world.remove_actor(self)
-            log.warning("queue full - dropping client")
-
-            if not self.socket.closed:
-                asyncio.get_event_lop().run_until_complete(self.socket.close())
-
+            log.warning("queue full %s", self)
+            while not self.response_queue.empty():
+                self.response_queue.get_nowait()
 
     def send_event(self, event_name, **msg):
         msg["_event"] = event_name
@@ -348,6 +345,7 @@ async def session(request):
     updater_queue.put_nowait(None)
 
     log.info("reader stopped")
+    request.app["world"].remove_actor(player)
 
     if not ws.closed:
         await ws.close()
@@ -360,8 +358,6 @@ async def session(request):
                 fut.cancel()
             except asyncio.CancelledError:
                 pass
-
-    request.app["world"].remove_actor(player)
 
     log.debug('websocket connection closed')
 
