@@ -43,7 +43,7 @@ class MoveAction(Action):
         tile = area.get_tile(x, y)
         if tile.blocked or any(obj.blocks for obj in area.get_objects(x, y)):
             return False
-        area.move_actor(actor, x, y)
+        area.move_object(actor, x, y)
         return True
 
 
@@ -168,7 +168,8 @@ class MeleeAttackAction(Action):
         if self.target.attributes.hit_points <= 0:
             self.target.die()
             area = world.get_area(self.target)
-            area.add_object(Bones(name="bones of " + self.target.name), self.target.x, self.target.y)
+            bones = Bones(name="bones of " + self.target.name)
+            area.add_object(bones, self.target.x, self.target.y)
 
             pos = area.immediate_area(self.target)
             while self.target.inventory:
@@ -182,3 +183,15 @@ class MeleeAttackAction(Action):
             actor.stats.kills += 1
             actor.attributes.experience += self.target.attributes.experience
             actor.notice("{} killed a {}".format(actor.name, self.target.name))
+            world.remove_actor(self.target)
+
+            from .npcs import NPC, Skeleton
+
+            def _revive():
+                area.remove_object(bones)
+                skeleton = Skeleton(name="skeleton")
+                world.add_actor(skeleton, area)
+                area.move_object(skeleton, bones.x, bones.y)
+
+            if issubclass(type(self.target), NPC) and not isinstance(self.target, Skeleton):
+                world.schedule(10, _revive)

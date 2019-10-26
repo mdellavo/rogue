@@ -9,8 +9,15 @@ from .actions import MeleeAttackAction, MoveAction, PickupItemAction
 log = logging.getLogger(__name__)
 
 
-@dataclasses.dataclass
+@dataclasses.dataclass(init=False)
 class NPC(Actor):
+    KEY = None
+    NAME = None
+
+    def __init__(self, *args, **kwargs):
+        if "name" not in kwargs:
+            kwargs["name"] = self.NAME
+        super(NPC, self).__init__(self.KEY, *args, **kwargs)
 
     def hurt(self, actor, damage):
         self.target = actor
@@ -38,3 +45,15 @@ class NPC(Actor):
                     break
 
         return action
+
+
+@dataclasses.dataclass(init=False)
+class Orc(NPC):
+    KEY = "orc1"
+    NAME = "orc"
+
+
+@dataclasses.dataclass(init=False)
+class Skeleton(NPC):
+    KEY = "skeleton1"
+    NAME = "skeleton"

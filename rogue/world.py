@@ -3,6 +3,7 @@ import random
 import itertools
 import collections
 import logging
+import heapq
 
 from typing import Set, Dict, List, DefaultDict
 
@@ -80,7 +81,7 @@ class Area(object):
         return True
 
     def add_object(self, obj, x, y):
-        self.move_actor(obj, x, y)
+        self.move_object(obj, x, y)
         return True
 
     def remove_object(self, obj):
@@ -169,16 +170,16 @@ class Area(object):
             rows.append(row)
         return rows
 
-    def move_actor(self, actor, x, y):
-        self.remove_object(actor)
-        actor.x = x
-        actor.y = y
-        objs = self.object_index[(actor.x, actor.y)]
-        if actor not in objs:
-            objs.append(actor)
+    def move_object(self, obj, x, y):
+        self.remove_object(obj)
+        obj.x = x
+        obj.y = y
+        objs = self.object_index[(obj.x, obj.y)]
+        if obj not in objs:
+            objs.append(obj)
         tile = self.tiles[y][x]
-        if isinstance(actor, Player):
-            tile.activate(actor, self)
+        if isinstance(obj, Player):
+            tile.activate(obj, self)
 
 
 class World(object):
@@ -186,6 +187,8 @@ class World(object):
         self.areas = [area]
         self.actor_area = {}
         self.age = 0
+        self.schedules = []
+        self.counter = itertools.count()
 
     @property
     def players(self):
@@ -217,7 +220,17 @@ class World(object):
         active_areas = [area for area in self.areas if area.has_players]
         for area in active_areas:
             area.tick(self)
+
+        if self.schedules:
+            while self.schedules and self.schedules[0][0] <= self.age:
+                _, _, callback = heapq.heappop(self.schedules)
+                callback()
+
         self.age += 1
+
+    def schedule(self, timeout, callback):
+        at = self.age + timeout
+        heapq.heappush(self.schedules, (at, next(self.counter), callback))
 
     def fov(self, actor: Actor):
         area = self.get_area(actor)

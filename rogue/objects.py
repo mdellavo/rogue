@@ -42,7 +42,7 @@ class Object(object, metaclass=abc.ABCMeta):
     id: str = dataclasses.field(default_factory=util.generate_uid)
 
     def __str__(self):
-        return self.name
+        return self.name or self.key
 
     def get_object_type(self):
         return None

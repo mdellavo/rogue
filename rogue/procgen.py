@@ -7,7 +7,7 @@ from enum import Enum
 from .world import World, Area
 from .tiles import Door, Tile, Trap
 from .objects import Coin, Shield, Sword, HealthPotion
-from .npcs import NPC
+from .npcs import NPC, Orc
 
 NUM_NPCS = 100
 NUM_DOORS = 100
@@ -39,7 +39,7 @@ def add_doors(door_class, tiles, total_doors=NUM_DOORS, depth=0, key="crypt1"):
 
 def add_npcs(world, area, num_npcs=NUM_NPCS):
     for i in range(num_npcs):
-        npc = NPC("orc1", name="orc.{}".format(i))
+        npc = Orc(name="orc.{}".format(i))
         world.place_actor(npc, area=area)
 
 

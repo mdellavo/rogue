@@ -8,6 +8,9 @@ tilemap:
   orc1:
     x: 14
     y: 13
+  skeleton1:
+    x: 28
+    y: 20
   grass1:
     x: 9
     y: 23
