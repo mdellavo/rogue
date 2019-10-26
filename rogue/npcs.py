@@ -4,7 +4,7 @@ import dataclasses
 
 from .actor import Actor, Player
 from .actions import MeleeAttackAction, MoveAction, PickupItemAction
-
+from .objects import Coin, Item, Equipment
 
 log = logging.getLogger(__name__)
 
@@ -25,9 +25,10 @@ class NPC(Actor):
     def get_action(self, world):
         if not self.target:
             for actor in world.surrounding_actors(self):
-                self.target = actor
+                if not isinstance(actor, NPC):
+                    self.target = actor
         area = world.get_area(self)
-        objs = [obj for obj in area.get_objects(self.x, self.y) if not isinstance(obj, Actor)]
+        objs = [obj for obj in area.get_objects(self.x, self.y) if not isinstance(obj, Actor) and isinstance(obj, (Coin, Item, Equipment))]
         if self.target:
             action = MeleeAttackAction(self.target)
             self.target = None

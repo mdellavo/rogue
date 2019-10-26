@@ -194,4 +194,4 @@ class MeleeAttackAction(Action):
                 area.move_object(skeleton, bones.x, bones.y)
 
             if issubclass(type(self.target), NPC) and not isinstance(self.target, Skeleton):
-                world.schedule(10, _revive)
+                world.schedule(100, _revive)
