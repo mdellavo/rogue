@@ -757,6 +757,7 @@ class CanvasView extends React.Component {
         this.closeDialogs = this.closeDialogs.bind(this);
         this.onUnload = this.onUnload.bind(this);
         this.onLog = this.onLog.bind(this);
+        this.onWheel = this.onWheel.bind(this);
 
         this.pressed = {};
         this.clicked = null;
@@ -981,6 +982,13 @@ class CanvasView extends React.Component {
         this.clearWaypoint();
     }
 
+    onWheel(event) {
+        if (event.ctrlKey) {
+            DataStore.instance.scale -= event.deltaY * 0.01;
+
+        }
+    }
+
     showDialog(dialog) {
         const state = Object.assign(
             {showPlayer: false, showInventory: false, showHelp: false, showSettings: false},
@@ -1101,6 +1109,7 @@ class CanvasView extends React.Component {
                         onMouseUp={this.onMouseUp}
                         onTouchEnd={this.onTouchEnd}
                         onContextMenu={this.onContextMenu}
+                        onWheel={this.onWheel}
                         />
 
                 <div className="log">
