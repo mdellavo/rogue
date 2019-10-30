@@ -6,7 +6,6 @@ import {sprintf} from 'sprintf-js';
 
 const API_URL = process.env.REACT_APP_API;
 const PING_DELAY = 10;
-const SCALE = 2;
 const LOG_LIMIT = 10;
 
 
@@ -64,6 +63,7 @@ class DataStore {
         };
         this.maps = {};
         this.log = [];
+        this.scale = .5;
     }
 
     get tileset() {
@@ -297,7 +297,7 @@ class GfxUtil {
     }
 
     static fillTile(ctx, x, y, color, width, height) {
-        const tilesize = DataStore.instance.tileset.tilesize;
+        const tilesize = DataStore.instance.tileset.tilesize * DataStore.instance.scale;
         ctx.fillStyle = color;
         ctx.fillRect(x, y, width || tilesize, height || tilesize);
     }
@@ -324,44 +324,61 @@ function compute_index(map, x, y) {
 }
 
 class MapRenderer {
-    static renderMap(ctx, map, msg, clicked) {
 
+    static renderOffscreen(ctx, msg) {
         const tilesize = DataStore.instance.tileset.tilesize;
-        const canvas_width = ctx.canvas.clientWidth;
-        const canvas_height = ctx.canvas.clientHeight;
-        const canvas_tile_width = Math.floor(canvas_width / tilesize) * SCALE;
-        const canvas_tile_height = Math.floor(canvas_height / tilesize) * SCALE;
+        const min_x = msg.x - (msg.frame[0].length / 2);
+        const min_y = msg.y - (msg.frame.length / 2);
 
-        const map_min_x = msg.x - Math.floor(canvas_tile_width/2);
-        const map_min_y = msg.y - Math.floor(canvas_tile_height/2);
-
-        const frame_min_x = msg.x - Math.floor(msg.frame[0].length/2);
-        const frame_min_y = msg.y - Math.floor(msg.frame.length/2);
-        const frame_max_x = msg.x + Math.floor(msg.frame[0].length/2);
-        const frame_max_y = msg.y + Math.floor(msg.frame.length/2);
-
-        // Render Base
-        for (let y=0; y<canvas_tile_height; y++) {
-            const y_idx = map_min_y + y;
-            const row = map[y_idx];
-            for (let x=0; x<canvas_tile_width; x++) {
-                const x_idx = map_min_x + x;
-                const in_range = x_idx >= frame_min_x && x_idx < frame_max_x && y_idx >= frame_min_y && y_idx < frame_max_y;
-                const tile_index = row ? row[x_idx] : -1;
-                const [target_x, target_y] = [x * tilesize, y * tilesize];
-
+        for (let y=0; y<msg.frame.length; y++) {
+            const row = msg.frame[y];
+            for (let x=0; x<row.length; x++) {
+                const x_idx = min_x + x;
+                const y_idx = min_y + y;
+                const tile_index = row ? row[x][1] : -1;
+                const [target_x, target_y] = [x_idx * tilesize, y_idx * tilesize];
                 if (tile_index > 0) {
                     GfxUtil.drawTile(ctx, target_x, target_y, tile_index);
-
-                    if (!in_range) {
-                        GfxUtil.fillTile(ctx, target_x, target_y, "rgba(0, 0, 0, .5)");
-                    }
-
-                } else {
-                    GfxUtil.fillTile(ctx, target_x, target_y, "black");
                 }
             }
         }
+    }
+
+    static renderBase(ctx, offscreen, msg) {
+        const orig_tilesize = DataStore.instance.tileset.tilesize;
+        const tilesize = orig_tilesize * DataStore.instance.scale; // scaled
+        const canvas_width = ctx.canvas.clientWidth;
+        const canvas_height = ctx.canvas.clientHeight;
+
+        const canvas_tile_width = Math.floor(canvas_width / tilesize);
+        const canvas_tile_height = Math.floor(canvas_height / tilesize);
+
+        const map_min_x = msg.x - Math.floor(canvas_tile_width / 2); // index space
+        const map_min_y = msg.y - Math.floor(canvas_tile_height / 2);
+
+        // Render Base
+        ctx.drawImage(
+            offscreen,
+            map_min_x * orig_tilesize,
+            map_min_y * orig_tilesize,
+            canvas_tile_width * orig_tilesize,
+            canvas_tile_height * orig_tilesize,
+            0,
+            0,
+            canvas_tile_width * tilesize,
+            canvas_tile_height * tilesize,
+        );
+
+    }
+
+    static renderObjects(ctx, msg) {
+        const orig_tilesize = DataStore.instance.tileset.tilesize;
+        const tilesize = orig_tilesize * DataStore.instance.scale; // scaled
+        const canvas_width = ctx.canvas.clientWidth;
+        const canvas_height = ctx.canvas.clientHeight;
+
+        const canvas_tile_width = Math.floor(canvas_width / tilesize);
+        const canvas_tile_height = Math.floor(canvas_height / tilesize);
 
         // Render Objects
         const obj_min_x = Math.floor(canvas_tile_width / 2) - Math.floor(msg.frame[0].length/2);
@@ -376,13 +393,50 @@ class MapRenderer {
                     continue;
                 }
 
-                for (let i=1; i<row[x].length; i++) {
+                for (let i=2; i<row[x].length; i++) {
                     const obj_index = cell[i];
                     if (obj_index >= 0)
-                        GfxUtil.drawTile(ctx, target_x, target_y, obj_index);
+                        GfxUtil.drawTile(ctx, target_x, target_y, obj_index, tilesize, tilesize);
                 }
             }
         }
+
+    }
+
+    static renderFOV(ctx, msg) {
+        const orig_tilesize = DataStore.instance.tileset.tilesize;
+        const tilesize = orig_tilesize * DataStore.instance.scale; // scaled
+
+        const canvas_width = ctx.canvas.clientWidth;
+        const canvas_height = ctx.canvas.clientHeight;
+
+        const canvas_tile_width = Math.floor(canvas_width / tilesize);
+        const canvas_tile_height = Math.floor(canvas_height / tilesize);
+
+        const map_min_x = msg.x - Math.floor(canvas_tile_width / 2); // index space
+        const map_min_y = msg.y - Math.floor(canvas_tile_height / 2);
+
+        const frame_min_x = msg.x - Math.floor(msg.frame[0].length/2);
+        const frame_min_y = msg.y - Math.floor(msg.frame.length/2);
+        const frame_max_x = msg.x + Math.floor(msg.frame[0].length/2);
+        const frame_max_y = msg.y + Math.floor(msg.frame.length/2);
+
+        // Render FOV
+        for (let y=0; y<canvas_tile_height; y++) {
+            const y_idx = map_min_y + y;
+            for (let x=0; x<canvas_tile_width; x++) {
+                const x_idx = map_min_x + x;
+                const in_range = x_idx >= frame_min_x && x_idx < frame_max_x && y_idx >= frame_min_y && y_idx < frame_max_y;
+                const [target_x, target_y] = [x * tilesize, y * tilesize];
+
+                if (!in_range) {
+                    GfxUtil.fillTile(ctx, target_x, target_y, "rgba(0, 0, 0, .5)");
+                }
+            }
+        }
+
+        const obj_min_x = Math.floor(canvas_tile_width / 2) - Math.floor(msg.frame[0].length/2);
+        const obj_min_y = Math.floor(canvas_tile_height / 2) - Math.floor(msg.frame.length/2);
         for (let y=0; y<msg.frame.length; y++) {
             const row = msg.frame[y];
             for (let x=0; x<row.length; x++) {
@@ -395,17 +449,18 @@ class MapRenderer {
                 GfxUtil.fillTile(ctx, target_x, target_y , "rgba(0, 0, 0, .5)");
             }
         }
+    }
 
-        // Render fov layer
+    static renderUI(ctx, clicked) {
+        const orig_tilesize = DataStore.instance.tileset.tilesize;
+        const tilesize = orig_tilesize * DataStore.instance.scale; // scaled
 
         if (clicked) {
             const [clickedX, clickedY] = clicked;
             const [target_x, target_y] = [
-
-                (clickedX * SCALE) - (tilesize),
-                (clickedY * SCALE) - (tilesize)
+                clickedX,
+                clickedY
             ];
-
 
             var grd = ctx.createRadialGradient(target_x, target_y, 0, target_x, target_y, tilesize);
             grd.addColorStop(0, "rgba(200, 0, 0, .5)");
@@ -413,9 +468,15 @@ class MapRenderer {
 
             // Fill with gradient
             ctx.fillStyle = grd;
-            ctx.fillRect(target_x - tilesize, target_y - tilesize,2* tilesize, 2*tilesize);
-
+            ctx.fillRect(target_x - tilesize, target_y - tilesize, 2 * tilesize, 2 * tilesize);
         }
+    }
+
+    static renderMap(ctx, offscreen, msg, clicked) {
+        MapRenderer.renderBase(ctx, offscreen, msg);
+        MapRenderer.renderObjects(ctx, msg);
+        MapRenderer.renderFOV(ctx, msg);
+        MapRenderer.renderUI(ctx, clicked);
     }
 
     static clearMap(ctx, width, height) {
@@ -679,6 +740,8 @@ class SettingsDialog extends Dialog {
 class CanvasView extends React.Component {
     constructor(props) {
         super(props);
+        this.offscreen = null;
+
         this.onBlur = this.onBlur.bind(this);
         this.onKeyDown = this.onKeyDown.bind(this);
         this.onKeyUp = this.onKeyUp.bind(this);
@@ -731,14 +794,14 @@ class CanvasView extends React.Component {
 
         const canvas = this.canvas;
         function resize() {
-            const tilesize = DataStore.instance.tileset.tilesize;
-            canvas.width = Math.floor(window.innerWidth / tilesize) * tilesize * SCALE;
-            canvas.height = Math.floor(window.innerHeight / tilesize) * tilesize * SCALE;
+            const tilesize = DataStore.instance.tileset.tilesize * DataStore.instance.scale;
+            canvas.width = Math.floor(Math.floor(window.innerWidth / tilesize) * tilesize);
+            canvas.height = Math.floor(Math.floor(window.innerHeight / tilesize) * tilesize);
         }
         window.addEventListener("resize", resize);
         resize();
 
-        canvas.addEventListener("touchstart", this.onTouchStart,  {passive: false});
+        canvas.addEventListener("touchstart", this.onTouchStart, {passive: false});
 
         canvas.focus();
         SfxUtil.shuffleMusic();
@@ -769,7 +832,16 @@ class CanvasView extends React.Component {
 
     onFrame(msg) {
         const map = DataStore.instance.maps[msg.id];
-        MapRenderer.renderMap(this.canvas.getContext("2d"), map, msg, this.clicked);
+        if (!this.offscreen) {
+            this.offscreen = document.createElement('canvas');
+            this.offscreen.width = msg.width * DataStore.instance.tileset.tilesize;
+            this.offscreen.height = msg.height * DataStore.instance.tileset.tilesize;
+            const ctx = this.offscreen.getContext("2d");
+            ctx.fillStyle = 'black';
+            ctx.fillRect(0, 0, this.offscreen.width, this.offscreen.height);
+        }
+        MapRenderer.renderOffscreen(this.offscreen.getContext("2d"), msg);
+        MapRenderer.renderMap(this.canvas.getContext("2d"), this.offscreen, msg, this.clicked);
         MapRenderer.renderMiniMap(this.minimap.getContext("2d"), 2, msg);
     }
 
@@ -854,7 +926,7 @@ class CanvasView extends React.Component {
     }
 
     setWaypoint(x, y) {
-        const tilesize = DataStore.instance.tileset.tilesize / SCALE;
+        const tilesize = DataStore.instance.tileset.tilesize * DataStore.instance.scale;
         const width = Math.floor(this.canvas.clientWidth / tilesize);
         const height = Math.floor(this.canvas.clientHeight / tilesize);
         const pos = [x, y];

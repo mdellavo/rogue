@@ -9,6 +9,7 @@
     z-index: -100;
     width: 100%;
     height: 100%;
+    user-select: none;
 }
 
 canvas:focus {
@@ -45,6 +46,7 @@ canvas:focus {
 .toolbar {
     background: #444;
     width: 100%;
+    user-select: none;
 }
 
 .toolbar button {
@@ -202,6 +204,7 @@ canvas:focus {
     font-size: 10pt;
     width: 100%;
     position: absolute;
+    user-select: none;
 }
 
 .log .debug {
@@ -223,6 +226,7 @@ canvas:focus {
     right: 0;
     top: 50px;
     width: 200px;
+    user-select: none;
 }
 
 .join {
