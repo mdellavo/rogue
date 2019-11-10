@@ -349,7 +349,6 @@ async def session(request):
     updater_queue.put_nowait(None)
 
     log.info("reader stopped")
-    request.app["world"].remove_actor(player)
 
     if not ws.closed:
         await ws.close()

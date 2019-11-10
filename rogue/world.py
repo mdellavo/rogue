@@ -94,6 +94,8 @@ class Area(object):
             obj.age += 1
             if not isinstance(obj, Actor):
                 continue
+            if not obj.is_alive:
+                continue
             obj.charge_energy()
             if not obj.can_act:
                 continue

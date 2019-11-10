@@ -9,7 +9,7 @@ from .tiles import Door, Tile, Trap
 from .objects import Coin, Shield, Sword, HealthPotion
 from .npcs import NPC, Orc
 
-NUM_NPCS = 0
+NUM_NPCS = 100
 NUM_DOORS = 100
 NUM_COINS = 100
 NUM_ITEMS = 100
