@@ -197,6 +197,8 @@ class WebSocketPlayer(Player):
 
     def queue_frame(self, world):
         area = world.get_area(self)
+        if not area:
+            return
         frame = self.get_frame(area)
         self.send_event("frame",
                         id=area.id,
@@ -303,7 +305,7 @@ async def session(request):
     updater_queue = Queue()
 
     async def _updater():
-        while not ws.closed:
+        while not ws.closed and player.is_alive:
             if not updater_queue.empty():
                 break
 

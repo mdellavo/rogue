@@ -86,8 +86,7 @@ class Area(object):
 
     def remove_object(self, obj):
         objs = self.get_objects(obj.x, obj.y)
-        if obj in objs:
-            objs.remove(obj)
+        objs.remove(obj)
 
     def tick(self, world):
         self.time += 1
@@ -171,7 +170,10 @@ class Area(object):
         return rows
 
     def move_object(self, obj, x, y):
-        self.remove_object(obj)
+        objs = self.get_objects(obj.x, obj.y)
+        if obj in objs:
+            objs.remove(obj)
+
         obj.x = x
         obj.y = y
         objs = self.object_index[(obj.x, obj.y)]
@@ -211,7 +213,9 @@ class World(object):
         self.add_actor(actor, area=area).place(actor)
 
     def remove_actor(self, actor: Actor):
-        return self.get_area(actor).remove_object(actor)
+        area = self.get_area(actor)
+        area.remove_object(actor)
+        self.actor_area.pop(id(actor))
 
     def get_area(self, actor: Actor):
         return self.actor_area.get(id(actor))
