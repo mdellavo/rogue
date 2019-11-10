@@ -151,6 +151,7 @@ class WebSocketPlayer(Player):
             while not self.response_queue.empty():
                 self.response_queue.get_nowait()
             self.response_queue.put_nowait(None)
+            self.world.remove_actor(self)
 
     def send_event(self, event_name, **msg):
         msg["_event"] = event_name

@@ -251,6 +251,14 @@ class DataStore {
     debugLog(msg) {
         this.addLog(LogTypes.DEBUG, msg);
     }
+
+    incrementScale(step) {
+        this.scale += step;
+        if (this.scale < .25)
+            this.scale = .25;
+        else if (this.scale > 1.5)
+            this.scale = 1.5;
+    }
 }
 
 DataStore.instance = new DataStore();
@@ -303,26 +311,6 @@ class GfxUtil {
     }
 }
 
-const Tiles = {
-    N: 1,
-    E: 2,
-    S: 4,
-    W: 8
-};
-function compute_index(map, x, y) {
-    const val = map[y][x];
-    var rv = 0;
-    if(map[y-1][x] != val)
-        rv += Tiles.N;
-    if(map[y+1][x] != val)
-        rv += Tiles.S;
-    if(map[y][x-1] != val)
-        rv += Tiles.W;
-    if(map[y+1][x+1] != val)
-        rv += Tiles.E;
-    return rv;
-}
-
 class MapRenderer {
 
     static renderOffscreen(ctx, msg) {
@@ -368,6 +356,21 @@ class MapRenderer {
             canvas_tile_width * tilesize,
             canvas_tile_height * tilesize,
         );
+
+        // const min_x = msg.x - (msg.frame[0].length / 2);
+        // const min_y = msg.y - (msg.frame.length / 2);
+        // const map = DataStore.instance.maps[msg.id];
+        // const base_y =  Math.floor(canvas_tile_height / 2) - (msg.frame.length/2);
+        // for (let y=0; y<msg.frame.length; y++) {
+        //     const row = msg.frame[y];
+        //     const base_x = Math.floor(canvas_tile_width / 2) - (row.length/2);
+
+        //     for (let x=0; x<row.length; x++) {
+        //         const x_idx = min_x + x;
+        //         const y_idx = min_y + y;
+        //         //drawPatch(ctx, map, x_idx, y_idx, tilesize);
+        //     }
+        // }
 
     }
 
@@ -479,9 +482,10 @@ class MapRenderer {
         MapRenderer.renderUI(ctx, clicked);
     }
 
-    static clearMap(ctx, width, height) {
+    static clearMap(ctx) {
         ctx.fillStyle = "black";
-        ctx.fillRect(0, 0, width, height);
+        ctx.fillRect(0, 0, ctx.width, ctx.height);
+        console.log("clear", ctx.width, ctx.height);
     }
 
     static redrawMiniMap(ctx, map, scale) {
@@ -489,13 +493,11 @@ class MapRenderer {
             const row = map[y];
             for (let x=0; x<row.length; x++) {
                 const idx = map[y][x];
-                if (idx >= 0) {
-                    const color = DataStore.instance.tileset.tilemap[idx][1];
-                    const cx = x * scale;
-                    const cy = y * scale;
-                    ctx.fillStyle = color;
-                    ctx.fillRect(cx, cy, scale + 1, scale + 1);
-                }
+                const color = idx >=0 ? DataStore.instance.tileset.tilemap[idx][1] : "black";
+                const cx = x * scale;
+                const cy = y * scale;
+                ctx.fillStyle = color;
+                ctx.fillRect(cx, cy, scale + scale, scale + scale);
             }
         }
     }
@@ -510,10 +512,30 @@ class MapRenderer {
                 if (idx >= 0) {
                     const color = DataStore.instance.tileset.tilemap[idx][1];
                     ctx.fillStyle = color;
-                    ctx.fillRect(cx, cy, scale + 1, scale + 1);
+                    ctx.fillRect(cx, cy, scale + scale, scale + scale);
                 }
             }
         }
+    }
+
+    static redrawMap(ctx, map, offscreen) {
+        const orig_tilesize = DataStore.instance.tileset.tilesize;
+        const tilesize = orig_tilesize * DataStore.instance.scale; // scaled
+        for (let y=0; y<map.length; y++) {
+            const row = map[y];
+            for (let x=0; x<row.length; x++) {
+                const tile = row && row[x] ? row[x] : null;
+                const tile_index = tile ? tile[1] : -1;
+                const [target_x, target_y] = [x * tilesize, y * tilesize];
+                if (tile_index > 0) {
+                    GfxUtil.drawTile(ctx, target_x, target_y, tile_index);
+                } else {
+                    ctx.fillStyle = "black";
+                    ctx.fillRect(target_x, target_y, tilesize, tilesize);
+                }
+            }
+        }
+
     }
 }
 
@@ -548,7 +570,7 @@ class HelpDialog extends Dialog {
             <Dialog title="Help" callback={this.props.callback}>
                 <h4>Controls</h4>
                 <h5>Mouse</h5>
-                <p>Click on a position, item, enemy or door to interact</p>
+                <p>Click on a position, item, enemy or door to interact.  Use scroll wheel to change zoom</p>
                 <h5>Keyboard</h5>
                 <pre>
                     <strong>w/a/s/d</strong> - to move N/W/S/E<br/>
@@ -557,6 +579,8 @@ class HelpDialog extends Dialog {
                     <strong>f</strong>       - to attack surrounding<br/>
                     <strong>i</strong>       - to show/hide inventory<br/>
                     <strong>h</strong>       - to show/hide help<br/>
+                    <strong>+</strong>       - increase zoom<br/>
+                    <strong>-</strong>       - decrease zoom<br/>
                 </pre>
             </Dialog>
         );
@@ -794,10 +818,16 @@ class CanvasView extends React.Component {
         DataStore.instance.connect(this, this.props.profile);
 
         const canvas = this.canvas;
+        const minimap = this.minimap
         function resize() {
+            const ctx = canvas.getContext("2d");
             const tilesize = DataStore.instance.tileset.tilesize * DataStore.instance.scale;
-            canvas.width = Math.floor(Math.floor(window.innerWidth / tilesize) * tilesize);
-            canvas.height = Math.floor(Math.floor(window.innerHeight / tilesize) * tilesize);
+            ctx.width = canvas.width = Math.floor(Math.floor(window.innerWidth / tilesize) * tilesize);
+            ctx.height = canvas.height = Math.floor(Math.floor(window.innerHeight / tilesize) * tilesize);
+
+            const mctx = minimap.getContext("2d");
+            mctx.width = minimap.width;
+            mctx.height = minimap.height;
         }
         window.addEventListener("resize", resize);
         resize();
@@ -807,8 +837,8 @@ class CanvasView extends React.Component {
         canvas.focus();
         SfxUtil.shuffleMusic();
 
-        MapRenderer.clearMap(this.minimap.getContext("2d"), this.minimap.clientWidth, this.minimap.clientHeight);
-        MapRenderer.clearMap(this.canvas.getContext("2d"), this.canvas.clientWidth, this.canvas.clientHeight);
+        MapRenderer.clearMap(this.minimap.getContext("2d"));
+        MapRenderer.clearMap(this.canvas.getContext("2d"));
     }
 
     onUnload(event) {
@@ -835,11 +865,10 @@ class CanvasView extends React.Component {
         const map = DataStore.instance.maps[msg.id];
         if (!this.offscreen) {
             this.offscreen = document.createElement('canvas');
-            this.offscreen.width = msg.width * DataStore.instance.tileset.tilesize;
-            this.offscreen.height = msg.height * DataStore.instance.tileset.tilesize;
             const ctx = this.offscreen.getContext("2d");
-            ctx.fillStyle = 'black';
-            ctx.fillRect(0, 0, this.offscreen.width, this.offscreen.height);
+            ctx.width = this.offscreen.width = msg.width * DataStore.instance.tileset.tilesize;
+            ctx.height = this.offscreen.height = msg.height * DataStore.instance.tileset.tilesize;
+            MapRenderer.clearMap(ctx);
         }
         MapRenderer.renderOffscreen(this.offscreen.getContext("2d"), msg);
         MapRenderer.renderMap(this.canvas.getContext("2d"), this.offscreen, msg, this.clicked);
@@ -855,10 +884,12 @@ class CanvasView extends React.Component {
             SfxUtil.shuffleMusic();
         }
         if (event.entered) {
-            MapRenderer.clearMap(this.minimap.getContext("2d"), this.minimap.clientWidth, this.minimap.clientHeight);
-            MapRenderer.clearMap(this.canvas.getContext("2d"), this.canvas.clientWidth, this.canvas.clientHeight);
+            MapRenderer.clearMap(this.canvas.getContext("2d"));
+            MapRenderer.clearMap(this.offscreen.getContext("2d"));
+            MapRenderer.clearMap(this.minimap.getContext("2d"));
             if (event.entered in DataStore.instance.maps) {
                 MapRenderer.redrawMiniMap(this.minimap.getContext("2d"), DataStore.instance.maps[event.entered], 2);
+                MapRenderer.redrawMap(this.canvas.getContext("2d"),  DataStore.instance.maps[event.entered]);
             }
         }
     }
@@ -908,6 +939,12 @@ class CanvasView extends React.Component {
                     this.closeHelpDialog();
                 else
                     this.showHelpDialog();
+            },
+            "+": function() {
+                DataStore.instance.incrementScale(.1);
+            },
+            "-": function() {
+                DataStore.instance.incrementScale(-.1);
             }
         };
         for (let pressed in this.pressed) {
@@ -984,8 +1021,7 @@ class CanvasView extends React.Component {
 
     onWheel(event) {
         if (event.ctrlKey) {
-            DataStore.instance.scale -= event.deltaY * 0.01;
-
+            DataStore.instance.incrementScale(-event.deltaY * 0.01);
         }
     }
 
@@ -1188,6 +1224,226 @@ class StatsView extends Component {
     }
 }
 
+const Tiles = {
+    NW: 1,
+    N:  2,
+    NE: 4,
+    W:  8,
+    E:  16,
+    SW: 32,
+    S:  64,
+    SE: 128,
+};
+function getValue(map, x, y) {
+    if (y < 0 || x < 0 || y >= map.length || x >= map[0].length)
+        return undefined;
+    return map[y][x];
+}
+
+function checkValue(map, x, y, val) {
+    const rv = getValue(map, x, y);
+    return rv !== undefined && rv !== val;
+}
+
+function computeMask(map, x, y) {
+    const val = getValue(map, x, y);
+    var rv = 0;
+
+    if(checkValue(map, x-1, y-1, val))
+        rv += Tiles.NW;
+
+    if(checkValue(map, x, y-1, val))
+        rv += Tiles.N;
+
+    if(checkValue(map, x+1, y-1, val))
+        rv += Tiles.NE;
+
+    if(checkValue(map, x-1, y, val))
+        rv += Tiles.W;
+
+    if(checkValue(map, x+1, y, val))
+        rv += Tiles.E;
+
+    if(checkValue(map, x-1, y+1, val))
+        rv += Tiles.SW;
+
+    if(checkValue(map, x, y+1, val))
+        rv += Tiles.S;
+
+    if(checkValue(map, x+1, y+1, val))
+        rv += Tiles.SE;
+
+    return rv;
+}
+
+var offscreenGradientCanvas;
+function generatePatch(ctx, base_index, blend_index, mask, tilesize) {
+
+    //if (!offscreenGradientCanvas) {
+        offscreenGradientCanvas = document.createElement("canvas");
+        offscreenGradientCanvas.width = offscreenGradientCanvas.height =  tilesize;
+        document.body.appendChild(offscreenGradientCanvas);
+    //}
+
+    const offctx = offscreenGradientCanvas.getContext("2d");
+
+    //offctx.clearRect(0, 0, tilesize, tilesize);
+    GfxUtil.drawTile(offctx, 0, 0, base_index, tilesize, tilesize);
+    offctx.globalCompositeOperation = "destination-out";
+
+    function _draw(gradient) {
+        gradient.addColorStop(0, "rgba(255, 255, 255, .0)");
+        gradient.addColorStop(1, "rgba(255, 255, 255, 1)");
+        offctx.fillStyle = gradient;
+        offctx.fillRect(0, 0, tilesize, tilesize);
+    }
+
+    var gradient;
+    if (mask & Tiles.NE) {
+        gradient = ctx.createLinearGradient(0, tilesize, tilesize, 0);
+        _draw(gradient);
+    }
+    if (mask & Tiles.NW) {
+        gradient = ctx.createLinearGradient(tilesize, tilesize, 0, 0);
+        _draw(gradient);
+    }
+    if (mask & Tiles.SE) {
+        gradient = ctx.createLinearGradient(0, 0, tilesize, tilesize);
+        _draw(gradient);
+    }
+    if (mask & Tiles.SW) {
+        gradient = ctx.createLinearGradient(tilesize, 0, 0, tilesize);
+        _draw(gradient);
+    }
+    if (mask & Tiles.N) {
+        gradient = ctx.createLinearGradient(tilesize/2, tilesize, tilesize/2, 0);
+        _draw(gradient);
+    }
+    if (mask & Tiles.S) {
+        gradient = ctx.createLinearGradient(tilesize/2, 0, tilesize/2, tilesize);
+        _draw(gradient);
+    }
+    if (mask & Tiles.E) {
+        gradient = ctx.createLinearGradient(0, tilesize/2, tilesize, tilesize/2);
+        _draw(gradient);
+    }
+    if (mask & Tiles.W) {
+        gradient = ctx.createLinearGradient(tilesize, tilesize/2, 0, tilesize/2);
+        _draw(gradient);
+    }
+
+    return offscreenGradientCanvas;
+}
+
+
+var offscreenPatchCanvas;
+function drawPatch(ctx, map, x, y, tilesize) {
+    const mask = computeMask(map, x, y);
+    if (!mask)
+        return null;
+    const base_index = getValue(map, x, y);
+    if (base_index === undefined)
+        return null;
+
+    if (!offscreenPatchCanvas) {
+        offscreenPatchCanvas = document.createElement("canvas");
+        offscreenPatchCanvas.width = tilesize;
+        offscreenPatchCanvas.height = tilesize
+    }
+    const offctx = offscreenPatchCanvas.getContext("2d");
+    offctx.clearRect(0, 0, tilesize, tilesize);
+    var dx = 0;
+    var dy = 0;
+    function _draw(blend_index, _dx, _dy) {
+        dx = _dx;
+        dy = _dy;
+        if (blend_index === undefined )
+            return;
+        const patch = generatePatch(ctx, base_index, blend_index, mask, tilesize);
+        offctx.drawImage(patch, 0, 0, tilesize, tilesize);
+    }
+
+    var blend_index;
+    if ((mask & Tiles.NE) === Tiles.NE) {
+        blend_index = getValue(map, x-1, y+1);
+        _draw(blend_index, tilesize/2, -tilesize/2);
+
+    }
+    if ((mask & Tiles.NW) === Tiles.NW) {
+        blend_index = getValue(map, x-1, y-1);
+        _draw(blend_index, -tilesize/2, -tilesize/2);
+    }
+    if ((mask & Tiles.SE) === Tiles.SE) {
+        blend_index = getValue(map, x+1, y+1);
+        _draw(blend_index, tilesize/2, tilesize/2);
+    }
+    if ((mask & Tiles.SW) === Tiles.SW) {
+        blend_index = getValue(map, x+1, y+1);
+        _draw(blend_index, -tilesize/2, tilesize/2);
+    }
+    if ((mask & Tiles.N) === Tiles.N) {
+        blend_index = getValue(map, x-1, y);
+        _draw(blend_index, 0, -tilesize/2);
+    }
+    if ((mask & Tiles.S) === Tiles.S) {
+        blend_index = getValue(map, x+1, y);
+        _draw(blend_index, 0, tilesize/2);
+    }
+    if ((mask & Tiles.E) === Tiles.E) {
+        blend_index = getValue(map, x, y+1);
+        _draw(blend_index, tilesize/2, 0);
+    }
+    if ((mask & Tiles.W) === Tiles.W) {
+        blend_index = getValue(map, x, y-1);
+        _draw(blend_index, -tilesize/2, 0);
+    }
+    ctx.drawImage(offscreenPatchCanvas, (x * tilesize)+ dx, (y * tilesize) + dy, tilesize, tilesize);
+}
+
+class SandboxView extends Component {
+    componentDidMount() {
+        const ctx = this.refs.sandbox.getContext("2d");
+        const orig_tilesize = DataStore.instance.tileset.tilesize;
+        const tilesize = orig_tilesize;
+        const canvas_width = ctx.canvas.clientWidth;
+        const canvas_height = ctx.canvas.clientHeight;
+
+        const center_x = canvas_width/2;
+        const center_y = canvas_height/2;
+
+        const map = [
+            [6, 6, 6, 6, 6],
+            [6, 9, 9, 9, 6],
+            [6, 9, 3, 9, 6],
+            [6, 9, 9, 9, 6],
+            [6, 6, 6, 6, 6],
+        ];
+
+        for (let y=0; y<map.length; y++) {
+            const row = map[y];
+            for (let x=0; x<row.length; x++) {
+                const idx = row[x];
+                GfxUtil.drawTile(ctx, x * tilesize, y * tilesize, idx, tilesize, tilesize);
+            }
+        }
+        for (let y=0; y<map.length; y++) {
+            const row = map[y];
+            for (let x=0; x<row.length; x++) {
+                drawPatch(ctx, map, x, y, tilesize);
+            }
+        }
+        for (let y=0; y<map.length; y++) {
+            for (let x=0; x<map[0].length; x++) {
+                ctx.strokeRect(x * tilesize, y * tilesize, tilesize, tilesize);
+            }
+        }
+    }
+    render() {
+        return <canvas className="sanbox" ref="sandbox" width={800} height={800} />;
+    }
+}
+
+
 class App extends Component {
 
     constructor(props) {
@@ -1221,7 +1477,8 @@ class App extends Component {
             contents = <div>
                 <JoinView handler={this}/>
                 <StatsView/>
-            </div>;
+                </div>;
+            //contents = <SandboxView/>;
         } else if (this.state.error) {
             contents = <ErrorView/>;
         } else {
