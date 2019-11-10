@@ -322,7 +322,7 @@ async def session(request):
         log.info("updater stopped")
 
     async def _writer():
-        while not ws.closed:
+        while not ws.closed and player.is_alive:
             response = await player.response_queue.get()
             if response is None:
                 break
