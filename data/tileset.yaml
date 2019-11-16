@@ -117,3 +117,6 @@ tilemap:
   bones1:
     x: 45
     y: 7
+  chest1:
+    x: 0
+    y: 7

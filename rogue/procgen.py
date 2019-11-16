@@ -6,8 +6,8 @@ from enum import Enum
 
 from .world import World, Area
 from .tiles import Door, Tile, Trap
-from .objects import Coin, Shield, Sword, HealthPotion
-from .npcs import NPC, Orc
+from .objects import Coin, Shield, Sword, HealthPotion, Box
+from .npcs import Orc
 
 NUM_NPCS = 100
 NUM_DOORS = 100
@@ -54,6 +54,7 @@ def add_items(area, num_items=NUM_ITEMS):
         area.place(Sword("sword1"))
         area.place(Shield("shield1"))
         area.place(HealthPotion("potion1"))
+        area.place(Box("chest1", contains=[Coin("coin1")]))
 
 
 def add_traps(area, num_traps=NUM_TRAPS):

@@ -344,6 +344,9 @@ async def session(request):
             _handle_message(request.app["world"], player, obj)
         elif msg.type == aiohttp.WSMsgType.ERROR:
             log.error('ws connection closed with exception %s', ws.exception())
+            break
+        if not player.is_alive:
+            break
 
     player.send_message()
     updater_queue.put_nowait(None)

@@ -2,7 +2,7 @@ import random
 import logging
 import dataclasses
 
-from .actor import Actor, Player
+from .actor import Actor
 from .actions import MeleeAttackAction, MoveAction, PickupItemAction
 from .objects import Coin, Item, Equipment
 

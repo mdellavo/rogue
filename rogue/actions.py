@@ -2,7 +2,7 @@ import abc
 import random
 
 from .tiles import Door
-from .objects import Item, Equipment, BodyPart, Weapon, Shield, Bones
+from .objects import Item, Equipment, BodyPart, Weapon, Shield, Bones, Sign, Box
 from .util import project_enum
 ACTIONS = {}
 
@@ -64,7 +64,30 @@ class EnterAction(Action):
             actor.waypoint = None
 
 
+class ReadAction(Action):
+    NAME = "read"
+
+    def __init__(self, target):
+        self.target = target
+
+    def perform(self, actor, world):
+        actor.notice(self.target.message, popup=True)
+
+
+class OpenAction(Action):
+    NAME = "open"
+
+    def __init__(self, target):
+        self.target = target
+
+    def perform(self, actor, world):
+        area = world.get_area(actor)
+        self.target.open(actor, area)
+
+
 class EquipAction(Action):
+    NAME = "equip"
+
     def __init__(self, obj):
         if not isinstance(obj, Equipment):
             raise ActionError("cannot equip this")

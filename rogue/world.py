@@ -130,6 +130,12 @@ class Area(object):
                 immediate.append((x, y))
         return immediate
 
+    def immediate_area_objects(self, actor):
+        objects = itertools.chain.from_iterable([
+            self.get_objects(x, y) for x, y in self.immediate_area(actor)
+        ])
+        return objects
+
     def fov(self, actor):
         visible = [(actor.x, actor.y)]
         for theta in range(361):

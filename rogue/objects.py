@@ -1,12 +1,31 @@
+import os
 import abc
 import enum
 import dataclasses
 import logging
+import random
+from typing import List
+
+import yaml
 
 from . import util
 
 
 log = logging.getLogger(__name__)
+
+OBJECTS_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "objects.yaml")
+
+
+class ObjectRegistry:
+    def __init__(self, path):
+        with open(path, "rb") as f:
+            self.objects = yaml.safe_load(f)
+
+    def get(self, name):
+        return self.objects.get(name)
+
+
+OBJECTS = ObjectRegistry(OBJECTS_PATH)
 
 
 class BodyPart(enum.Enum):
@@ -27,8 +46,14 @@ class ObjectTypes(enum.Enum):
     COIN = 3
 
 
+def lookup_by_name(enums, name):
+    for e in enums:
+        if e.name == name:
+            return e.value
+
+
 @dataclasses.dataclass
-class Object(object, metaclass=abc.ABCMeta):
+class Object(metaclass=abc.ABCMeta):
     key: str
     name: str = None
     object_type: ObjectTypes = ObjectTypes.UNSPECIFIED
@@ -68,12 +93,37 @@ class Item(Object):
 
 
 @dataclasses.dataclass
+class Box(Object):
+    name: str = "box"
+    anchored: bool = True
+    blocks: bool = True
+    contains: List = dataclasses.field(default_factory=list)
+
+    def open(self, actor, area):
+        area.remove_object(self)
+        for obj in self.contains:
+            area.add_object(obj, self.x, self.y)
+        self.contains = []
+
+
+@dataclasses.dataclass
+class Sign(Object):
+    name: str = "sign"
+    anchored: bool = True
+    blocks: bool = True
+
+    message: str = None
+
+
+@dataclasses.dataclass
 class HealthPotion(Item):
     name: str = "health potion"
     value: int = 10
 
     def use(self, actor):
-        actor.attributes.hit_points = min(actor.attributes.hit_points + self.value, actor.attributes.health)
+        actor.attributes.hit_points = min(
+            actor.attributes.hit_points + self.value, actor.attributes.health
+        )
         actor.healed(actor, self.value)
 
 
@@ -85,13 +135,13 @@ class Equipment(Object):
 
 @dataclasses.dataclass
 class Weapon(Equipment):
-    equips = BodyPart.HAND
+    equips: BodyPart = BodyPart.HAND
 
 
 @dataclasses.dataclass
 class Armor(Equipment):
     name: str = "armor"
-    equips = BodyPart.TORSO
+    equips: BodyPart = BodyPart.TORSO
 
 
 @dataclasses.dataclass
@@ -104,8 +154,8 @@ class Sword(Weapon):
 @dataclasses.dataclass
 class Shield(Equipment):
     name: str = "shield"
-    equips = BodyPart.HAND
-    damage: int = 2
+    equips: BodyPart = BodyPart.HAND
+    damage: int = 3
 
 
 @dataclasses.dataclass

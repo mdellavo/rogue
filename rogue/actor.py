@@ -3,8 +3,8 @@ import dataclasses
 import enum
 from typing import List, Dict, Optional, Tuple
 
-from .objects import Object, Equipment, BodyPart
-from .actions import Action, MeleeAttackAction, MoveAction, PickupItemAction, EnterAction
+from .objects import Object, Equipment, BodyPart, Box, Sign
+from .actions import Action, MeleeAttackAction, MoveAction, PickupItemAction, EnterAction, OpenAction, ReadAction
 from .tiles import Door
 from .annotations import NodeType
 
@@ -17,7 +17,7 @@ class ActorState(enum.Enum):
 
 
 @dataclasses.dataclass
-class ActorAttributes(object):
+class ActorAttributes:
     view_distance: int = 10
     strength: int = 5
     experience: int = 1
@@ -29,12 +29,12 @@ class ActorAttributes(object):
 
     max_energy: int = 20
     energy: int = max_energy
-    energy_to_act: int = 10
+    energy_to_act: int = 7
     energy_recharge: int = 2
 
 
 @dataclasses.dataclass
-class ActorStats(object):
+class ActorStats:
     born: float = 0
     kills: int = 0
 
@@ -61,27 +61,41 @@ class Actor(Object):
             return action
 
         area = world.get_area(self)
-        if self.waypoint:
-            next_to_waypoint = all(abs(self.waypoint[i] - self.pos[i]) <= 1 for i in range(0, 2))
-            actors_at_waypoint = [actor for actor in area.get_objects(*self.waypoint) if isinstance(actor, Actor)]
-            if self.pos == self.waypoint:
-                objs = [obj for obj in area.get_objects(self.x, self.y) if obj is not self]
+        at_waypoint = self.pos == self.waypoint
+        next_to_waypoint = self.waypoint and all(abs(self.waypoint[i] - self.pos[i]) <= 1 for i in range(0, 2))
+        if at_waypoint or next_to_waypoint:
+            objects_at_waypoint = [obj for obj in area.get_objects(*self.waypoint)]
+            waypoint_blocked = any(obj.blocks for obj in objects_at_waypoint)
+            if at_waypoint:
+                self.waypoint = None
+                objs = [obj for obj in objects_at_waypoint if obj is not self]
                 if objs:
                     return PickupItemAction()
                 tile = area.get_tile(self.x, self.y)
                 if tile and isinstance(tile, Door):
                     return EnterAction()
+
+            elif next_to_waypoint and waypoint_blocked:
                 self.waypoint = None
-            elif next_to_waypoint and actors_at_waypoint:
+
+                actors_at_waypoint = [obj for obj in objects_at_waypoint if isinstance(obj, Actor)]
                 if actors_at_waypoint:
-                    self.waypoint = None
                     return MeleeAttackAction(target=actors_at_waypoint[0])
-            else:
-                path = area.find_path(self, self.waypoint)
-                if path:
-                    x, y = path.pop(0)
-                    dx, dy = x - self.x, y - self.y
-                    return MoveAction(dx, dy)
+
+                boxes = [obj for obj in objects_at_waypoint if isinstance(obj, Box)]
+                if boxes:
+                    return OpenAction(boxes[0])
+
+                signs = [obj for obj in objects_at_waypoint if isinstance(obj, Sign)]
+                if signs:
+                    return ReadAction(signs[0])
+
+        if self.waypoint:
+            path = area.find_path(self, self.waypoint)
+            if path:
+                x, y = path.pop(0)
+                dx, dy = x - self.x, y - self.y
+                return MoveAction(dx, dy)
 
         return None
 
