@@ -71,7 +71,7 @@ class ReadAction(Action):
         self.target = target
 
     def perform(self, actor, world):
-        actor.notice(self.target.message, popup=True)
+        actor.notice("The sign says: " + self.target.message, popup=True)
 
 
 class OpenAction(Action):

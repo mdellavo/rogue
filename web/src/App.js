@@ -497,7 +497,7 @@ class MapRenderer {
                 const cx = x * scale;
                 const cy = y * scale;
                 ctx.fillStyle = color;
-                ctx.fillRect(cx, cy, scale + scale, scale + scale);
+                ctx.fillRect(cx, cy, scale, scale);
             }
         }
     }
@@ -507,12 +507,12 @@ class MapRenderer {
             const row = frame.frame[y];
             for (let x=0; x<row.length; x++) {
                 const idx = frame.frame[y][x][1];
-                const cx = (frame.x * scale) + (x * scale);
-                const cy = (frame.y * scale) + (y * scale);
+                const cx = ((frame.x + x) - Math.floor(row.length/2)) * scale;
+                const cy = ((frame.y + y) - Math.floor(frame.frame.length/2)) * scale;
                 if (idx >= 0) {
                     const color = DataStore.instance.tileset.tilemap[idx][1];
                     ctx.fillStyle = color;
-                    ctx.fillRect(cx, cy, scale + scale, scale + scale);
+                    ctx.fillRect(cx, cy, scale, scale);
                 }
             }
         }
@@ -818,7 +818,7 @@ class CanvasView extends React.Component {
         DataStore.instance.connect(this, this.props.profile);
 
         const canvas = this.canvas;
-        const minimap = this.minimap
+        const minimap = this.minimap;
         function resize() {
             const ctx = canvas.getContext("2d");
             const tilesize = DataStore.instance.tileset.tilesize * DataStore.instance.scale;
@@ -826,8 +826,8 @@ class CanvasView extends React.Component {
             ctx.height = canvas.height = Math.floor(Math.floor(window.innerHeight / tilesize) * tilesize);
 
             const mctx = minimap.getContext("2d");
-            mctx.width = minimap.width;
-            mctx.height = minimap.height;
+            mctx.width = "200";
+            mctx.height = "200";
         }
         window.addEventListener("resize", resize);
         resize();

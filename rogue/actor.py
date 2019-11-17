@@ -61,6 +61,8 @@ class Actor(Object):
             return action
 
         area = world.get_area(self)
+        if not area:
+            return None
         at_waypoint = self.pos == self.waypoint
         next_to_waypoint = self.waypoint and all(abs(self.waypoint[i] - self.pos[i]) <= 1 for i in range(0, 2))
         if at_waypoint or next_to_waypoint:

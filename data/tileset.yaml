@@ -120,3 +120,6 @@ tilemap:
   chest1:
     x: 0
     y: 7
+  sign1:
+    x: 9
+    y: 26
