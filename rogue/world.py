@@ -69,13 +69,13 @@ class Area(object):
     def has_objects(self, x, y):
         return len(self.get_objects(x, y)) > 0
 
-    def is_tile_free(self, x, y):
+    def is_tile_free(self, x, y, ignore=None):
         tile = self.get_tile(x, y)
         if not tile or tile.blocked:
             return False
 
         objs = self.get_objects(x, y)
-        if objs and any(obj.blocks for obj in objs):
+        if objs and any(obj.blocks for obj in objs if (not ignore or obj not in ignore)):
             return False
 
         return True
@@ -114,6 +114,7 @@ class Area(object):
         for _ in range(100):
             x = random.randrange(0, self.map_width)
             y = random.randrange(0, self.map_height)
+
             if self.is_tile_free(x, y):
                 self.add_object(obj, x, y)
                 return
@@ -306,9 +307,7 @@ def find_path(area: Area, start: NodeType, goal: NodeType, ignore) -> List[NodeT
         closed_nodes.add(node)
         x, y = node
 
-        tile: Tile = area.get_tile(x, y)
-        blocking = [obj for obj in area.get_objects(x, y) if obj != ignore and obj.blocks]
-        if tile.blocked or blocking:
+        if not area.is_tile_free(x, y, [ignore]):
             continue
 
         for dy in (-1, 0, 1):

@@ -1,0 +1,28 @@
+Sword:
+  type: weapon
+  name: sword
+  key: sword1
+  equips: hand
+  damage: 5
+Shield:
+  type: equipment
+  name: shield
+  key: shield1
+  equips: hand
+  damage: 3
+Armor:
+  type: equipment
+  name: armor
+  key: armor1
+  equips: torso
+  damage: 5
+Orc:
+  key: orc1
+  name: orc
+  attributes:
+    energy_to_act: 20
+Skeleton:
+  key: skeleton1
+  name: skeleton
+  attributes:
+    energy_to_act: 15

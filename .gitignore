@@ -6,3 +6,5 @@ venv
 GPATH
 GTAGS
 GRTAGS
+.cache
+.ipython
