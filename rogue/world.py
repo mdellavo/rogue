@@ -156,7 +156,7 @@ class Area(object):
         return visible
 
     def find_path(self, actor, waypoint):
-        return find_path(self, actor.pos, waypoint)
+        return find_path(self, actor.pos, waypoint, actor)
 
     def generate_map(self, actor):
         rows = []
@@ -273,7 +273,7 @@ def _path_score(a: NodeType, b: NodeType) -> int:
     return abs(bx - ax) + abs(by - ay)
 
 
-def _total_path(came_from:Dict[NodeType, NodeType], node: NodeType) -> List[NodeType]:
+def _total_path(came_from: Dict[NodeType, NodeType], node: NodeType) -> List[NodeType]:
     total = [node]
     while node in came_from:
         node = came_from[node]
@@ -281,7 +281,7 @@ def _total_path(came_from:Dict[NodeType, NodeType], node: NodeType) -> List[Node
     return list(reversed(total))[1:]
 
 
-def find_path(area: Area, start: NodeType, goal: NodeType) -> List[NodeType]:
+def find_path(area: Area, start: NodeType, goal: NodeType, ignore) -> List[NodeType]:
     open_nodes: Set[NodeType] = set()
     open_nodes.add(start)
 
@@ -307,7 +307,8 @@ def find_path(area: Area, start: NodeType, goal: NodeType) -> List[NodeType]:
         x, y = node
 
         tile: Tile = area.get_tile(x, y)
-        if tile.blocked:
+        blocking = [obj for obj in area.get_objects(x, y) if obj != ignore and obj.blocks]
+        if tile.blocked or blocking:
             continue
 
         for dy in (-1, 0, 1):
