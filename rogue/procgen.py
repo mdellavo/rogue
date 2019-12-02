@@ -129,7 +129,7 @@ def generate_cave(width, height, iterations=5, depth=0):
 
 class CaveDoor(Door):
 
-    SIZE = 500
+    SIZE = 200
 
     def __init__(self, *args, **kwargs):
         self.depth = kwargs.pop("depth", 0)
@@ -163,8 +163,8 @@ class CaveDoor(Door):
 
 
 class DungeonDoor(Door):
-    SIZE = 500
-    MIN_SIZE = 50
+    SIZE = 200
+    MIN_SIZE = 20
 
     def __init__(self, *args, **kwargs):
         self.depth = kwargs.pop("depth", 0)
@@ -358,7 +358,7 @@ def generate_maze(width, height):
 
 
 class MazeDoor(Door):
-    WIDTH = HEIGHT = 500
+    WIDTH = HEIGHT = 200
 
     def __init__(self, *args, **kwargs):
         self.depth = kwargs.pop("depth", 0)
