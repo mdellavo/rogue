@@ -271,7 +271,7 @@ def generate_dungeon(width, height, min_size, depth=0):
 
         return Room(r.x + offset_x, r.y + offset_y, w, h)
 
-    rooms =[_generate_room(room) for room in parts]
+    rooms = [_generate_room(room) for room in parts]
     tiles = render_dungeon(width, height, rooms, tunnels)
     add_doors(DungeonDoor, tiles, NUM_DOORS, depth=depth, key="crypt2")
     return tiles
@@ -391,7 +391,7 @@ class MazeDoor(Door):
         return super(MazeDoor, self).get_area(world, exit_area, exit_position)
 
 
-def generate_map(size, iterations=500, max_radius=5):
+def generate_map(size, iterations=10, max_radius=100):
     heightmap = [[0. for _ in range(size)] for __ in range(size)]
 
     for _ in range(iterations):
@@ -421,11 +421,11 @@ def generate_map(size, iterations=500, max_radius=5):
 
         n = noise.snoise2(x, y)
 
-        if height < .05:
+        if height < .1:
             return Tile("water1", blocked=True)
-        elif height < .1:
+        elif height < .3:
             return Tile("sand1")
-        elif height < .5:
+        elif height < .9:
             return Tile("grass1")
         else:
             return Tile("mountains1", blocked=True, blocked_sight=True)

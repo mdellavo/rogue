@@ -215,7 +215,7 @@ class DataStore {
         const map_min_y = Math.max(frame.y - Math.floor(map_height/2), 0);
         const map_max_y = Math.min(frame.y + Math.floor(map_height/2), map_height);
 
-        if (false)
+        if (true)
             console.log(sprintf("patching from (%s, %s) x (%s, %s)", map_min_x, map_min_y, map_max_x, map_max_y));
 
         for (let y=0; y<map_height; y++) {
@@ -313,67 +313,6 @@ class GfxUtil {
 
 class MapRenderer {
 
-    static renderOffscreen(ctx, msg) {
-        const tilesize = DataStore.instance.tileset.tilesize;
-        const min_x = msg.x - (msg.frame[0].length / 2);
-        const min_y = msg.y - (msg.frame.length / 2);
-
-        for (let y=0; y<msg.frame.length; y++) {
-            const row = msg.frame[y];
-            for (let x=0; x<row.length; x++) {
-                const x_idx = min_x + x;
-                const y_idx = min_y + y;
-                const tile_index = row ? row[x][1] : -1;
-                const [target_x, target_y] = [x_idx * tilesize, y_idx * tilesize];
-                if (tile_index > 0) {
-                    GfxUtil.drawTile(ctx, target_x, target_y, tile_index);
-                }
-            }
-        }
-    }
-
-    static renderBase(ctx, offscreen, msg) {
-        const orig_tilesize = DataStore.instance.tileset.tilesize;
-        const tilesize = orig_tilesize * DataStore.instance.scale; // scaled
-        const canvas_width = ctx.canvas.clientWidth;
-        const canvas_height = ctx.canvas.clientHeight;
-
-        const canvas_tile_width = Math.floor(canvas_width / tilesize);
-        const canvas_tile_height = Math.floor(canvas_height / tilesize);
-
-        const map_min_x = msg.x - Math.floor(canvas_tile_width / 2); // index space
-        const map_min_y = msg.y - Math.floor(canvas_tile_height / 2);
-
-        // Render Base
-        ctx.drawImage(
-            offscreen,
-            map_min_x * orig_tilesize,
-            map_min_y * orig_tilesize,
-            canvas_tile_width * orig_tilesize,
-            canvas_tile_height * orig_tilesize,
-            0,
-            0,
-            canvas_tile_width * tilesize,
-            canvas_tile_height * tilesize,
-        );
-
-        // const min_x = msg.x - (msg.frame[0].length / 2);
-        // const min_y = msg.y - (msg.frame.length / 2);
-        // const map = DataStore.instance.maps[msg.id];
-        // const base_y =  Math.floor(canvas_tile_height / 2) - (msg.frame.length/2);
-        // for (let y=0; y<msg.frame.length; y++) {
-        //     const row = msg.frame[y];
-        //     const base_x = Math.floor(canvas_tile_width / 2) - (row.length/2);
-
-        //     for (let x=0; x<row.length; x++) {
-        //         const x_idx = min_x + x;
-        //         const y_idx = min_y + y;
-        //         //drawPatch(ctx, map, x_idx, y_idx, tilesize);
-        //     }
-        // }
-
-    }
-
     static renderObjects(ctx, msg) {
         const orig_tilesize = DataStore.instance.tileset.tilesize;
         const tilesize = orig_tilesize * DataStore.instance.scale; // scaled
@@ -383,6 +322,27 @@ class MapRenderer {
         const canvas_tile_width = Math.floor(canvas_width / tilesize);
         const canvas_tile_height = Math.floor(canvas_height / tilesize);
 
+        const map = DataStore.instance.maps[msg.id];
+        const tile_min_x = msg.x - Math.floor(canvas_tile_width/2);
+        const tile_min_y = msg.y - Math.floor(canvas_tile_height/2);
+        for (let y=0; y<canvas_tile_height; y++) {
+            for (let x=0; x<canvas_tile_width; x++) {
+                const row_idx = tile_min_y + y;
+                if (row_idx in map) {
+                    const row = map[row_idx];
+                    const cell_idx = tile_min_x + x;
+                    if (cell_idx in row) {
+                        const tile_index = row[cell_idx];
+                        const [target_x, target_y] = [x * tilesize, y * tilesize];
+                        if (tile_index > 0) {
+                            GfxUtil.drawTile(ctx, target_x, target_y, tile_index, tilesize);
+                        }
+                    }
+                }
+            }
+        }
+
+
         // Render Objects
         const obj_min_x = Math.floor(canvas_tile_width / 2) - Math.floor(msg.frame[0].length/2);
         const obj_min_y = Math.floor(canvas_tile_height / 2) - Math.floor(msg.frame.length/2);
@@ -391,9 +351,14 @@ class MapRenderer {
             for (let x=0; x<row.length; x++) {
                 const cell = row[x];
                 const in_fov = cell[0];
-                const [target_x, target_y] = [(x + obj_min_x) * tilesize, (y + obj_min_y) * tilesize];
+                 const [target_x, target_y] = [(x + obj_min_x) * tilesize, (y + obj_min_y) * tilesize];
                 if (!in_fov) {
                     continue;
+                }
+
+                const tile_index = cell[1];
+                if (tile_index > 0) {
+                    GfxUtil.drawTile(ctx, target_x, target_y, tile_index, tilesize);
                 }
 
                 for (let i=2; i<row[x].length; i++) {
@@ -461,8 +426,8 @@ class MapRenderer {
         if (clicked) {
             const [clickedX, clickedY] = clicked;
             const [target_x, target_y] = [
-                clickedX,
-                clickedY
+                clickedX - Math.floor(tilesize/2),
+                clickedY - Math.floor(tilesize/2),
             ];
 
             var grd = ctx.createRadialGradient(target_x, target_y, 0, target_x, target_y, tilesize);
@@ -475,8 +440,7 @@ class MapRenderer {
         }
     }
 
-    static renderMap(ctx, offscreen, msg, clicked) {
-        MapRenderer.renderBase(ctx, offscreen, msg);
+    static renderMap(ctx, msg, clicked) {
         MapRenderer.renderObjects(ctx, msg);
         MapRenderer.renderFOV(ctx, msg);
         MapRenderer.renderUI(ctx, clicked);
@@ -518,7 +482,7 @@ class MapRenderer {
         }
     }
 
-    static redrawMap(ctx, map, offscreen) {
+    static redrawMap(ctx, map) {
         const orig_tilesize = DataStore.instance.tileset.tilesize;
         const tilesize = orig_tilesize * DataStore.instance.scale; // scaled
         for (let y=0; y<map.length; y++) {
@@ -764,7 +728,6 @@ class SettingsDialog extends Dialog {
 class CanvasView extends React.Component {
     constructor(props) {
         super(props);
-        this.offscreen = null;
 
         this.onBlur = this.onBlur.bind(this);
         this.onKeyDown = this.onKeyDown.bind(this);
@@ -831,7 +794,6 @@ class CanvasView extends React.Component {
         }
         window.addEventListener("resize", resize);
         resize();
-
         canvas.addEventListener("touchstart", this.onTouchStart, {passive: false});
 
         canvas.focus();
@@ -863,16 +825,11 @@ class CanvasView extends React.Component {
 
     onFrame(msg) {
         const map = DataStore.instance.maps[msg.id];
-        if (!this.offscreen) {
-            this.offscreen = document.createElement('canvas');
-            const ctx = this.offscreen.getContext("2d");
-            ctx.width = this.offscreen.width = msg.width * DataStore.instance.tileset.tilesize;
-            ctx.height = this.offscreen.height = msg.height * DataStore.instance.tileset.tilesize;
-            MapRenderer.clearMap(ctx);
-        }
-        MapRenderer.renderOffscreen(this.offscreen.getContext("2d"), msg);
-        MapRenderer.renderMap(this.canvas.getContext("2d"), this.offscreen, msg, this.clicked);
-        MapRenderer.renderMiniMap(this.minimap.getContext("2d"), 2, msg);
+        MapRenderer.renderMap(this.canvas.getContext("2d"),  msg, this.clicked);
+
+        const minimap_ctx = this.minimap.getContext("2d");
+        this.minimap_scale = minimap_ctx.width / msg.width;
+        MapRenderer.renderMiniMap(minimap_ctx, this.minimap_scale, msg);
     }
 
     onLog() {
@@ -885,10 +842,9 @@ class CanvasView extends React.Component {
         }
         if (event.entered) {
             MapRenderer.clearMap(this.canvas.getContext("2d"));
-            MapRenderer.clearMap(this.offscreen.getContext("2d"));
             MapRenderer.clearMap(this.minimap.getContext("2d"));
             if (event.entered in DataStore.instance.maps) {
-                MapRenderer.redrawMiniMap(this.minimap.getContext("2d"), DataStore.instance.maps[event.entered], 2);
+                MapRenderer.redrawMiniMap(this.minimap.getContext("2d"), DataStore.instance.maps[event.entered],  this.minimap_scale);
                 MapRenderer.redrawMap(this.canvas.getContext("2d"),  DataStore.instance.maps[event.entered]);
             }
         }

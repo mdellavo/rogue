@@ -12,7 +12,7 @@ from aiohttp import web
 import aiohttp_cors
 import msgpack
 from jinja2 import Environment, PackageLoader, select_autoescape
-from PIL import Image
+from PIL import Image, ImageDraw
 
 from .world import DAY, AreaRegistry
 from .actions import MoveAction, UseItemAction, PickupItemAction, EquipAction, MeleeAttackAction, EnterAction
@@ -398,30 +398,15 @@ async def admin(request):
     return _render(request, "admin.html", world=request.app["world"])
 
 
-def _render_map(area, tileset):
-    tiles = Image.open(tileset.tiles_path)
-    image = Image.new("RGB", (area.map_width * tileset.tilesize, area.map_height * tileset.tilesize))
-
-    cache = {}
-
-    def _get_bitmap(key):
-        bitmap = cache.get(key)
-        if not bitmap:
-            r = tileset.get_tile_rect(key)
-            bitmap = tiles.crop(r)
-            cache[key] = bitmap
-        return bitmap
-
+def _render_map(area, tileset, scale=2):
+    image = Image.new("RGB", (area.map_width * scale, area.map_height * scale))
+    draw = ImageDraw.Draw(image)
     for y in range(area.map_height):
         for x in range(area.map_width):
             tile = area.get_tile(x, y)
-            bitmap = _get_bitmap(tile.key)
-            image.paste(bitmap, (x * tileset.tilesize, y * tileset.tilesize))
-
-            for obj in area.get_objects(x, y):
-                bitmap = _get_bitmap(obj.key)
-                image.paste(bitmap, (x * tileset.tilesize, y * tileset.tilesize), bitmap)
-
+            color = tileset.get_tile_color(tile.key)
+            if color:
+                draw.rectangle((x * scale, y * scale, (x + 1) * scale, (y + 1) * scale), fill=color)
     return image
 
 

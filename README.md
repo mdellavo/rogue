@@ -11,7 +11,6 @@ http://rogue.quuux.org
 - multiplayer, async backend
 - procedurally generated maps
 - realtime websocket base game play
-- efficient msgpack based protocol
 
 ## Development
 

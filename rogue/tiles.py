@@ -46,6 +46,17 @@ TERRAIN_COLORMAP = {
     TerrainTypes.WALL: "dimgrey",
 }
 
+COLORMAP_VALUES = {
+    "gold": (255, 215, 0, 0),
+    "green": (0, 128, 0, 0),
+    "blue": (0, 0, 255, 0),
+    "yellow": (255, 255, 0, 0),
+    "grey": (128, 128, 128, 0),
+    "purple": (128, 0, 128, 0),
+    "lightgrey": (211, 211, 211, 0),
+    "dimgrey": (105, 105, 105, 0),
+}
+
 
 class TileSet(object):
     def __init__(self, path):
@@ -87,6 +98,13 @@ class TileSet(object):
 
     def get_index(self, key):
         return self.index_map[key]
+
+    def get_tile_color(self, key):
+        tile = self.tilemap.get(key)
+        tile_type = tile.get("type")
+        color = TERRAIN_COLORMAP.get(tile_type)
+        value = COLORMAP_VALUES.get(color)
+        return value
 
     def get_tile_rect(self, key):
         t = self.tilemap[key]

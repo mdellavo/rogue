@@ -6,13 +6,11 @@ import sys
 import time
 import random
 
-import yaml
-
 from . import procgen, server
 from .tiles import TileSet
 from .world import DAY, TIMEOUT
 
-MAP_SIZE = 100
+MAP_SIZE = 500
 PORT = 6543
 
 TILESET_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "tileset.yaml")
