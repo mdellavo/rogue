@@ -72,7 +72,7 @@ def add_traps(area, num_traps=NUM_TRAPS):
 
 
 def populate_area(world, area):
-    #add_npcs(world, area)
+    add_npcs(world, area)
     add_coins(area)
     add_items(area)
     add_traps(area)
@@ -129,7 +129,7 @@ def generate_cave(width, height, iterations=5, depth=0):
 
 class CaveDoor(Door):
 
-    SIZE = 100
+    SIZE = 500
 
     def __init__(self, *args, **kwargs):
         self.depth = kwargs.pop("depth", 0)
@@ -163,8 +163,8 @@ class CaveDoor(Door):
 
 
 class DungeonDoor(Door):
-    SIZE = 100
-    MIN_SIZE = 10
+    SIZE = 500
+    MIN_SIZE = 50
 
     def __init__(self, *args, **kwargs):
         self.depth = kwargs.pop("depth", 0)
@@ -358,7 +358,7 @@ def generate_maze(width, height):
 
 
 class MazeDoor(Door):
-    WIDTH = HEIGHT = 100
+    WIDTH = HEIGHT = 500
 
     def __init__(self, *args, **kwargs):
         self.depth = kwargs.pop("depth", 0)
@@ -384,9 +384,7 @@ class MazeDoor(Door):
         if not self.area:
             log.info("generating maze...")
             self.area, self.position = self.generate_maze(exit_area, exit_position)
-            add_npcs(world, self.area, 10)
-            add_coins(self.area, 10)
-            add_items(self.area, 10)
+            populate_area(world, self.area)
             log.info("maze done!")
         return super(MazeDoor, self).get_area(world, exit_area, exit_position)
 
