@@ -10,7 +10,7 @@ from . import procgen, server
 from .tiles import TileSet
 from .world import DAY, TIMEOUT
 
-MAP_SIZE = 500
+MAP_SIZE = 200
 PORT = 6543
 
 TILESET_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "tileset.yaml")
@@ -52,7 +52,7 @@ if __name__ == "__main__":
     parser.add_argument("--debug", action="store_true")
     args = parser.parse_args()
     try:
-        asyncio.run(main(args), debug=args.debug)
+        asyncio.run(main(args), debug=True)
     except KeyboardInterrupt:
         pass
     sys.exit(0)

@@ -164,7 +164,7 @@ class CaveDoor(Door):
 
 class DungeonDoor(Door):
     SIZE = 200
-    MIN_SIZE = 20
+    MIN_SIZE = 10
 
     def __init__(self, *args, **kwargs):
         self.depth = kwargs.pop("depth", 0)
@@ -245,10 +245,10 @@ def partition(room, min_size):
 
 def split_room(room, vertical):
     if vertical:
-        s = random.randint(room.h // 4, 2 * room.h // 4)
+        s = random.randint(room.h // 2, 3 * room.h // 4)
         a, b = Room(room.x, room.y, room.w, s), Room(room.x, room.y + s, room.w, room.h - s)
     else:
-        s = random.randint(room.w // 4, 2 * room.w // 4)
+        s = random.randint(room.w // 2, 3 * room.w // 4)
         a, b = Room(room.x, room.y, s, room.h), Room(room.x + s, room.y, room.w - s, room.h)
     return a, b
 
@@ -258,14 +258,14 @@ def generate_dungeon(width, height, min_size, depth=0):
     parts, tunnels = partition(outer, min_size)
 
     def _generate_room(r):
-        offset_x = random.randint(0, r.w//2)
-        offset_y = random.randint(0, r.h//2)
+        offset_x = random.randint(0, r.w//4)
+        offset_y = random.randint(0, r.h//4)
 
-        w = random.randint(2, r.w)
+        w = random.randint(r.w//4, 3 * r.w//3)
         if offset_x + w >= r.w:
             w = r.w - 4
 
-        h = random.randint(2, r.h)
+        h = random.randint(r.h//4, 3 * r.h//4)
         if offset_y + h >= r.h:
             h = r.h - 4
 
@@ -389,7 +389,7 @@ class MazeDoor(Door):
         return super(MazeDoor, self).get_area(world, exit_area, exit_position)
 
 
-def generate_map(size, iterations=10, max_radius=100):
+def generate_map(size, iterations=500, max_radius=50):
     heightmap = [[0. for _ in range(size)] for __ in range(size)]
 
     for _ in range(iterations):
@@ -417,16 +417,26 @@ def generate_map(size, iterations=10, max_radius=100):
         if x == 0 or y == 0 or x == size - 1 or y == size - 1:
             return Tile("water1", blocked=True, blocked_sight=False)
 
-        n = noise.snoise2(x, y)
-
         if height < .1:
-            return Tile("water1", blocked=True)
+            return Tile("water3", blocked=True)
+        elif height < .2:
+            return Tile("water2", blocked=True)
         elif height < .3:
+            return Tile("water1", blocked=True)
+        elif height < .4:
             return Tile("sand1")
-        elif height < .9:
+        elif height < .45:
+            return Tile("sand2")
+        elif height < .5:
+            return Tile("sand3")
+        elif height < .6:
             return Tile("grass1")
+        elif height < .8:
+            return Tile("grass2")
+        elif height < .95:
+            return Tile("grass3")
         else:
-            return Tile("mountains1", blocked=True, blocked_sight=True)
+            return Tile("mountains1", blocked=True)
 
     tiles = [[_tile(x, y, height) for x, height in enumerate(row)] for y, row in enumerate(heightmap)]
     add_doors(CaveDoor, tiles, depth=1, key="crypt1")

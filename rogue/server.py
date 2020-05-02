@@ -398,15 +398,32 @@ async def admin(request):
     return _render(request, "admin.html", world=request.app["world"])
 
 
-def _render_map(area, tileset, scale=2):
-    image = Image.new("RGB", (area.map_width * scale, area.map_height * scale))
-    draw = ImageDraw.Draw(image)
+def _render_map(area, tileset, scale=.25):
+
+    tilesize = tileset.tilesize
+
+    tiles = Image.open(tileset.tiles_path)
+    image = Image.new("RGB", (area.map_width * tilesize, area.map_height * tilesize))
+
+    cache = {}
+
+    def _get_bitmap(key):
+        bitmap = cache.get(key)
+        if not bitmap:
+            r = tileset.get_tile_rect(key)
+            bitmap = tiles.crop(r)
+            cache[key] = bitmap
+        return bitmap
+
     for y in range(area.map_height):
         for x in range(area.map_width):
             tile = area.get_tile(x, y)
-            color = tileset.get_tile_color(tile.key)
-            if color:
-                draw.rectangle((x * scale, y * scale, (x + 1) * scale, (y + 1) * scale), fill=color)
+            bitmap = _get_bitmap(tile.key)
+            image.paste(bitmap, (x * tilesize, y * tilesize))
+
+    width, height = image.size
+    resized = (width * scale, height * scale)
+    image.thumbnail(resized, Image.ANTIALIAS)
     return image
 
 

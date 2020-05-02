@@ -1,4 +1,5 @@
 import math
+import time
 import random
 import itertools
 import collections
@@ -157,7 +158,8 @@ class Area(object):
         return visible
 
     def find_path(self, actor, waypoint):
-        return find_path(self, actor.pos, waypoint, actor)
+        rv = find_path(self, actor.pos, waypoint, actor)
+        return rv
 
     def generate_map(self, actor):
         rows = []
@@ -297,6 +299,7 @@ def find_path(area: Area, start: NodeType, goal: NodeType, ignore) -> List[NodeT
     def _next() -> NodeType:
         return sorted(open_nodes, key=lambda n: _path_score(n, goal)).pop(0)
 
+    evaluated = 0
     while open_nodes:
         node: NodeType = _next()
 
@@ -329,3 +332,6 @@ def find_path(area: Area, start: NodeType, goal: NodeType, ignore) -> List[NodeT
                 came_from[neighbor] = node
                 score[neighbor] = new_score
                 total[neighbor] = new_score + _path_score(neighbor, goal)
+        evaluated += 1
+        if evaluated > 1000:
+            return

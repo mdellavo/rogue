@@ -326,22 +326,22 @@ class MapRenderer {
         const tile_min_x = msg.x - Math.floor(canvas_tile_width/2);
         const tile_min_y = msg.y - Math.floor(canvas_tile_height/2);
         for (let y=0; y<canvas_tile_height; y++) {
+            const row_idx = tile_min_y + y;
+            if (row_idx < 0)
+                continue;
+            const row = map[row_idx];
+
             for (let x=0; x<canvas_tile_width; x++) {
-                const row_idx = tile_min_y + y;
-                if (row_idx in map) {
-                    const row = map[row_idx];
-                    const cell_idx = tile_min_x + x;
-                    if (cell_idx in row) {
-                        const tile_index = row[cell_idx];
-                        const [target_x, target_y] = [x * tilesize, y * tilesize];
-                        if (tile_index > 0) {
-                            GfxUtil.drawTile(ctx, target_x, target_y, tile_index, tilesize);
-                        }
+                const cell_idx = tile_min_x + x;
+                if (cell_idx in row) {
+                    const tile_index = row[cell_idx];
+                    const [target_x, target_y] = [x * tilesize, y * tilesize];
+                    if (tile_index > 0) {
+                        GfxUtil.drawTile(ctx, target_x, target_y, tile_index, tilesize);
                     }
                 }
             }
         }
-
 
         // Render Objects
         const obj_min_x = Math.floor(canvas_tile_width / 2) - Math.floor(msg.frame[0].length/2);
@@ -368,7 +368,6 @@ class MapRenderer {
                 }
             }
         }
-
     }
 
     static renderFOV(ctx, msg) {
@@ -447,8 +446,7 @@ class MapRenderer {
     }
 
     static clearMap(ctx) {
-        ctx.fillStyle = "black";
-        ctx.fillRect(0, 0, ctx.width, ctx.height);
+        ctx.clearRect(0, 0, ctx.width, ctx.height);
         console.log("clear", ctx.width, ctx.height);
     }
 
