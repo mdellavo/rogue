@@ -215,7 +215,7 @@ class DataStore {
         const map_min_y = Math.max(frame.y - Math.floor(map_height/2), 0);
         const map_max_y = Math.min(frame.y + Math.floor(map_height/2), map_height);
 
-        if (true)
+        if (false)
             console.log(sprintf("patching from (%s, %s) x (%s, %s)", map_min_x, map_min_y, map_max_x, map_max_y));
 
         for (let y=0; y<map_height; y++) {
@@ -330,13 +330,15 @@ class MapRenderer {
             if (row_idx < 0)
                 continue;
             const row = map[row_idx];
+            if (!row)
+                continue;
 
             for (let x=0; x<canvas_tile_width; x++) {
                 const cell_idx = tile_min_x + x;
                 if (cell_idx in row) {
                     const tile_index = row[cell_idx];
-                    const [target_x, target_y] = [x * tilesize, y * tilesize];
                     if (tile_index > 0) {
+                        const [target_x, target_y] = [x * tilesize, y * tilesize];
                         GfxUtil.drawTile(ctx, target_x, target_y, tile_index, tilesize);
                     }
                 }
