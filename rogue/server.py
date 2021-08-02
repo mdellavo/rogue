@@ -157,6 +157,9 @@ class WebSocketPlayer(Player):
         msg["_event"] = event_name
         self.send_message(**msg)
 
+    def notify(self):
+        self.queue_frame(self.world)
+
     def healed(self, actor, damage):
         self.notice("you feal better, +{} health".format(damage))
         self.send_stats()
@@ -301,25 +304,7 @@ async def session(request):
 
     player.send_stats()
     player.notice("welcome {}, good luck".format(player_name))
-
-    updater_queue = Queue()
-
-    async def _updater():
-        while not ws.closed and player.is_alive:
-            if not updater_queue.empty():
-                break
-
-            t1 = time.time()
-            player.queue_frame(request.app["world"])
-            t2 = time.time()
-            delta = t2 - t1
-            timeout = max(UPDATE_TIMEOUT - delta, 0)
-            await asyncio.sleep(timeout)
-        player.queue_frame(request.app["world"])
-        if not ws.closed:
-            await ws.close()
-
-        log.info("updater stopped")
+    player.queue_frame(request.app["world"])
 
     async def _writer():
         while not ws.closed and player.is_alive:
@@ -336,7 +321,6 @@ async def session(request):
         log.info("writer stopped")
 
     writer = asyncio.create_task(_writer())
-    updater = asyncio.create_task(_updater())
 
     async for msg in ws:
         if msg.type == aiohttp.WSMsgType.BINARY:
@@ -349,14 +333,13 @@ async def session(request):
             break
 
     player.send_message()
-    updater_queue.put_nowait(None)
 
     log.info("reader stopped")
 
     if not ws.closed:
         await ws.close()
 
-    for fut in (writer, updater):
+    for fut in (writer,):
         for i in range(2):
             try:
                 await asyncio.wait_for(fut, timeout=.1)

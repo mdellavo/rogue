@@ -107,6 +107,9 @@ class Actor(Object):
     def set_waypoint(self, waypoint: NodeType):
         self.waypoint = waypoint
 
+    def notify(self):
+        pass
+
     @property
     def can_act(self):
         return self.attributes.energy >= self.attributes.energy_to_act

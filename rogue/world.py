@@ -121,10 +121,10 @@ class Area(object):
                 return
         raise ValueError("could not place object")
 
-    def immediate_area(self, actor):
+    def immediate_area(self, actor, radius=1):
         immediate = [(actor.x, actor.y)]
-        for dy in (-1, 0, 1):
-            for dx in (-1, 0, 1):
+        for dy in range(-radius, radius):
+            for dx in range(-radius, radius):
                 x = actor.x + dx
                 y = actor.y + dy
                 if x < 0 or x >= self.map_width or y < 0 or y >= self.map_height:
@@ -132,11 +132,15 @@ class Area(object):
                 immediate.append((x, y))
         return immediate
 
-    def immediate_area_objects(self, actor):
+    def immediate_area_objects(self, actor, radius=1):
         objects = itertools.chain.from_iterable([
-            self.get_objects(x, y) for x, y in self.immediate_area(actor)
+            self.get_objects(x, y) for x, y in self.immediate_area(actor, radius=radius)
         ])
         return objects
+
+    def broadcast(self, actor):
+        for obj in self.immediate_area_objects(actor, radius=10):
+            obj.notify()
 
     def fov(self, actor):
         visible = [(actor.x, actor.y)]

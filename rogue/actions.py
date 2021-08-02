@@ -44,6 +44,7 @@ class MoveAction(Action):
         if tile.blocked or any(obj.blocks for obj in area.get_objects(x, y)):
             return False
         area.move_object(actor, x, y)
+        area.broadcast(actor)
         return True
 
 
@@ -62,6 +63,7 @@ class EnterAction(Action):
             new_area.add_object(actor, x, y)
             actor.notice("you have entered {}".format(pt), mood=True, entered=new_area.id)
             actor.waypoint = None
+            new_area.broadcast(actor)
 
 
 class ReadAction(Action):
@@ -119,7 +121,7 @@ class PickupItemAction(Action):
                 actor.notice("you picked up a {}".format(obj))
             else:
                 actor.notice("you cannot pickup {}".format(obj))
-
+        area.broadcast(actor)
 
 class DropItemAction(Action):
     NAME = "drop"
@@ -132,6 +134,8 @@ class DropItemAction(Action):
             actor.inventory.remove(self.obj)
             self.obj.x = actor.x
             self.obj.y = actor.y
+            area = world.get_area(actor)
+            area.broadcast(actor)
 
 
 class UseItemAction(Action):
@@ -218,3 +222,4 @@ class MeleeAttackAction(Action):
 
             if issubclass(type(self.target), NPC) and not isinstance(self.target, Skeleton):
                 world.schedule(100, _revive)
+            area.broadcast(actor)
