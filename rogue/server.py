@@ -1,18 +1,16 @@
 import os
 import io
-import time
 import logging
 import collections
 import asyncio
 import dataclasses
-from asyncio import Queue
 
-import aiohttp
-from aiohttp import web
-import aiohttp_cors
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, status, Request
+from fastapi.responses import Response, FileResponse
+from fastapi.middleware.cors import CORSMiddleware
+
 import msgpack
-from jinja2 import Environment, PackageLoader, select_autoescape
-from PIL import Image, ImageDraw
+from PIL import Image
 
 from .world import DAY, AreaRegistry
 from .actions import MoveAction, UseItemAction, PickupItemAction, EquipAction, MeleeAttackAction, EnterAction
@@ -22,8 +20,7 @@ from .tiles import ASSET_PATH, MUSIC, AssetTypes
 
 log = logging.getLogger(__name__)
 
-routes = web.RouteTableDef()
-
+app = FastAPI()
 
 QUEUE_SIZE = 100
 HEARTBEAT = 5
@@ -136,9 +133,8 @@ def handle_waypoint(world, player, action):
 @dataclasses.dataclass
 class WebSocketPlayer(Player):
 
-    def __init__(self, key, socket, tileset, world, *args, **kwargs):
+    def __init__(self, key, tileset, world, *args, **kwargs):
         super(Player, self).__init__(key, *args, **kwargs)
-        self.socket = socket
         self.tilemap = tileset
         self.response_queue = asyncio.Queue(QUEUE_SIZE)
         self.world = world
@@ -240,20 +236,23 @@ class WebSocketPlayer(Player):
         return rv
 
 
-@routes.get("/")
-async def get_root(request):
-    return web.json_response({
+@app.get("/")
+async def get_root(request: Request):
+
+    host = request.headers["host"]
+
+    return {
         "status": "ok",
         "tileset": {
-            "tilesize": request.app["tileset"].tilesize,
-            "tilemap": request.app["tileset"].indexed_map
+            "tilesize": app.state.tileset.tilesize,
+            "tilemap": app.state.tileset.indexed_map
         },
-        "tiles_url": "//{}/asset/gfx/tiles.png".format(request.host),
-        "socket_url": "ws://{}/session".format(request.host),
-        "music": ["//{}/asset/music/{}".format(request.host, key) for key in MUSIC],
-        "num_players_online": request.app["world"].num_players,
-        "server_age": request.app["world"].age,
-    })
+        "tiles_url": "//{}/asset/gfx/tiles.png".format(host),
+        "socket_url": "ws://{}/session".format(host),
+        "music": ["//{}/asset/music/{}".format(host, key) for key in MUSIC],
+        "num_players_online": app.state.world.num_players,
+        "server_age": app.state.world.age,
+    }
 
 
 def _handle_message(world, player, message):
@@ -270,74 +269,72 @@ def _handle_message(world, player, message):
         player.send_message(**response)
 
 
-def _generate_player(ws, player_name, tileset, world):
-    player = WebSocketPlayer("player", ws, tileset, world, name=player_name)
+def _generate_player(player_name, tileset, world):
+    player = WebSocketPlayer("player", tileset, world, name=player_name)
     player.attributes.energy_recharge = 7
     return player
 
 
-@routes.get("/session")
-async def session(request):
-    ws = web.WebSocketResponse(receive_timeout=RECV_TIMEOUT, heartbeat=HEARTBEAT, compress=False)
-    await ws.prepare(request)
+@app.websocket("/session")
+async def session(websocket: WebSocket):
+
+    await websocket.accept()
     log.debug('websocket connection started')
 
-    async for msg in ws:
-        if msg.type == aiohttp.WSMsgType.BINARY:
-            obj = msgpack.unpackb(msg.data, raw=False)
-            break
-        elif msg.type == aiohttp.WSMsgType.ERROR:
-            log.error('ws connection closed with exception %s', ws.exception())
-            await ws.close()
-            return ws
+    try:
+        msg = await websocket.receive_bytes()
+    except WebSocketDisconnect as e:
+        log.error("disconnect during hello: %s", e)
+        return
 
+    obj = msgpack.unpackb(msg)
     profile = obj.get("profile")
     if not profile:
         log.error("did not get profile: %s", obj)
-        await ws.close()
-        return ws
+        await websocket.close()
+        return
 
     player_name = obj["profile"]["name"]
 
-    player = _generate_player(ws, player_name, request.app["tileset"], request.app["world"])
-    request.app["world"].place_actor(player)
+    player = _generate_player(player_name, app.state.tileset, app.state.world)
+    app.state.world.place_actor(player)
 
     player.send_stats()
     player.notice("welcome {}, good luck".format(player_name))
-    player.queue_frame(request.app["world"])
+    player.queue_frame(app.state.world)
 
     async def _writer():
-        while not ws.closed and player.is_alive:
+
+        while player.is_alive:
             response = await player.response_queue.get()
             if response is None:
                 break
+            msg = msgpack.packb(response)
             try:
-                await ws.send_bytes(msgpack.packb(response))
-            except Exception:
+                await websocket.send_bytes(msg)
+            except WebSocketDisconnect:
                 log.error("writer closed")
                 break
-        if not ws.closed:
-            await ws.close()
+        await websocket.close()
         log.info("writer stopped")
 
     writer = asyncio.create_task(_writer())
 
-    async for msg in ws:
-        if msg.type == aiohttp.WSMsgType.BINARY:
-            obj = msgpack.unpackb(msg.data, raw=False)
-            _handle_message(request.app["world"], player, obj)
-        elif msg.type == aiohttp.WSMsgType.ERROR:
-            log.error('ws connection closed with exception %s', ws.exception())
+    while player.is_alive:
+        try:
+            msg = await websocket.receive_bytes()
+        except WebSocketDisconnect as e:
+            log.error('ws connection closed with exception %s', e)
             break
-        if not player.is_alive:
-            break
+
+        obj = msgpack.unpackb(msg, raw=False)
+        _handle_message(app.state.world, player, obj)
 
     player.send_message()
 
     log.info("reader stopped")
 
-    if not ws.closed:
-        await ws.close()
+    await websocket.close()
 
     for fut in (writer,):
         for i in range(2):
@@ -350,35 +347,31 @@ async def session(request):
 
     log.debug('websocket connection closed')
 
-    return ws
 
+@app.get(r"/asset/{asset_type}/{asset_key}")
+async def get_asset(asset_type, asset_key):
 
-@routes.get(r"/asset/{asset_type:\w+}/{asset_key}")
-async def get_asset(request):
-
-    asset_type = request.match_info["asset_type"]
     if AssetTypes(asset_type) not in AssetTypes:
-        return web.Response(status=404)
+        return Response(status_code=status.HTTP_404_NOT_FOUND)
 
-    asset_key = request.match_info["asset_key"]
     if asset_type == "music" and asset_key not in MUSIC:
-        return web.Response(status=404)
+        return Response(status_code=status.HTTP_404_NOT_FOUND)
 
     asset_path = os.path.join(ASSET_PATH, asset_type, asset_key)
-    return web.FileResponse(asset_path)
+    return FileResponse(asset_path)
 
 
-def _render(request, name, **kwargs):
-    template = request.app["jinja"].get_template(name)
-    return web.Response(
-        text=template.render(**kwargs),
-        content_type="text/html"
+def _render(name, **kwargs):
+    template = app.state.jinja.get_template(name)
+    return Response(
+        content=template.render(**kwargs),
+        media_type="text/html"
     )
 
 
-@routes.get(r"/admin")
-async def admin(request):
-    return _render(request, "admin.html", world=request.app["world"])
+@app.get(r"/admin")
+async def admin():
+    return _render("admin.html", world=app.state.world)
 
 
 def _render_map(area, tileset, scale=.25):
@@ -410,37 +403,20 @@ def _render_map(area, tileset, scale=.25):
     return image
 
 
-@routes.get(r"/admin/map/{area_id}")
-def render_map(request):
-    area = AreaRegistry.get(request.match_info["area_id"])
-    tileset = request.app["tileset"]
+@app.get(r"/admin/map/{area_id}")
+def render_map(area_id):
+    area = AreaRegistry.get(area_id)
+    tileset = app.state.tileset
     image = _render_map(area, tileset)
     out = io.BytesIO()
     image.save(out, format="png")
-    return web.Response(body=out.getvalue(), content_type="image/png")
+    return Response(content=out.getvalue(), media_type="image/png")
 
 
-async def run_server(world, tileset, port):
-    app = web.Application()
-    app["world"] = world
-    app["tileset"] = tileset
-    app["jinja"] = Environment(
-        loader=PackageLoader("rogue", 'templates'),
-        autoescape=select_autoescape(['html', 'xml'])
-    )
-    cors = aiohttp_cors.setup(app, defaults={
-        "*": aiohttp_cors.ResourceOptions(
-            allow_credentials=True,
-            expose_headers="*",
-            allow_headers="*",
-        ),
-    })
-
-    app.add_routes(routes)
-    for route in list(app.router.routes()):
-        cors.add(route)
-    runner = web.AppRunner(app)
-    await runner.setup()
-    site = web.TCPSite(runner, '0.0.0.0', port)
-    log.info("starting server on port %s...", port)
-    await site.start()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)

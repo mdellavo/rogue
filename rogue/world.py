@@ -140,7 +140,8 @@ class Area(object):
 
     def broadcast(self, actor):
         for obj in self.immediate_area_objects(actor, radius=10):
-            obj.notify()
+            if isinstance(obj, Actor):
+                obj.notify()
 
     def fov(self, actor):
         visible = [(actor.x, actor.y)]

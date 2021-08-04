@@ -1,12 +1,14 @@
 version: "3"
 services:
-  api:
-    image: mdellavo/rogue
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
     volumes:
-      - .:/home/rogue
-  web:
-    image: mdellavo/rogue-web
-    volumes:
-      - ./web:/home/rogue-web
-    depends_on:
-      - api
+      - .:/site
+    ports:
+      - 8000:8000
+    env_file:
+      - ./local.env
+  redis:
+    image: redis

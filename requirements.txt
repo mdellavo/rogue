@@ -1,5 +1,7 @@
-aiohttp
-aiohttp_cors
+fastapi
+uvicorn[standard]
+pydantic
+shortuuid
 noise
 msgpack
 bson
@@ -10,3 +12,5 @@ noise
 ipython
 jinja2
 pyyaml
+aioredis
+aiofiles

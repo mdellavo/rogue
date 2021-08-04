@@ -1,32 +1,23 @@
-FROM ubuntu
-MAINTAINER Marc DellaVolpe "marc.dellavolpe@gmail.com"
+FROM python:3.9
 
-VOLUME /home/rogue
-EXPOSE 6543
 ENV DEBIAN_FRONTEND noninteractive
-ENV HOME /home/rogue
-WORKDIR /home/rogue
+ENV HOME /site
+WORKDIR /site
 
-RUN apt-get update
-RUN apt-get dist-upgrade -y
-RUN apt-get install -y software-properties-common curl gnupg
+ENV PYTHONDONTWRITEBYTECODE 1
+ENV PYTHONBUFFERED 1
 
-RUN curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add -
-RUN echo "deb https://dl.yarnpkg.com/debian/ stable main" | tee /etc/apt/sources.list.d/yarn.list
+RUN apt-get update \
+    && apt-get -y dist-upgrade \
+    && apt-get clean
 
-RUN add-apt-repository ppa:deadsnakes/ppa
-RUN apt-get update
-RUN apt-get install -y python3.7 python3.7-dev python3-pip python3.7-distutils nodejs yarn
-
-COPY requirements.txt /tmp
-RUN python3.7 -m pip install -r /tmp/requirements.txt
-RUN rm /tmp/requirements.txt
-
-RUN apt-get purge -y software-properties-common
-RUN apt-get -y autoremove
+RUN pip install --upgrade pip
+COPY ./requirements.txt /tmp
+RUN pip install -r /tmp/requirements.txt
 
 RUN useradd -ms /bin/bash rogue
 USER rogue
 
-CMD python3.7 -m rogue
-ENTRYPOINT python3.7 -m rogue
+EXPOSE 6543
+CMD python3 -m rogue
+ENTRYPOINT python3 -m rogue

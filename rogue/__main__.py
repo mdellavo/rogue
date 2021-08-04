@@ -6,13 +6,16 @@ import sys
 import time
 import random
 
+import uvicorn
+from jinja2 import Environment, PackageLoader, select_autoescape
+
 from . import procgen, server
 from .tiles import TileSet
 from .world import DAY, TIMEOUT
 
-MAP_SIZE = 200
 PORT = 6543
 
+MAP_SIZE = 200
 TILESET_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "tileset.yaml")
 
 
@@ -20,14 +23,19 @@ logging.basicConfig(level=logging.DEBUG, format='[%(asctime)s] %(levelname)s/%(n
 log = logging.getLogger(__name__)
 
 
-async def main(args):
+def main(args):
 
     log.info("starting world with seed %s", args.seed)
     random.seed(args.seed)
-
     world = procgen.generate_world(MAP_SIZE)
-
     tileset = TileSet(TILESET_PATH)
+
+    server.app.state.world = world
+    server.app.state.tileset = tileset
+    server.app.state.jinja = Environment(
+        loader=PackageLoader("rogue", 'templates'),
+        autoescape=select_autoescape(['html', 'xml'])
+    )
 
     async def run_world():
         log.info("starting world...")
@@ -42,7 +50,16 @@ async def main(args):
 
             await asyncio.sleep(TIMEOUT)
 
-    await asyncio.gather(run_world(), server.run_server(world, tileset, args.port))
+    @server.app.on_event("startup")
+    async def startup():
+        log.info("server startup...")
+        asyncio.create_task(run_world())
+
+    @server.app.on_event("shutdown")
+    async def shutdown():
+        log.info("server shutdown...")
+
+    uvicorn.run(server.app, host="0.0.0.0", port=args.port, log_level="info")
 
 if __name__ == "__main__":
 
@@ -52,7 +69,7 @@ if __name__ == "__main__":
     parser.add_argument("--debug", action="store_true")
     args = parser.parse_args()
     try:
-        asyncio.run(main(args), debug=True)
+        main(args)
     except KeyboardInterrupt:
         pass
     sys.exit(0)
