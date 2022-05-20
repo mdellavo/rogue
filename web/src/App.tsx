@@ -1,4 +1,4 @@
-import React, {Component} from 'react';
+import React, { Component, useEffect, useState, useRef } from 'react';
 import './App.css';
 
 import msgpack from 'msgpack-lite';
@@ -9,68 +9,150 @@ const PING_DELAY = 10;
 const LOG_LIMIT = 10;
 
 
-const Actions = {
-    INVENTORY: "inventory",
-    EQUIP: "equip",
-    USE: "use",
-    MOVE: "move",
-    ENTER: "enter",
-    MELEE: "melee",
-    PICKUP: "pickup",
-    WAYPOINT: "waypoint",
-    PLAYER_INFO: "player_info",
+enum Action {
+    INVENTORY = "inventory",
+    EQUIP = "equip",
+    USE = "use",
+    MOVE = "move",
+    ENTER = "enter",
+    MELEE = "melee",
+    PICKUP = "pickup",
+    WAYPOINT = "waypoint",
+    PLAYER_INFO = "player_info",
 };
 
-const ObjectTypes = {
-    UNSPECIFIED: "unspecified",
-    EQUIPMENT: "equipment",
-    ITEM: "item",
-    COIN: "coin",
+enum ObjectType {
+    UNSPECIFIED = "unspecified",
+    EQUIPMENT = "equipment",
+    ITEM = "item",
+    COIN = "coin",
 };
 
-const LogTypes = {
-    NOTICE: "notice",
-    DEBUG: "debug",
-    INFO: "info"
+enum LogType {
+    NOTICE = "notice",
+    DEBUG = "debug",
+    INFO = "info"
 };
 
-function choice(items) {
+function choice(items: any[]) {
     return items[Math.floor(Math.random() * items.length)];
 }
 
-function decode(data) {
+function decode(data: any) {
     return msgpack.decode(new Uint8Array(data));
 }
 
-function encode(obj) {
+function encode(obj: any) {
     return msgpack.encode(obj);
 }
 
+type Tile = [[number, number], string]
+
+interface TileSet {
+    tilesize: number;
+    tilemap: Tile[];
+}
+
+interface Manifest {
+    server_age: number;
+    num_players_online: number;
+    tiles_url: string;
+    socket_url: string;
+    music: string[];
+    tileset: TileSet;
+}
+
+type ResponseCallbacks = {
+    [key: number]: (msg?: any) => void;
+}
+
+type EventCallbacks = {
+    [key: string]: (msg?: any) => void;
+}
+
+type Settings = {
+    playMusic: boolean;
+    playSounds: boolean;
+}
+
+type LogMessage = {
+    type: LogType;
+    message: string;
+}
+
+type MapManager = {
+    [key: string]: number[][];
+}
+
+interface DataStoreCallback {
+    onError(e: any): void;
+    onLoaded(): void;
+}
+
+interface ConnectionListener {
+    onConnected(event: any): void;
+    onDisconnected(event: any): void;
+    onError(event: any): void;
+}
+
+interface PlayerProfile {
+    name: string;
+}
+
+type ResponseCallback = (msg: any) => void;
+type EventCallback = (msg: any) => void;
+
+interface ServerMessage {
+    _event: string;
+}
+
+interface FrameUpdateMessage extends ServerMessage {
+    id: string;
+    frame: any[][][];
+    width: number;
+    height: number;
+    x: number;
+    y: number;
+}
+
+
 class DataStore {
+
+    static instance: DataStore;
+
+    manifest?: Manifest;
+    socket?: WebSocket;
+    responseCallbacks: ResponseCallbacks;
+    eventCallbacks: EventCallbacks;
+    settings: Settings;
+    tiles: HTMLImageElement;
+    requestId: number = 0;
+    frames: number = 0;
+    bytes: number = 0;
+    scale: number = .5;
+    pingIntervalId?: number;
+    log: LogMessage[];
+    maps: MapManager;
+
     constructor() {
-        this.manifest = null;
-        this.socket = null;
         this.responseCallbacks = {};
         this.eventCallbacks = {};
-        this.requestId = 0;
-        this.pingIntervalId = null;
-        this.frames = 0;
-        this.bytes = 0;
-        this.tiles = null;
+
+        this.tiles = new Image();
+
         this.settings = {
             playMusic: true,
             playSounds: true
         };
         this.maps = {};
         this.log = [];
-        this.scale = .5;
     }
 
     get tileset() {
         return this.manifest ? this.manifest.tileset : null;
     }
 
-    loadManifest(manifest_url, cb) {
+    loadManifest(manifest_url: string, cb: DataStoreCallback) {
         fetch(manifest_url, {
             method: "GET",
             mode: "cors",
@@ -85,13 +167,13 @@ class DataStore {
         });
     }
 
-    loadTiles(cb) {
+    loadTiles(cb: DataStoreCallback) {
         const loaded = () => {
             cb.onLoaded();
         };
-        this.tiles = new Image();
         this.tiles.onload = loaded;
-        this.tiles.src = this.manifest.tiles_url;
+        if (this.manifest)
+            this.tiles.src = this.manifest.tiles_url;
     }
 
     get music() {
@@ -102,7 +184,7 @@ class DataStore {
         const fps = this.frames / PING_DELAY;
         const kb = this.bytes / PING_DELAY / 1024;
         var _this = this;
-        this.send({ping: new Date().getTime()}, (pong) => {
+        this.send({ping: new Date().getTime()}, (pong: {pong: number}) => {
             const time = (new Date().getTime()) - pong.pong;
             const msg = sprintf("fps=%s / kb/s=%.02f / time=%s", fps, kb, time);
             _this.debugLog(msg);
@@ -111,12 +193,19 @@ class DataStore {
         this.frames = this.bytes = 0;
     }
 
-    connect(view, profile) {
-        this.socket  = new WebSocket(this.manifest.socket_url);
+    connect(view: ConnectionListener, profile: PlayerProfile) {
+        if (!this.manifest) {
+            return;
+        }
+        this.socket = new WebSocket(this.manifest.socket_url);
         this.socket.binaryType = "arraybuffer";
 
         this.socket.addEventListener('open', (event) => {
-            this.pingIntervalId = setInterval(this.onPing.bind(this), PING_DELAY * 1000);
+            if (!this.socket) {
+                return;
+            }
+
+            this.pingIntervalId = window.setInterval(this.onPing.bind(this), PING_DELAY * 1000);
             this.socket.send(encode({"profile": profile}));
             view.onConnected(event);
         });
@@ -134,7 +223,7 @@ class DataStore {
                     this.frames++;
                     this.updateMap(msg);
                 } else if (msg._event === "notice") {
-                    this.addLog(LogTypes.NOTICE, msg.notice);
+                    this.addLog(LogType.NOTICE, msg.notice);
                 }
 
                 this.eventCallbacks[msg._event](msg);
@@ -152,9 +241,9 @@ class DataStore {
         });
     }
 
-    send(obj, callback) {
+    send(obj: any, callback?: ResponseCallback) {
         // console.log(obj);
-        if (this.socket.readyState !== 1) {
+        if (!this.socket || this.socket.readyState !== 1) {
             return;
         }
         if (callback) {
@@ -165,25 +254,25 @@ class DataStore {
         this.socket.send(encode(obj));
     }
 
-    addEventListener(event, callback) {
+    addEventListener(event: string, callback: EventCallback) {
         this.eventCallbacks[event] = callback;
     }
 
-    cancelEventListener(event) {
+    cancelEventListener(event: string) {
         delete this.eventCallbacks[event];
     }
 
-    save(storage) {
+    save(storage: Storage) {
         storage.setItem("settings", JSON.stringify(this.settings));
     }
 
-    load(storage) {
+    load(storage: Storage) {
         const settings = storage.getItem("settings");
         if (settings)
             this.settings = JSON.parse(settings);
     }
 
-    updateMap(frame) {
+    updateMap(frame: FrameUpdateMessage) {
         if (!(frame.id in this.maps)) {
             this.maps[frame.id] = new Array(frame.height);
             for(var i=0; i<frame.height; i++) {
@@ -229,7 +318,7 @@ class DataStore {
         }
     }
 
-    dumpMap(map) {
+    dumpMap(map: number[][]) {
         const parts = [];
         for (let y=0; y<map.length; y++) {
             const row = map[y];
@@ -238,7 +327,7 @@ class DataStore {
         console.log(parts.join("\n") + "\n");
     }
 
-    addLog(log_type, message){
+    addLog(log_type: LogType, message: string){
         this.log.unshift({type: log_type, message: message});
         while(this.log.length > LOG_LIMIT) {
             this.log.pop();
@@ -248,11 +337,11 @@ class DataStore {
         }
     }
 
-    debugLog(msg) {
-        this.addLog(LogTypes.DEBUG, msg);
+    debugLog(msg: string) {
+        this.addLog(LogType.DEBUG, msg);
     }
 
-    incrementScale(step) {
+    incrementScale(step: number) {
         this.scale += step;
         if (this.scale < .25)
             this.scale = .25;
@@ -265,8 +354,9 @@ DataStore.instance = new DataStore();
 
 
 class SfxUtil {
-    static musicPlayer = null;
-    static playMusic(url) {
+    static musicPlayer?: HTMLAudioElement;
+
+    static playMusic(url: string) {
         SfxUtil.stopMusic();
         SfxUtil.musicPlayer = new Audio(url);
         SfxUtil.musicPlayer.play();
@@ -275,22 +365,26 @@ class SfxUtil {
     static stopMusic() {
         if (SfxUtil.musicPlayer) {
             SfxUtil.musicPlayer.pause();
-            SfxUtil.musicPlayer = null;
+            SfxUtil.musicPlayer = undefined;
         }
     }
     static shuffleMusic() {
         if (!DataStore.instance.settings.playMusic)
             return;
-
+        if (!DataStore.instance.music)
+            return;
         const music = choice(DataStore.instance.music);
         SfxUtil.playMusic(music);
     }
 }
 
 class GfxUtil {
-    static drawTile(ctx, x, y, tile_index, width, height) {
+    static drawTile(ctx: CanvasRenderingContext2D, x: number, y: number, tile_index: number, width?: number, height?: number) {
         const ds = DataStore.instance;
-        const pos = DataStore.instance.tileset.tilemap[tile_index][0];
+        if (!ds.tileset)
+            return;
+
+        const pos = ds.tileset.tilemap[tile_index][0];
         ctx.drawImage(
             ds.tiles,
             pos[0] * ds.tileset.tilesize,
@@ -304,8 +398,12 @@ class GfxUtil {
         );
     }
 
-    static fillTile(ctx, x, y, color, width, height) {
-        const tilesize = DataStore.instance.tileset.tilesize * DataStore.instance.scale;
+    static fillTile(ctx: CanvasRenderingContext2D, x: number, y: number, color: string, width?: number, height?: number) {
+        const ds = DataStore.instance;
+        if (!ds.tileset)
+            return;
+
+        const tilesize = ds.tileset.tilesize * ds.scale;
         ctx.fillStyle = color;
         ctx.fillRect(x, y, width || tilesize, height || tilesize);
     }
@@ -313,7 +411,11 @@ class GfxUtil {
 
 class MapRenderer {
 
-    static renderObjects(ctx, msg) {
+    static renderObjects(ctx: CanvasRenderingContext2D, msg: FrameUpdateMessage) {
+
+        if (!DataStore.instance.tileset)
+            return;
+
         const orig_tilesize = DataStore.instance.tileset.tilesize;
         const tilesize = orig_tilesize * DataStore.instance.scale; // scaled
         const canvas_width = ctx.canvas.clientWidth;
@@ -372,7 +474,11 @@ class MapRenderer {
         }
     }
 
-    static renderFOV(ctx, msg) {
+    static renderFOV(ctx: CanvasRenderingContext2D, msg: FrameUpdateMessage) {
+
+        if (!DataStore.instance.tileset)
+            return;
+
         const orig_tilesize = DataStore.instance.tileset.tilesize;
         const tilesize = orig_tilesize * DataStore.instance.scale; // scaled
 
@@ -420,7 +526,11 @@ class MapRenderer {
         }
     }
 
-    static renderUI(ctx, clicked) {
+    static renderUI(ctx: CanvasRenderingContext2D, clicked: [number, number] | null) {
+
+        if (!DataStore.instance.tileset)
+            return;
+
         const orig_tilesize = DataStore.instance.tileset.tilesize;
         const tilesize = orig_tilesize * DataStore.instance.scale; // scaled
 
@@ -441,18 +551,20 @@ class MapRenderer {
         }
     }
 
-    static renderMap(ctx, msg, clicked) {
+    static renderMap(ctx: CanvasRenderingContext2D, msg: FrameUpdateMessage, clicked: [number, number]|null) {
         MapRenderer.renderObjects(ctx, msg);
         MapRenderer.renderFOV(ctx, msg);
         MapRenderer.renderUI(ctx, clicked);
     }
 
-    static clearMap(ctx) {
-        ctx.clearRect(0, 0, ctx.width, ctx.height);
-        console.log("clear", ctx.width, ctx.height);
+    static clearMap(ctx: CanvasRenderingContext2D) {
+        ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
     }
 
-    static redrawMiniMap(ctx, map, scale) {
+    static redrawMiniMap(ctx: CanvasRenderingContext2D, map: number[][], scale: number) {
+        if (!DataStore.instance.tileset)
+            return;
+
         for (let y=0; y<map.length; y++) {
             const row = map[y];
             for (let x=0; x<row.length; x++) {
@@ -466,7 +578,10 @@ class MapRenderer {
         }
     }
 
-    static renderMiniMap(ctx, scale, frame) {
+    static renderMiniMap(ctx: CanvasRenderingContext2D, scale: number, frame: FrameUpdateMessage) {
+        if (!DataStore.instance.tileset)
+            return;
+
         for (let y=0; y<frame.frame.length; y++) {
             const row = frame.frame[y];
             for (let x=0; x<row.length; x++) {
@@ -482,7 +597,10 @@ class MapRenderer {
         }
     }
 
-    static redrawMap(ctx, map) {
+    static redrawMap(ctx: CanvasRenderingContext2D, map: number[][][]) {
+        if (!DataStore.instance.tileset)
+            return;
+
         const orig_tilesize = DataStore.instance.tileset.tilesize;
         const tilesize = orig_tilesize * DataStore.instance.scale; // scaled
         for (let y=0; y<map.length; y++) {
@@ -503,150 +621,131 @@ class MapRenderer {
     }
 }
 
+interface DialogProps {
+    children: JSX.Element[] | JSX.Element;
+    title: string;
+    callback: () => void;
+}
 
-class Dialog extends React.Component {
-    constructor(props) {
-        super(props);
-        this.handleClose = this.handleClose.bind(this);
-    }
-    render() {
-        return (
-            <div className="dialog">
-                <div className="dialog-titlebar">
-                    <a className="dialog-close" onClick={this.handleClose} href="?close"><strong>&#10005;</strong></a>
-                    <strong>{this.props.title}</strong>
-                </div>
-                <div className="dialog-body">
-                    {this.props.children}
-                </div>
+
+const Dialog = (props: DialogProps) => {
+    return (
+        <div className="dialog">
+            <div className="dialog-titlebar">
+                <a className="dialog-close" onClick={() => props.callback()} href="?close"><strong>&#10005;</strong></a>
+                <strong>{props.title}</strong>
             </div>
-        );
-    }
-    handleClose(e) {
-        e.preventDefault();
-        this.props.callback();
-    }
-}
-
-class HelpDialog extends Dialog {
-    render() {
-        return (
-            <Dialog title="Help" callback={this.props.callback}>
-                <h4>Controls</h4>
-                <h5>Mouse</h5>
-                <p>Click on a position, item, enemy or door to interact.  Use scroll wheel to change zoom</p>
-                <h5>Keyboard</h5>
-                <pre>
-                    <strong>w/a/s/d</strong> - to move N/W/S/E<br/>
-                    <strong>.</strong>       - to enter doors<br/>
-                    <strong>p</strong>       - to pickup items<br/>
-                    <strong>f</strong>       - to attack surrounding<br/>
-                    <strong>i</strong>       - to show/hide inventory<br/>
-                    <strong>h</strong>       - to show/hide help<br/>
-                    <strong>+</strong>       - increase zoom<br/>
-                    <strong>-</strong>       - decrease zoom<br/>
-                </pre>
-            </Dialog>
-        );
-    }
-}
-
-class InventoryItem extends React.Component {
-
-    constructor(props) {
-        super(props);
-        this.onClick = this.onClick.bind(this);
-    }
-
-    onClick() {
-        this.props.handler.onItemClick(this.props.item);
-    }
-
-    getClassName() {
-        return this.props.item.equipped ? "inventory-item equipped" : "inventory-item";
-    }
-
-    get canvas() {
-        return this.refs.canvas;
-    }
-
-    componentDidMount() {
-        const ctx = this.canvas.getContext("2d");
-        GfxUtil.drawTile(ctx, 0, 0, this.props.item.idx);
-    }
-
-    render() {
-        return (
-            <div className={this.getClassName()} onClick={this.onClick}>
-                <canvas tabIndex="0" ref="canvas" width={DataStore.instance.tileset.tilesize} height={DataStore.instance.tileset.tilesize} />
-                <p className="inventory-item-name">
-                    {this.props.item.name}
-                </p>
+            <div className="dialog-body">
+                {props.children}
             </div>
-        );
-    }
+        </div>
+    );
+}
+
+const HelpDialog = (props: DialogProps) => {
+    return (
+        <Dialog title="Help" callback={props.callback}>
+            <h4>Controls</h4>
+            <h5>Mouse</h5>
+            <p>Click on a position, item, enemy or door to interact.  Use scroll wheel to change zoom</p>
+            <h5>Keyboard</h5>
+            <pre>
+                <strong>w/a/s/d</strong> - to move N/W/S/E<br/>
+                <strong>.</strong>       - to enter doors<br/>
+                <strong>p</strong>       - to pickup items<br/>
+                <strong>f</strong>       - to attack surrounding<br/>
+                <strong>i</strong>       - to show/hide inventory<br/>
+                <strong>h</strong>       - to show/hide help<br/>
+                <strong>+</strong>       - increase zoom<br/>
+                <strong>-</strong>       - decrease zoom<br/>
+            </pre>
+        </Dialog>
+    );
 }
 
 
-class InventoryDialog extends Dialog {
+interface Item {
+    name: string;
+    equipped: boolean;
+}
 
-    constructor(props) {
-        super(props);
-        this.state = {"inventory": []};
-        this.onItemClick = this.onItemClick.bind(this);
-    }
 
-    componentWillMount() {
+interface InventoryItemProps {
+    onItemClick(item: Item): void;
+    item: Item;
+}
+
+const InventoryItem = (props: InventoryItemProps) => {
+
+    const canvas = useRef(null);
+    const className = props.item.equipped ? "inventory-item equipped" : "inventory-item";
+
+    useEffect(() => {
+        if (canvas.current !== null) {
+            const ctx = canvas.current.getContext("2d");
+            GfxUtil.drawTile(ctx, 0, 0, props.item.idx);
+        }
+    });
+
+    return (
+        <div className={className} onClick={() => props.onItemClick(props.item) }>
+            <canvas tabIndex="0" ref={canvas} width={DataStore.instance.tileset.tilesize} height={DataStore.instance.tileset.tilesize} />
+            <p className="inventory-item-name">
+                {props.item.name}
+            </p>
+        </div>
+    );
+}
+
+
+const InventoryDialog = (props: DialogProps) => {
+
+    const [inventory, setInventory] = useState([]);
+
+    useEffect(() => {
         DataStore.instance.send({action: Actions.INVENTORY}, (msg) => {
-            this.setState({"inventory": msg.inventory});
+            setInventory(msg.inventory);
         });
-    }
+    });
 
-    componentWillUnmount() {
-
-    }
-
-    onItemClick(item) {
+    const onItemClick = (item: Item) => {
         if (item.type === ObjectTypes.EQUIPMENT) {
             DataStore.instance.send({action: Actions.EQUIP, item: item.id}, (msg) => {
-                for (let i = 0; i < this.state.inventory.length; i++) {
-                    if (this.state.inventory[i].id === msg.id) {
-                        this.state.inventory[i].equipped = msg.equipped;
-                        this.setState({"inventory": this.state.inventory});
+                for (let i = 0; i < inventory.length; i++) {
+                    if (inventory[i].id === msg.id) {
+                        inventory[i].equipped = msg.equipped;
+                        this.setState({"inventory": inventory});
                         break;
                     }
                 }
             });
         } else if (item.type === ObjectTypes.ITEM) {
             DataStore.instance.send({action: Actions.USE, item: item.id}, (msg) => {
-                this.setState({"inventory": this.state.inventory.filter((i) => {
+                this.setState({"inventory": inventory.filter((i) => {
                     return i.id !== msg.id;
                 })});
             });
         }
-
     }
 
-    render() {
-        const items = this.state.inventory.map((item) => {
-            return <InventoryItem key={item.id} item={item} handler={this}/>;
-        });
+    const items = inventory.map((item) => {
+        return <InventoryItem key={item.id} item={item} handler={onItemClick}/>;
+    });
 
-        return (
-            <Dialog title="Inventory" callback={this.props.callback}>
-                <h4>Equipment</h4>
-                <p>
-                    Equip weapons and armor by clicking on them.<br/>
-                    Use items by clicking on them.<br/>
-                </p>
-                <div className="inventory">
-                    {items}
-                </div>
-                <div className="clear">
-                </div>
-            </Dialog>
-        );
-    }
+    return (
+        <Dialog title="Inventory" callback={this.props.callback}>
+            <h4>Equipment</h4>
+            <p>
+                Equip weapons and armor by clicking on them.<br/>
+                Use items by clicking on them.<br/>
+            </p>
+            <div className="inventory">
+                {items}
+            </div>
+            <div className="clear">
+            </div>
+        </Dialog>
+    );
 }
 
 
@@ -803,7 +902,7 @@ class CanvasView extends React.Component {
         MapRenderer.clearMap(this.canvas.getContext("2d"));
     }
 
-    onUnload(event) {
+    onUnload(event: any) {
         event.preventDefault();
         return "";
     }
@@ -1180,225 +1279,6 @@ class StatsView extends Component {
     }
 }
 
-const Tiles = {
-    NW: 1,
-    N:  2,
-    NE: 4,
-    W:  8,
-    E:  16,
-    SW: 32,
-    S:  64,
-    SE: 128,
-};
-function getValue(map, x, y) {
-    if (y < 0 || x < 0 || y >= map.length || x >= map[0].length)
-        return undefined;
-    return map[y][x];
-}
-
-function checkValue(map, x, y, val) {
-    const rv = getValue(map, x, y);
-    return rv !== undefined && rv !== val;
-}
-
-function computeMask(map, x, y) {
-    const val = getValue(map, x, y);
-    var rv = 0;
-
-    if(checkValue(map, x-1, y-1, val))
-        rv += Tiles.NW;
-
-    if(checkValue(map, x, y-1, val))
-        rv += Tiles.N;
-
-    if(checkValue(map, x+1, y-1, val))
-        rv += Tiles.NE;
-
-    if(checkValue(map, x-1, y, val))
-        rv += Tiles.W;
-
-    if(checkValue(map, x+1, y, val))
-        rv += Tiles.E;
-
-    if(checkValue(map, x-1, y+1, val))
-        rv += Tiles.SW;
-
-    if(checkValue(map, x, y+1, val))
-        rv += Tiles.S;
-
-    if(checkValue(map, x+1, y+1, val))
-        rv += Tiles.SE;
-
-    return rv;
-}
-
-var offscreenGradientCanvas;
-function generatePatch(ctx, base_index, blend_index, mask, tilesize) {
-
-    //if (!offscreenGradientCanvas) {
-        offscreenGradientCanvas = document.createElement("canvas");
-        offscreenGradientCanvas.width = offscreenGradientCanvas.height =  tilesize;
-        document.body.appendChild(offscreenGradientCanvas);
-    //}
-
-    const offctx = offscreenGradientCanvas.getContext("2d");
-
-    //offctx.clearRect(0, 0, tilesize, tilesize);
-    GfxUtil.drawTile(offctx, 0, 0, base_index, tilesize, tilesize);
-    offctx.globalCompositeOperation = "destination-out";
-
-    function _draw(gradient) {
-        gradient.addColorStop(0, "rgba(255, 255, 255, .0)");
-        gradient.addColorStop(1, "rgba(255, 255, 255, 1)");
-        offctx.fillStyle = gradient;
-        offctx.fillRect(0, 0, tilesize, tilesize);
-    }
-
-    var gradient;
-    if (mask & Tiles.NE) {
-        gradient = ctx.createLinearGradient(0, tilesize, tilesize, 0);
-        _draw(gradient);
-    }
-    if (mask & Tiles.NW) {
-        gradient = ctx.createLinearGradient(tilesize, tilesize, 0, 0);
-        _draw(gradient);
-    }
-    if (mask & Tiles.SE) {
-        gradient = ctx.createLinearGradient(0, 0, tilesize, tilesize);
-        _draw(gradient);
-    }
-    if (mask & Tiles.SW) {
-        gradient = ctx.createLinearGradient(tilesize, 0, 0, tilesize);
-        _draw(gradient);
-    }
-    if (mask & Tiles.N) {
-        gradient = ctx.createLinearGradient(tilesize/2, tilesize, tilesize/2, 0);
-        _draw(gradient);
-    }
-    if (mask & Tiles.S) {
-        gradient = ctx.createLinearGradient(tilesize/2, 0, tilesize/2, tilesize);
-        _draw(gradient);
-    }
-    if (mask & Tiles.E) {
-        gradient = ctx.createLinearGradient(0, tilesize/2, tilesize, tilesize/2);
-        _draw(gradient);
-    }
-    if (mask & Tiles.W) {
-        gradient = ctx.createLinearGradient(tilesize, tilesize/2, 0, tilesize/2);
-        _draw(gradient);
-    }
-
-    return offscreenGradientCanvas;
-}
-
-
-var offscreenPatchCanvas;
-function drawPatch(ctx, map, x, y, tilesize) {
-    const mask = computeMask(map, x, y);
-    if (!mask)
-        return null;
-    const base_index = getValue(map, x, y);
-    if (base_index === undefined)
-        return null;
-
-    if (!offscreenPatchCanvas) {
-        offscreenPatchCanvas = document.createElement("canvas");
-        offscreenPatchCanvas.width = tilesize;
-        offscreenPatchCanvas.height = tilesize
-    }
-    const offctx = offscreenPatchCanvas.getContext("2d");
-    offctx.clearRect(0, 0, tilesize, tilesize);
-    var dx = 0;
-    var dy = 0;
-    function _draw(blend_index, _dx, _dy) {
-        dx = _dx;
-        dy = _dy;
-        if (blend_index === undefined )
-            return;
-        const patch = generatePatch(ctx, base_index, blend_index, mask, tilesize);
-        offctx.drawImage(patch, 0, 0, tilesize, tilesize);
-    }
-
-    var blend_index;
-    if ((mask & Tiles.NE) === Tiles.NE) {
-        blend_index = getValue(map, x-1, y+1);
-        _draw(blend_index, tilesize/2, -tilesize/2);
-
-    }
-    if ((mask & Tiles.NW) === Tiles.NW) {
-        blend_index = getValue(map, x-1, y-1);
-        _draw(blend_index, -tilesize/2, -tilesize/2);
-    }
-    if ((mask & Tiles.SE) === Tiles.SE) {
-        blend_index = getValue(map, x+1, y+1);
-        _draw(blend_index, tilesize/2, tilesize/2);
-    }
-    if ((mask & Tiles.SW) === Tiles.SW) {
-        blend_index = getValue(map, x+1, y+1);
-        _draw(blend_index, -tilesize/2, tilesize/2);
-    }
-    if ((mask & Tiles.N) === Tiles.N) {
-        blend_index = getValue(map, x-1, y);
-        _draw(blend_index, 0, -tilesize/2);
-    }
-    if ((mask & Tiles.S) === Tiles.S) {
-        blend_index = getValue(map, x+1, y);
-        _draw(blend_index, 0, tilesize/2);
-    }
-    if ((mask & Tiles.E) === Tiles.E) {
-        blend_index = getValue(map, x, y+1);
-        _draw(blend_index, tilesize/2, 0);
-    }
-    if ((mask & Tiles.W) === Tiles.W) {
-        blend_index = getValue(map, x, y-1);
-        _draw(blend_index, -tilesize/2, 0);
-    }
-    ctx.drawImage(offscreenPatchCanvas, (x * tilesize)+ dx, (y * tilesize) + dy, tilesize, tilesize);
-}
-
-class SandboxView extends Component {
-    componentDidMount() {
-        const ctx = this.refs.sandbox.getContext("2d");
-        const orig_tilesize = DataStore.instance.tileset.tilesize;
-        const tilesize = orig_tilesize;
-        const canvas_width = ctx.canvas.clientWidth;
-        const canvas_height = ctx.canvas.clientHeight;
-
-        const center_x = canvas_width/2;
-        const center_y = canvas_height/2;
-
-        const map = [
-            [6, 6, 6, 6, 6],
-            [6, 9, 9, 9, 6],
-            [6, 9, 3, 9, 6],
-            [6, 9, 9, 9, 6],
-            [6, 6, 6, 6, 6],
-        ];
-
-        for (let y=0; y<map.length; y++) {
-            const row = map[y];
-            for (let x=0; x<row.length; x++) {
-                const idx = row[x];
-                GfxUtil.drawTile(ctx, x * tilesize, y * tilesize, idx, tilesize, tilesize);
-            }
-        }
-        for (let y=0; y<map.length; y++) {
-            const row = map[y];
-            for (let x=0; x<row.length; x++) {
-                drawPatch(ctx, map, x, y, tilesize);
-            }
-        }
-        for (let y=0; y<map.length; y++) {
-            for (let x=0; x<map[0].length; x++) {
-                ctx.strokeRect(x * tilesize, y * tilesize, tilesize, tilesize);
-            }
-        }
-    }
-    render() {
-        return <canvas className="sanbox" ref="sandbox" width={800} height={800} />;
-    }
-}
-
 
 class App extends Component {
 
@@ -1434,7 +1314,6 @@ class App extends Component {
                 <JoinView handler={this}/>
                 <StatsView/>
                 </div>;
-            //contents = <SandboxView/>;
         } else if (this.state.error) {
             contents = <ErrorView/>;
         } else {
