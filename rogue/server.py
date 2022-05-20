@@ -334,8 +334,6 @@ async def session(websocket: WebSocket):
 
     log.info("reader stopped")
 
-    await websocket.close()
-
     for fut in (writer,):
         for i in range(2):
             try:
