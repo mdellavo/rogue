@@ -8,3 +8,4 @@ GTAGS
 GRTAGS
 .cache
 .ipython
+.log

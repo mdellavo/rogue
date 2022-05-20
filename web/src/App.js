@@ -112,7 +112,8 @@ class DataStore {
     }
 
     connect(view, profile) {
-        this.socket  = new WebSocket(this.manifest.socket_url);
+        const proto = window.location.protocol === "https:" ? "wss" : "ws";
+        this.socket  = new WebSocket(proto + ":" + this.manifest.socket_url);
         this.socket.binaryType = "arraybuffer";
 
         this.socket.addEventListener('open', (event) => {

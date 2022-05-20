@@ -248,7 +248,7 @@ async def get_root(request: Request):
             "tilemap": app.state.tileset.indexed_map
         },
         "tiles_url": "//{}/asset/gfx/tiles.png".format(host),
-        "socket_url": "ws://{}/session".format(host),
+        "socket_url": "//{}/session".format(host),
         "music": ["//{}/asset/music/{}".format(host, key) for key in MUSIC],
         "num_players_online": app.state.world.num_players,
         "server_age": app.state.world.age,
