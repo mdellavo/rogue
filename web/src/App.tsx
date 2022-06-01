@@ -1,4 +1,4 @@
-import React, { Component, useEffect, useState, useRef } from 'react';
+import React, { FormEvent, KeyboardEvent, WheelEvent, MouseEvent, TouchEvent, Component, useEffect, useState, useRef, ChangeEvent } from 'react';
 import './App.css';
 
 import msgpack from 'msgpack-lite';
@@ -8,6 +8,12 @@ const API_URL = process.env.REACT_APP_API;
 const PING_DELAY = 10;
 const LOG_LIMIT = 10;
 
+enum PlayerState {
+    DISCONNECTED = 0,
+    CONNECTING = 1,
+    CONNECTED = 2,
+    ERROR = -1,
+};
 
 enum Action {
     INVENTORY = "inventory",
@@ -33,6 +39,32 @@ enum LogType {
     DEBUG = "debug",
     INFO = "info"
 };
+
+interface PlayerProfile {
+    name: string;
+}
+
+interface PlayerStats {
+    [stat: string]: any;
+}
+
+interface PlayerAttributes {
+    [attribute: string]: any;
+}
+
+interface PlayerInfo {
+    name: string;
+    stats: PlayerStats;
+    attributes: PlayerAttributes;
+}
+
+interface Item {
+    id: string;
+    name: string;
+    equipped: boolean;
+    idx: number;
+    type: string;
+}
 
 function choice(items: any[]) {
     return items[Math.floor(Math.random() * items.length)];
@@ -80,8 +112,13 @@ type LogMessage = {
     message: string;
 }
 
+
+type Map = number[][][];
+
+type Position = [number, number];
+
 type MapManager = {
-    [key: string]: number[][];
+    [key: string]: Map;
 }
 
 interface DataStoreCallback {
@@ -93,10 +130,6 @@ interface ConnectionListener {
     onConnected(event: any): void;
     onDisconnected(event: any): void;
     onError(event: any): void;
-}
-
-interface PlayerProfile {
-    name: string;
 }
 
 type ResponseCallback = (msg: any) => void;
@@ -115,6 +148,15 @@ interface FrameUpdateMessage extends ServerMessage {
     y: number;
 }
 
+interface NoticeMessage extends ServerMessage {
+    notice: string;
+    mood: boolean;
+    entered: string;
+}
+
+interface PlayerStatsMessage extends ServerMessage {
+    stats: PlayerStats;
+}
 
 class DataStore {
 
@@ -200,7 +242,7 @@ class DataStore {
         this.socket = new WebSocket(this.manifest.socket_url);
         this.socket.binaryType = "arraybuffer";
 
-        this.socket.addEventListener('open', (event) => {
+        this.socket.addEventListener('open', (event: Event) => {
             if (!this.socket) {
                 return;
             }
@@ -210,7 +252,7 @@ class DataStore {
             view.onConnected(event);
         });
 
-        this.socket.addEventListener('message', (event) => {
+        this.socket.addEventListener('message', (event: MessageEvent) => {
             const msg = decode(event.data);
             this.bytes += event.data.byteLength;
 
@@ -230,12 +272,12 @@ class DataStore {
             }
         });
 
-        this.socket.addEventListener('close', (event) => {
+        this.socket.addEventListener('close', (event: Event) => {
             clearInterval(this.pingIntervalId);
             view.onDisconnected(event);
         });
 
-        this.socket.addEventListener('error', (event) => {
+        this.socket.addEventListener('error', (event: Event) => {
             clearInterval(this.pingIntervalId);
             view.onError(event);
         });
@@ -438,7 +480,7 @@ class MapRenderer {
             for (let x=0; x<canvas_tile_width; x++) {
                 const cell_idx = tile_min_x + x;
                 if (cell_idx in row) {
-                    const tile_index = row[cell_idx];
+                    const tile_index = row[cell_idx][1];
                     if (tile_index > 0) {
                         const [target_x, target_y] = [x * tilesize, y * tilesize];
                         GfxUtil.drawTile(ctx, target_x, target_y, tile_index, tilesize);
@@ -526,7 +568,7 @@ class MapRenderer {
         }
     }
 
-    static renderUI(ctx: CanvasRenderingContext2D, clicked: [number, number] | null) {
+    static renderUI(ctx: CanvasRenderingContext2D, clicked: Position | null) {
 
         if (!DataStore.instance.tileset)
             return;
@@ -551,7 +593,7 @@ class MapRenderer {
         }
     }
 
-    static renderMap(ctx: CanvasRenderingContext2D, msg: FrameUpdateMessage, clicked: [number, number]|null) {
+    static renderMap(ctx: CanvasRenderingContext2D, msg: FrameUpdateMessage, clicked: Position|null) {
         MapRenderer.renderObjects(ctx, msg);
         MapRenderer.renderFOV(ctx, msg);
         MapRenderer.renderUI(ctx, clicked);
@@ -561,14 +603,14 @@ class MapRenderer {
         ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
     }
 
-    static redrawMiniMap(ctx: CanvasRenderingContext2D, map: number[][], scale: number) {
+    static redrawMiniMap(ctx: CanvasRenderingContext2D, map: Map, scale: number) {
         if (!DataStore.instance.tileset)
             return;
 
         for (let y=0; y<map.length; y++) {
             const row = map[y];
             for (let x=0; x<row.length; x++) {
-                const idx = map[y][x];
+                const idx = map[y][x][1];
                 const color = idx >=0 ? DataStore.instance.tileset.tilemap[idx][1] : "black";
                 const cx = x * scale;
                 const cy = y * scale;
@@ -622,7 +664,7 @@ class MapRenderer {
 }
 
 interface DialogProps {
-    children: JSX.Element[] | JSX.Element;
+    children?: JSX.Element[] | JSX.Element;
     title: string;
     callback: () => void;
 }
@@ -663,13 +705,6 @@ const HelpDialog = (props: DialogProps) => {
     );
 }
 
-
-interface Item {
-    name: string;
-    equipped: boolean;
-}
-
-
 interface InventoryItemProps {
     onItemClick(item: Item): void;
     item: Item;
@@ -677,19 +712,22 @@ interface InventoryItemProps {
 
 const InventoryItem = (props: InventoryItemProps) => {
 
-    const canvas = useRef(null);
+    const canvas = useRef<HTMLCanvasElement|null>(null);
     const className = props.item.equipped ? "inventory-item equipped" : "inventory-item";
 
     useEffect(() => {
-        if (canvas.current !== null) {
-            const ctx = canvas.current.getContext("2d");
-            GfxUtil.drawTile(ctx, 0, 0, props.item.idx);
+        if (canvas != null && canvas.current != null) {
+            const canvasObj = canvas.current as HTMLCanvasElement;
+            const ctx = canvasObj.getContext("2d");
+            if (ctx != null) {
+                GfxUtil.drawTile(ctx, 0, 0, props.item.idx);
+            }
         }
     });
 
     return (
         <div className={className} onClick={() => props.onItemClick(props.item) }>
-            <canvas tabIndex="0" ref={canvas} width={DataStore.instance.tileset.tilesize} height={DataStore.instance.tileset.tilesize} />
+            <canvas tabIndex={0} ref={canvas} width={DataStore?.instance?.tileset?.tilesize} height={DataStore?.instance?.tileset?.tilesize} />
             <p className="inventory-item-name">
                 {props.item.name}
             </p>
@@ -700,40 +738,40 @@ const InventoryItem = (props: InventoryItemProps) => {
 
 const InventoryDialog = (props: DialogProps) => {
 
-    const [inventory, setInventory] = useState([]);
+    const [inventory, setInventory] = useState<Item[]>([]);
 
     useEffect(() => {
-        DataStore.instance.send({action: Actions.INVENTORY}, (msg) => {
+        DataStore.instance.send({action: Action.INVENTORY}, (msg) => {
             setInventory(msg.inventory);
         });
     });
 
     const onItemClick = (item: Item) => {
-        if (item.type === ObjectTypes.EQUIPMENT) {
-            DataStore.instance.send({action: Actions.EQUIP, item: item.id}, (msg) => {
+        if (item.type === ObjectType.EQUIPMENT) {
+            DataStore.instance.send({action: Action.EQUIP, item: item.id}, (msg) => {
                 for (let i = 0; i < inventory.length; i++) {
                     if (inventory[i].id === msg.id) {
                         inventory[i].equipped = msg.equipped;
-                        this.setState({"inventory": inventory});
+                        setInventory(inventory);
                         break;
                     }
                 }
             });
-        } else if (item.type === ObjectTypes.ITEM) {
-            DataStore.instance.send({action: Actions.USE, item: item.id}, (msg) => {
-                this.setState({"inventory": inventory.filter((i) => {
+        } else if (item.type === ObjectType.ITEM) {
+            DataStore.instance.send({action: Action.USE, item: item.id}, (msg) => {
+                setInventory(inventory.filter((i) => {
                     return i.id !== msg.id;
-                })});
+                }));
             });
         }
     }
 
     const items = inventory.map((item) => {
-        return <InventoryItem key={item.id} item={item} handler={onItemClick}/>;
+        return <InventoryItem key={item.id} item={item} onItemClick={onItemClick}/>;
     });
 
     return (
-        <Dialog title="Inventory" callback={this.props.callback}>
+        <Dialog title="Inventory" callback={props.callback}>
             <h4>Equipment</h4>
             <p>
                 Equip weapons and armor by clicking on them.<br/>
@@ -748,72 +786,64 @@ const InventoryDialog = (props: DialogProps) => {
     );
 }
 
-
-
-class PlayerValues extends React.Component {
-    render() {
-        const parts = [];
-        for (var k in this.props.values) {
-            parts.push(<div key={k}>{k}: <strong>{this.props.values[k]}</strong></div>);
-        }
-        return (
-                <div className="player-values">
-                    {parts}
-                </div>
-        );
-    }
+interface PlayerValuesProps {
+    [values: string]: any,
 }
 
+const PlayerValues = (props: PlayerValuesProps) => {
 
-class PlayerDialog extends Dialog {
-    constructor(props) {
-        super(props);
-        this.state = {"player_info": null};
+    const parts = [];
+    for (var k in props.values) {
+        parts.push(<div key={k}>{k}: <strong>{props.values[k]}</strong></div>);
     }
 
-    componentWillMount() {
-        DataStore.instance.send({action: Actions.PLAYER_INFO}, (msg) => {
-            this.setState({"player_info": msg.player_info});
+    return (
+        <div className="player-values">
+            {parts}
+        </div>
+    );
+};
+
+
+interface PlayerDialogProps {
+    callback: () => void;
+}
+
+const PlayerDialog = (props: PlayerDialogProps) => {
+
+    const [playerInfo, setPlayerInfo] = useState<null|PlayerInfo>(null);
+
+    useEffect(() => {
+        DataStore.instance.send({action: Action.PLAYER_INFO}, (msg) => {
+            setPlayerInfo(msg.player_info);
         });
+    }, []);
+
+    var body = [];
+    if (playerInfo) {
+        body.push(<h4 key="h-attrs">Attributes</h4>);
+        body.push(<PlayerValues className="player-attrs" key="attrs" values={playerInfo.attributes}/>);
+        body.push(<h4 key="h-stats">Stats</h4>);
+        body.push(<PlayerValues className="player-stats" key="stats" values={playerInfo.stats}/>);
+    } else {
+        body.push(<div key="loading">Loading...</div>);
     }
 
-    render() {
-        var body = [];
-        if (this.state.player_info) {
-            body.push(<h4 key="h-attrs">Attributes</h4>);
-            body.push(<PlayerValues className="player-attrs" key="attrs" values={this.state.player_info.attributes}/>);
-            body.push(<h4 key="h-stats">Stats</h4>);
-            body.push(<PlayerValues className="player-stats" key="stats" values={this.state.player_info.stats}/>);
-        } else {
-            body.push(<div key="loading">Loading...</div>);
-        }
+    return (
+        <Dialog title={playerInfo ? playerInfo.name : "Player"} callback={props.callback}>
+            {body}
+        </Dialog>
+    );
+};
 
-        return (
-            <Dialog title={this.state.player_info ? this.state.player_info.name : "Player"} callback={this.props.callback}>
-                {body}
-            </Dialog>
-        );
-    }
+
+interface BasicDialogProps {
+    callback: () => void;
 }
 
-class SettingsDialog extends Dialog {
-    constructor(props) {
-        super(props);
-        this.onMusicChanged = this.onMusicChanged.bind(this);
-    }
+const SettingsDialog = (props: BasicDialogProps) => {
 
-    render() {
-        return (
-                <Dialog title="Settings" callback={this.props.callback}>
-                <div>
-                <input type="checkbox" name="play_music" defaultChecked={DataStore.instance.settings.playMusic} onChange={this.onMusicChanged}/>
-                <span>Music</span>
-                </div>
-                </Dialog>
-        );
-    }
-
-    onMusicChanged(event) {
+    const onMusicChanged = (event: React.ChangeEvent<HTMLInputElement>) => {
         DataStore.instance.settings.playMusic = event.target.checked;
         if (event.target.checked)
             SfxUtil.shuffleMusic();
@@ -821,410 +851,448 @@ class SettingsDialog extends Dialog {
             SfxUtil.stopMusic();
 
         DataStore.instance.save(window.localStorage);
-    }
+    };
+
+    return (
+        <Dialog title="Settings" callback={props.callback}>
+            <div>
+                <input type="checkbox" name="play_music" defaultChecked={DataStore.instance.settings.playMusic} onChange={onMusicChanged} />
+                <span>Music</span>
+            </div>
+        </Dialog>
+    );
+};
+
+interface CanvasProps {
+    profile: PlayerProfile,
 }
 
-class CanvasView extends React.Component {
-    constructor(props) {
-        super(props);
+interface PressedMap {
+    [key: string]: boolean;
+}
 
-        this.onBlur = this.onBlur.bind(this);
-        this.onKeyDown = this.onKeyDown.bind(this);
-        this.onKeyUp = this.onKeyUp.bind(this);
-        this.onMouseDown = this.onMouseDown.bind(this);
-        this.onMouseUp = this.onMouseUp.bind(this);
-        this.onContextMenu = this.onContextMenu.bind(this);
-        this.onTouchStart = this.onTouchStart.bind(this);
-        this.onTouchEnd = this.onTouchEnd.bind(this);
-        this.showPlayerDialog = this.showPlayerDialog.bind(this);
-        this.showInventoryDialog = this.showInventoryDialog.bind(this);
-        this.showHelpDialog = this.showHelpDialog.bind(this);
-        this.showSettingsDialog = this.showSettingsDialog.bind(this);
-        this.closeDialogs = this.closeDialogs.bind(this);
-        this.onUnload = this.onUnload.bind(this);
-        this.onLog = this.onLog.bind(this);
-        this.onWheel = this.onWheel.bind(this);
+interface KeyHandler {
+    [key: string]: () => void;
+}
 
-        this.pressed = {};
-        this.clicked = null;
+const CanvasView = (props: CanvasProps) => {
 
-        this.state = {
-            showHelp: true,
-            showInventory: false,
-            showPlayer: false,
-            showSettings: false,
-            connecting: true,
-            connected: false,
-            error: false,
-            stats: {}
-        };
-    }
+    const canvas = useRef<HTMLCanvasElement>(null);
+    const minimap = useRef<HTMLCanvasElement>(null);
 
-    get canvas() {
-        return this.refs.canvas;
-    }
+    const pressed = useRef<PressedMap>({});
+    const clicked = useRef<Position>();
 
-    get minimap() {
-        return this.refs.minimap;
-    }
+    const [showHelp, setShowHelp] = useState(true);
+    const [showInventory, setShowInventory] = useState(false);
+    const [showPlayer, setShowPlayer] = useState(false);
+    const [showSettings, setShowSettings] = useState(false);
+    const [playerState, setPlayerState] = useState(PlayerState.CONNECTING);
+    const [playerStats, setPlayerStats] = useState<null | PlayerStats>(null);
 
-    componentDidMount() {
+    const onUnload = (event: any) => {
+        event.preventDefault();
+        return "";
+    };
+
+    const connectionListener = {
+        onConnected: (event: Event) => {
+            setPlayerState(PlayerState.CONNECTED);
+            window.addEventListener("beforeunload", onUnload);
+        },
+        onDisconnected: (event: Event) => {
+            setPlayerState(PlayerState.DISCONNECTED);
+            SfxUtil.stopMusic();
+            window.removeEventListener("beforeunload", onUnload);
+        },
+        onError: (event: Event) => {
+            setPlayerState(PlayerState.ERROR);
+        },
+    };
+
+    useEffect(() => {
+
         DataStore.instance.addEventListener("frame", (msg) => {
             requestAnimationFrame(() => {
-                this.onFrame(msg);
+                onFrame(msg);
             });
         });
-        DataStore.instance.addEventListener("notice", (msg) => { this.onNotice(msg); });
-        DataStore.instance.addEventListener("stats", (msg) => { this.onStats(msg); });
-        DataStore.instance.addEventListener("_log", (msg) => { this.onLog(); });
-        DataStore.instance.connect(this, this.props.profile);
+        DataStore.instance.addEventListener("notice", (msg) => { onNotice(msg); });
+        DataStore.instance.addEventListener("stats", (msg) => { onStats(msg); });
+        DataStore.instance.addEventListener("_log", (msg) => { onLog(); });
 
-        const canvas = this.canvas;
-        const minimap = this.minimap;
+        DataStore.instance.connect(connectionListener, props.profile);
+
         function resize() {
-            const ctx = canvas.getContext("2d");
-            const tilesize = DataStore.instance.tileset.tilesize * DataStore.instance.scale;
-            ctx.width = canvas.width = Math.floor(Math.floor(window.innerWidth / tilesize) * tilesize);
-            ctx.height = canvas.height = Math.floor(Math.floor(window.innerHeight / tilesize) * tilesize);
 
-            const mctx = minimap.getContext("2d");
-            mctx.width = "200";
-            mctx.height = "200";
+            if (!(canvas.current && minimap.current))
+                return;
+
+            if (!(DataStore.instance && DataStore.instance.tileset))
+                return;
+
+            const tilesize = DataStore.instance.tileset.tilesize * DataStore.instance.scale;
+            canvas.current.width = Math.floor(Math.floor(window.innerWidth / tilesize) * tilesize);
+            canvas.current.height = Math.floor(Math.floor(window.innerHeight / tilesize) * tilesize);
+
+            minimap.current.width = 200;
+            minimap.current.height = 200;
         }
         window.addEventListener("resize", resize);
         resize();
-        canvas.addEventListener("touchstart", this.onTouchStart, {passive: false});
 
-        canvas.focus();
+        canvas.current?.addEventListener("touchstart", onTouchStart, {passive: false});
+
+        canvas.current?.focus();
         SfxUtil.shuffleMusic();
 
-        MapRenderer.clearMap(this.minimap.getContext("2d"));
-        MapRenderer.clearMap(this.canvas.getContext("2d"));
-    }
+        if (minimap.current) {
+            const ctx = minimap.current.getContext("2d");
+            if (ctx)
+                MapRenderer.clearMap(ctx);
+        }
 
-    onUnload(event: any) {
-        event.preventDefault();
-        return "";
-    }
+        if (canvas.current) {
+            const ctx = canvas.current.getContext("2d");
+            if (ctx)
+                MapRenderer.clearMap(ctx);
+        }
+    }, []);
 
-    onConnected() {
-        this.setState({connected: true, connecting: false});
-        window.addEventListener("beforeunload", this.onUnload);
-    }
+    const onFrame = (msg: FrameUpdateMessage) => {
+        if (!(canvas.current && minimap.current))
+            return;
 
-    onDisconnected() {
-        this.setState({connected: false});
-        SfxUtil.stopMusic();
-        window.removeEventListener("beforeunload", this.onUnload);
-    }
-
-    onError() {
-        this.setState({connected: false, error: true});
-    }
-
-    onFrame(msg) {
         const map = DataStore.instance.maps[msg.id];
-        MapRenderer.renderMap(this.canvas.getContext("2d"),  msg, this.clicked);
+        const ctx = canvas.current.getContext("2d");
+        if (ctx)
+            MapRenderer.renderMap(ctx, msg, clicked.current || null);
 
-        const minimap_ctx = this.minimap.getContext("2d");
-        this.minimap_scale = minimap_ctx.width / msg.width;
-        MapRenderer.renderMiniMap(minimap_ctx, this.minimap_scale, msg);
-    }
+        const minimapCtx = minimap.current.getContext("2d");
+        if (minimapCtx) {
+            const minimapScale = minimap.current.width / msg.width;
+            MapRenderer.renderMiniMap(minimapCtx, minimapScale, msg);
+        }
+    };
 
-    onLog() {
-        this.forceUpdate();
-    }
+    const onLog = () => {
 
-    onNotice(event) {
+    };
+
+    const onNotice = (event: NoticeMessage) => {
         if (event.mood) {
             SfxUtil.shuffleMusic();
         }
-        if (event.entered) {
-            MapRenderer.clearMap(this.canvas.getContext("2d"));
-            MapRenderer.clearMap(this.minimap.getContext("2d"));
-            if (event.entered in DataStore.instance.maps) {
-                MapRenderer.redrawMiniMap(this.minimap.getContext("2d"), DataStore.instance.maps[event.entered],  this.minimap_scale);
-                MapRenderer.redrawMap(this.canvas.getContext("2d"),  DataStore.instance.maps[event.entered]);
-            }
+
+        if (!(canvas.current && minimap.current)) {
+            return;
         }
-    }
 
-    onStats(event) {
-        this.setState({stats: event.stats});
-    }
+        const ctx = canvas.current?.getContext("2d");
+        const miniCtx = minimap.current?.getContext("2d");
 
-    handleKeyPress(event) {
+        if (!(ctx && miniCtx)) {
+            return;
+        }
+
+        MapRenderer.clearMap(ctx);
+        MapRenderer.clearMap(miniCtx);
+
+        if (event.entered && event.entered in DataStore.instance.maps) {
+            const minimapScale = minimap.current.width / canvas.current.width;
+            MapRenderer.redrawMiniMap(miniCtx, DataStore.instance.maps[event.entered], minimapScale);
+            MapRenderer.redrawMap(ctx, DataStore.instance.maps[event.entered]);
+        }
+    };
+
+    const onStats = (event: PlayerStatsMessage) => {
+        setPlayerStats(event.stats);
+    };
+
+    const handleKeyPress = (event: KeyboardEvent) => {
         const key = event.key.toLowerCase();
-        this.pressed[key] = event.type === 'keydown';
+        pressed.current[key] = event.type === 'keydown';
         return key;
-    }
+    };
 
-    onKeyDown(event) {
-        this.handleKeyPress(event);
-    }
+    const onKeyDown = (event: KeyboardEvent) => {
+        handleKeyPress(event);
+    };
 
-    onKeyUp(event) {
-        this.handleKeyPress(event);
+    const onKeyUp = (event: KeyboardEvent) => {
+        handleKeyPress(event);
         var dx = 0;
         var dy = 0;
 
-
-        const handlers = {
-            w: function() { dy-- },
-            a: function() { dx-- },
-            s: function() { dy++ },
-            d: function() { dx++ },
-            p: function() {
-                DataStore.instance.send({action: Actions.PICKUP});
+        const handlers: KeyHandler = {
+            "w": () => { dy-- },
+            "a": () => { dx-- },
+            "s": () => { dy++ },
+            "d": () => { dx++ },
+            "p": () => {
+                DataStore.instance.send({action: Action.PICKUP});
             },
-            ".": function () {
-                DataStore.instance.send({action: Actions.ENTER});
+            ".": () => {
+                DataStore.instance.send({action: Action.ENTER});
             },
-            f: function() {
-                DataStore.instance.send({action: Actions.MELEE});
+            "f": () => {
+                DataStore.instance.send({action: Action.MELEE});
             },
-            i: function() {
-                if (this.state.showInventory)
-                    this.closeInventoryDialog();
+            "i": () => {
+                if (showInventory)
+                    closeInventoryDialog();
                 else
-                    this.showInventoryDialog();
+                    showInventoryDialog();
             },
-            h: function() {
-                if (this.state.showHelp)
-                    this.closeHelpDialog();
+            "h": () => {
+                if (showHelp)
+                    closeHelpDialog();
                 else
-                    this.showHelpDialog();
+                    showHelpDialog();
             },
-            "+": function() {
+            "+": () => {
                 DataStore.instance.incrementScale(.1);
             },
-            "-": function() {
+            "-": () => {
                 DataStore.instance.incrementScale(-.1);
-            }
+            },
         };
-        for (let pressed in this.pressed) {
-            if (handlers[pressed]) {
-                handlers[pressed].bind(this)();
+
+        for (let key in pressed.current) {
+            const handler = handlers[key];
+            if (handler) {
+                handler();
             }
         }
 
         if (dx !== 0 || dy !== 0) {
-            DataStore.instance.send({action: Actions.MOVE, direction: [dx, dy]});
+            DataStore.instance.send({action: Action.MOVE, direction: [dx, dy]});
         }
-        this.pressed = {};
+        pressed.current = {};
+    };
+
+    const onBlur = () => {
+        if (canvas.current)
+            canvas.current.focus();
     }
 
-    onBlur() {
-        this.canvas.focus();
-    }
+    const setWaypoint = (x: number, y: number) => {
 
-    setWaypoint(x, y) {
+        if (!canvas.current) {
+            return;
+        }
+
+        if (!(DataStore.instance && DataStore.instance.tileset))
+            return;
+
         const tilesize = DataStore.instance.tileset.tilesize * DataStore.instance.scale;
-        const width = Math.floor(this.canvas.clientWidth / tilesize);
-        const height = Math.floor(this.canvas.clientHeight / tilesize);
-        const pos = [x, y];
-        this.clicked = pos;
+        const width = Math.floor(canvas.current.clientWidth / tilesize);
+        const height = Math.floor(canvas.current.clientHeight / tilesize);
+        clicked.current = [x, y];
         console.log("waypoint",
-                    "dim",
-                    width, height,
-                    "ev", x, y,
-                    Math.round(x / tilesize),
-                    Math.round(y / tilesize),
-                    Math.floor(x / tilesize) - Math.floor(width / 2),
-                    Math.floor(y / tilesize) - Math.floor(height / 2)
-                   );
+            "dim",
+            width, height,
+            "ev", x, y,
+            Math.round(x / tilesize),
+            Math.round(y / tilesize),
+            Math.floor(x / tilesize) - Math.floor(width / 2),
+            Math.floor(y / tilesize) - Math.floor(height / 2)
+        );
         const relpos = [
             Math.round(x / tilesize) - Math.floor(width / 2) -1,  // WTF
             Math.round(y / tilesize) - Math.floor(height / 2) -1
         ];
-        DataStore.instance.send({action: Actions.WAYPOINT, pos: relpos});
-    }
+        DataStore.instance.send({action: Action.WAYPOINT, pos: relpos});
+    };
 
-    clearWaypoint() {
-        this.clicked = null;
-    }
+    const clearWaypoint = () => {
+        clicked.current = undefined;
+    };
 
-    onMouseDown(event) {
-        const rect = this.canvas.getBoundingClientRect();
+    const onMouseDown = (event: MouseEvent) => {
+        if (!canvas.current)
+            return;
+
+        const rect = canvas.current.getBoundingClientRect();
         const x = event.clientX - rect.left;
         const y = event.clientY - rect.top;
-        this.setWaypoint(x, y);
+        setWaypoint(x, y);
         return false;
-    }
+    };
 
-    onMouseUp(event) {
-        this.clearWaypoint();
-    }
+    const onMouseUp = (event: MouseEvent) => {
+        clearWaypoint();
+    };
 
-    onContextMenu(event) {
+    const onContextMenu = (event: MouseEvent) => {
         event.preventDefault();
-    }
+    };
 
-    onTouchStart(event) {
+    const onTouchStart = (event: any) => {
         event.preventDefault();
-        const rect = this.canvas.getBoundingClientRect();
+
+        if (!canvas.current)
+            return;
+
+        const rect = canvas.current.getBoundingClientRect();
         const touch = event.touches[0];
         const x = touch.clientX - rect.left;
         const y = touch.clientY - rect.top;
-        this.setWaypoint(x, y);
-    }
+        setWaypoint(x, y);
+    };
 
-    onTouchEnd(event) {
+    const onTouchEnd = (event: TouchEvent) => {
         event.preventDefault();
-        this.clearWaypoint();
-    }
 
-    onWheel(event) {
+        if (!canvas.current)
+            return;
+
+        clearWaypoint();
+    };
+
+    const onWheel = (event: WheelEvent) => {
         if (event.ctrlKey) {
             DataStore.instance.incrementScale(-event.deltaY * 0.01);
         }
+    };
+
+    const closeAllDialogs = () => {
+        setShowPlayer(false);
+        setShowInventory(false);
+        setShowHelp(false);
+        setShowSettings(false);
     }
 
-    showDialog(dialog) {
-        const state = Object.assign(
-            {showPlayer: false, showInventory: false, showHelp: false, showSettings: false},
-            dialog
+    const showPlayerDialog = () => {
+        setShowPlayer(true);
+    };
+
+    const showInventoryDialog = () => {
+        setShowInventory(true);
+    };
+
+    const closeInventoryDialog = () => {
+        setShowInventory(false);
+    };
+
+    const showHelpDialog = () => {
+        setShowHelp(true);
+    };
+
+    const closeHelpDialog = () => {
+        setShowHelp(false);
+    };
+
+    const showSettingsDialog = () => {
+        setShowSettings(true);
+    };
+
+    let status;
+    if (playerState == PlayerState.CONNECTING) {
+        status = (
+            <div className="splash">
+                Connecting...
+            </div>
         );
-        this.setState(state);
-    }
-
-    closeDialogs() {
-        this.showDialog({});
-    }
-
-    showPlayerDialog() {
-        this.showDialog({showPlayer: true});
-    }
-
-    showInventoryDialog() {
-        this.showDialog({showInventory: true});
-    }
-
-    closeInventoryDialog() {
-        this.showDialog({showInventory: false});
-    }
-
-    showHelpDialog() {
-        this.showDialog({showHelp: true});
-    }
-
-    closeHelpDialog() {
-        this.showDialog({showHelp: false});
-    }
-
-    showSettingsDialog() {
-        this.showDialog({showSettings: true});
-    }
-
-    render() {
-
-        let status;
-        if (this.state.connecting) {
-            status = (
-                <div className="splash">
-                    Connecting...
-                </div>
-            );
-        } else if (this.state.error) {
-            status = (
-                <div className="splash">
-                    ERROR!!!
-                </div>
-            );
-        } else if (!this.state.connected) {
-            status = (
-                <div className="splash disconnected">
-                    DISCONNECTED!!!<br/>
-                    Hit reload to try again...
-                </div>
-            );
-        }
-
-        let dialog;
-        if (this.state.showHelp) {
-            dialog = <HelpDialog callback={this.closeDialogs}/>;
-        }
-
-        if (this.state.showPlayer) {
-            dialog = <PlayerDialog callback={this.closeDialogs}/>;
-        }
-
-        if (this.state.showInventory) {
-            dialog = <InventoryDialog callback={this.closeDialogs} />;
-        }
-
-        if (this.state.showSettings) {
-            dialog = <SettingsDialog callback={this.closeDialogs}/>;
-        }
-
-        const log = DataStore.instance.log.map((l, i) => {
-            return (
-                <div key={i} className={l.type}>
-                    {l.message}
-                </div>
-            );
-        });
-
-        let stats;
-        if (this.state.stats.tot) {
-            const text = (this.state.stats.hp >=0 ? this.state.stats.hp : 0) + " of " + this.state.stats.tot;
-            stats = (
-                <div className="stats">
-                    Health:
-                    <div className="progress-bar">
-                    <span style={{width: this.state.stats.hp/this.state.stats.tot * 100 + "%"}}>{text}</span>
-                    </div>
-                </div>
-            );
-        }
-
-        return (
-            <div>
-                <div className="toolbar">
-                    <button className="help" onClick={this.showHelpDialog}>Help</button>
-                    <button className="settings" onClick={this.showSettingsDialog}>Settings</button>
-                    <button className="player" onClick={this.showPlayerDialog}>Player</button>
-                    <button className="inventory" onClick={this.showInventoryDialog}>Inventory</button>
-                </div>
-
-                {status}
-                {stats}
-
-                <canvas className="minimap" ref="minimap" width={200} height={200} />
-                <canvas className="playarea" tabIndex="0" ref="canvas"
-                        width={800} height={800}
-                        onKeyDown={this.onKeyDown}
-                        onKeyUp={this.onKeyUp}
-                        onBlur={this.onBlur}
-                        onMouseDown={this.onMouseDown}
-                        onMouseUp={this.onMouseUp}
-                        onTouchEnd={this.onTouchEnd}
-                        onContextMenu={this.onContextMenu}
-                        onWheel={this.onWheel}
-                        />
-
-                <div className="log">
-                    {log}
-                </div>
-
-                <div className="footer">
-                </div>
-
-                {dialog}
+    } else if (playerState == PlayerState.ERROR) {
+        status = (
+            <div className="splash">
+                ERROR!!!
+            </div>
+        );
+    } else if (playerState == PlayerState.DISCONNECTED) {
+        status = (
+            <div className="splash disconnected">
+                DISCONNECTED!!!<br />
+                Hit reload to try again...
             </div>
         );
     }
+
+    let dialog;
+    if (showHelp) {
+        dialog = <HelpDialog title="Help" callback={closeAllDialogs} />;
+    }
+
+    if (showPlayer) {
+        dialog = <PlayerDialog callback={closeAllDialogs} />;
+    }
+
+    if (showInventory) {
+        dialog = <InventoryDialog title="Inventory" callback={closeAllDialogs} />;
+    }
+
+    if (showSettings) {
+        dialog = <SettingsDialog callback={closeAllDialogs} />;
+    }
+
+    const log = DataStore.instance.log.map((l, i) => {
+        return (
+            <div key={i} className={l.type}>
+                {l.message}
+            </div>
+        );
+    });
+
+    let stats;
+    if (playerStats && playerStats.tot) {
+        const text = (playerStats.hp >= 0 ? playerStats.hp : 0) + " of " + playerStats.tot;
+        stats = (
+            <div className="stats">
+                Health:
+                <div className="progress-bar">
+                    <span style={{ width: playerStats.hp / playerStats.tot * 100 + "%" }}>{text}</span>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div>
+            <div className="toolbar">
+                <button className="help" onClick={showHelpDialog}>Help</button>
+                <button className="settings" onClick={showSettingsDialog}>Settings</button>
+                <button className="player" onClick={showPlayerDialog}>Player</button>
+                <button className="inventory" onClick={showInventoryDialog}>Inventory</button>
+            </div>
+
+            {status}
+            {stats}
+
+            <canvas className="minimap" ref={minimap} width={200} height={200}/>
+            <canvas className="playarea" tabIndex={0} ref={canvas}
+                width={800} height={800}
+                onKeyDown={onKeyDown}
+                onKeyUp={onKeyUp}
+                onBlur={onBlur}
+                onMouseDown={onMouseDown}
+                onMouseUp={onMouseUp}
+                onTouchEnd={onTouchEnd}
+                onContextMenu={onContextMenu}
+                onWheel={onWheel}
+            />
+
+            <div className="log">
+                {log}
+            </div>
+
+            <div className="footer">
+            </div>
+
+            {dialog}
+        </div>
+    );
 }
 
-function ErrorView() {
+const ErrorView = () => {
     return (
         <div className="splash error">
             Could not connect!!!
         </div>
     );
-}
+};
 
-function LoadingView() {
+const LoadingView = () => {
     return (
         <div className="splash loading">
             Loading....
@@ -1232,100 +1300,96 @@ function LoadingView() {
     );
 }
 
+interface JoinViewProps {
+    onJoin: (playerName: string) => void;
+}
 
-class JoinView extends Component {
-    constructor(props) {
-        super(props);
-        this.state = {name: "Player-" + Math.round(1000 * Math.random()).toString()};
-        this.submit = this.submit.bind(this);
-        this.update = this.update.bind(this);    }
+const JoinView = (props: JoinViewProps) => {
 
-    update(event) {
-        this.setState({name: event.target.value});
-    }
+    const defaultName = "Player-" + Math.round(1000 * Math.random()).toString();
 
-    submit(event) {
+    const [playerName, setPlayerName] = useState(defaultName);
+
+    const update = (event: ChangeEvent<HTMLInputElement>) => {
+        setPlayerName(event.target.value);
+    };
+
+    const submit = (event: FormEvent) => {
         event.preventDefault();
-        this.props.handler.onJoin(this.state);
-    }
+        props.onJoin(playerName);
+    };
 
-    render() {
-        return (
-            <div className="join">
-                <fieldset>
-                    <legend>Join the game</legend>
+    return (
+        <div className="join">
+            <fieldset>
+                <legend>Join the game</legend>
 
-                    <form onSubmit={this.submit}>
-                        <label>Name:</label>
-                        <input type="text" name="name" onChange={this.update} value={this.state.name}/>
-                        <input type="submit" onClick={this.submit} value="Join"/>
-                    </form>
+                <form onSubmit={submit}>
+                    <label>Name:</label>
+                    <input type="text" name="name" onChange={update} value={playerName}/>
+                    <input type="submit" onClick={submit} value="Join"/>
+                </form>
 
-                </fieldset>
-            </div>
-        );
-    }
-
+            </fieldset>
+        </div>
+    );
 }
 
 class StatsView extends Component {
     render() {
         return (
-                <div className="server-stats">
-                <p><em>{DataStore.instance.manifest.num_players_online}</em> players online now!</p>
-                <p>Server age: {DataStore.instance.manifest.server_age}</p>
-                </div>
+            <div className="server-stats">
+                <p><em>{DataStore.instance.manifest?.num_players_online}</em> players online now!</p>
+                <p>Server age: {DataStore.instance?.manifest?.server_age}</p>
+            </div>
         );
     }
 }
 
 
-class App extends Component {
+const App = () => {
 
-    constructor(props) {
-        super(props);
-        this.state = {loaded: false, error: false, profile: null};
+    const [loaded, setLoaded] = useState(false);
+    const [error, setError] = useState(false);
+    const [profile, setProfile] = useState<PlayerProfile>();
+
+    const handler = {
+        onLoaded: () => {
+            setLoaded(true);
+            DataStore.instance.load(window.localStorage);
+        },
+        onError: () => {
+            setError(true);
+        },
+    };
+
+    useEffect(() => {
+        DataStore.instance.loadManifest(API_URL || "", handler);
+    }, []);
+
+    const onJoin = (playerName: string) => {
+        setProfile({name: playerName});
+    };
+
+    let contents;
+    if (profile) {
+        contents = <CanvasView profile={profile} />;
+    } else if (loaded) {
+        contents = <div>
+            <JoinView onJoin={onJoin} />
+            <StatsView />
+        </div>;
+    } else if (error) {
+        contents = <ErrorView />;
+    } else {
+        contents = <LoadingView />;
     }
 
-    componentDidMount() {
-        DataStore.instance.loadManifest(API_URL,  this);
-    }
-
-    onJoin(data) {
-        this.setState({profile: data});
-    }
-
-    onLoaded() {
-        this.setState({loaded: true});
-        DataStore.instance.load(window.localStorage);
-    }
-
-    onError() {
-        this.setState({error: true});
-    }
-
-    render() {
-
-        let contents;
-        if (this.state.profile) {
-            contents = <CanvasView profile={this.state.profile}/>;
-        } else if (this.state.loaded) {
-            contents = <div>
-                <JoinView handler={this}/>
-                <StatsView/>
-                </div>;
-        } else if (this.state.error) {
-            contents = <ErrorView/>;
-        } else {
-            contents = <LoadingView />;
-        }
-
-        return (
-            <div className="App">
-                {contents}
-            </div>
-        );
-    }
+    return (
+        <div className="App">
+            {contents}
+        </div>
+    );
 }
 
 export default App;

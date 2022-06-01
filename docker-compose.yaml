@@ -1,14 +1,13 @@
 version: "3"
 services:
   app:
+    container_name: app
     build:
       context: .
       dockerfile: Dockerfile
     volumes:
       - .:/site
     ports:
-      - 8000:8000
+      - 6543:6543
     env_file:
       - ./local.env
-  redis:
-    image: redis
