@@ -315,7 +315,7 @@ async def session(websocket: WebSocket):
             except WebSocketDisconnect:
                 log.error("writer closed")
                 break
-        await websocket.close()
+        # await websocket.close()
         log.info("writer stopped")
 
     writer = asyncio.create_task(_writer())
