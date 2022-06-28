@@ -273,11 +273,13 @@ class DataStore {
         });
 
         this.socket.addEventListener('close', (event: Event) => {
+            console.log("ws close", event);
             clearInterval(this.pingIntervalId);
             view.onDisconnected(event);
         });
 
         this.socket.addEventListener('error', (event: Event) => {
+            console.log("ws error", event);
             clearInterval(this.pingIntervalId);
             view.onError(event);
         });
@@ -674,7 +676,7 @@ const Dialog = (props: DialogProps) => {
     return (
         <div className="dialog">
             <div className="dialog-titlebar">
-                <a className="dialog-close" onClick={() => props.callback()} href="?close"><strong>&#10005;</strong></a>
+                <a className="dialog-close" onClick={(e) => { e.preventDefault(); props.callback()}} href="?close"><strong>&#10005;</strong></a>
                 <strong>{props.title}</strong>
             </div>
             <div className="dialog-body">
@@ -1188,19 +1190,19 @@ const CanvasView = (props: CanvasProps) => {
     };
 
     let status;
-    if (playerState == PlayerState.CONNECTING) {
+    if (playerState === PlayerState.CONNECTING) {
         status = (
             <div className="splash">
                 Connecting...
             </div>
         );
-    } else if (playerState == PlayerState.ERROR) {
+    } else if (playerState === PlayerState.ERROR) {
         status = (
             <div className="splash">
                 ERROR!!!
             </div>
         );
-    } else if (playerState == PlayerState.DISCONNECTED) {
+    } else if (playerState === PlayerState.DISCONNECTED) {
         status = (
             <div className="splash disconnected">
                 DISCONNECTED!!!<br />
@@ -1353,17 +1355,18 @@ const App = () => {
     const [error, setError] = useState(false);
     const [profile, setProfile] = useState<PlayerProfile>();
 
-    const handler = {
-        onLoaded: () => {
-            setLoaded(true);
-            DataStore.instance.load(window.localStorage);
-        },
-        onError: () => {
-            setError(true);
-        },
-    };
-
     useEffect(() => {
+
+        const handler = {
+            onLoaded: () => {
+                setLoaded(true);
+                DataStore.instance.load(window.localStorage);
+            },
+            onError: () => {
+                setError(true);
+            },
+        };
+
         DataStore.instance.loadManifest(API_URL || "", handler);
     }, []);
 

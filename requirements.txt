@@ -2,8 +2,7 @@ fastapi
 uvicorn[standard]
 pydantic
 shortuuid
-noise
-msgpack
+msgpackb
 bson
 pillow
 fabric
