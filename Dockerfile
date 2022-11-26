@@ -16,4 +16,4 @@ USER rogue
 
 EXPOSE 6543
 
-ENTRYPOINT python3 -m rogue --debug
+ENTRYPOINT uvicorn --host 0.0.0.0 --port 6543 --factory rogue:create_app --reload

@@ -4,6 +4,8 @@ import random
 from .tiles import Door
 from .objects import Item, Equipment, BodyPart, Weapon, Shield, Bones, Sign, Box
 from .util import project_enum
+
+
 ACTIONS = {}
 
 
@@ -122,6 +124,7 @@ class PickupItemAction(Action):
             else:
                 actor.notice("you cannot pickup {}".format(obj))
         area.broadcast(actor)
+
 
 class DropItemAction(Action):
     NAME = "drop"

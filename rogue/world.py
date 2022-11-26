@@ -267,6 +267,8 @@ class World(object):
 
     def surrounding_actors(self, actor: Actor):
         area = self.get_area(actor)
+        if not area:
+            return []
         rv = []
         for x, y in area.immediate_area(actor):
             rv.extend([obj for obj in area.get_objects(x, y) if obj is not actor and isinstance(obj, Actor)])
