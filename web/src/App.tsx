@@ -1,4 +1,4 @@
-import React, { FormEvent, KeyboardEvent, WheelEvent, MouseEvent, TouchEvent, Component, useEffect, useState, useRef, ChangeEvent } from 'react';
+import React, { FormEvent, KeyboardEvent, WheelEvent, MouseEvent, TouchEvent, Component, useEffect, useState, useRef, ChangeEvent, memo } from 'react';
 import './App.css';
 
 import msgpack from 'msgpack-lite';
@@ -175,6 +175,7 @@ class DataStore {
   pingIntervalId?: number;
   log: LogMessage[];
   maps: MapManager;
+  lastMapId?: string;
 
   constructor() {
     this.responseCallbacks = {};
@@ -239,7 +240,12 @@ class DataStore {
     if (!this.manifest) {
       return;
     }
-    this.socket = new WebSocket(this.manifest.socket_url);
+
+    var is_secure = document.location.protocol === 'https:';
+    var prefix = is_secure ? "wss:" : "ws:";
+    var socket_url = prefix + this.manifest.socket_url;
+
+    this.socket = new WebSocket(socket_url);
     this.socket.binaryType = "arraybuffer";
 
     this.socket.addEventListener('open', (event: Event) => {
@@ -323,6 +329,7 @@ class DataStore {
         this.maps[frame.id][i] = new Array(frame.width);
       }
     }
+    this.lastMapId = frame.id;
     const map = this.maps[frame.id];
 
     // frame 11x11
@@ -883,7 +890,7 @@ interface KeyHandler {
   [key: string]: () => void;
 }
 
-const CanvasView = (props: CanvasProps) => {
+const CanvasView = memo((props: CanvasProps) => {
 
   console.log("new CanvasView");
 
@@ -964,8 +971,12 @@ const CanvasView = (props: CanvasProps) => {
 
     if (canvas.current) {
       const ctx = canvas.current.getContext("2d");
-      if (ctx)
+      if (ctx) {
         MapRenderer.clearMap(ctx);
+        if (DataStore.instance.lastMapId) {
+          MapRenderer.redrawMap(ctx, DataStore.instance.maps[DataStore.instance.lastMapId]);
+        }
+      }
     }
   }, []);
 
@@ -973,7 +984,6 @@ const CanvasView = (props: CanvasProps) => {
     if (!(canvas.current && minimap.current))
       return;
 
-    const map = DataStore.instance.maps[msg.id];
     const ctx = canvas.current.getContext("2d");
     if (ctx)
       MapRenderer.renderMap(ctx, msg, clicked.current || null);
@@ -1258,7 +1268,7 @@ const CanvasView = (props: CanvasProps) => {
   }
 
   return (
-    <div>
+    <>
       <div className="toolbar">
         <button className="help" onClick={showHelpDialog}>Help</button>
         <button className="settings" onClick={showSettingsDialog}>Settings</button>
@@ -1290,9 +1300,9 @@ const CanvasView = (props: CanvasProps) => {
       </div>
 
       {dialog}
-    </div>
+    </>
   );
-}
+});
 
 const ErrorView = () => {
   return (

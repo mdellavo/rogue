@@ -48,6 +48,9 @@ canvas:focus {
 }
 
 .toolbar {
+    position: absolute;
+    top: 0;
+    left: 0;
     background: #444;
     width: 100%;
     user-select: none;
