@@ -11,7 +11,7 @@ RUN pip install --upgrade pip
 
 ADD . /site/rogue
 
-RUN pip install -r /site/requirements.txt
+RUN pip install -r /site/rogue/requirements.txt
 
 EXPOSE 6543
 
