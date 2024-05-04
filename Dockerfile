@@ -13,11 +13,6 @@ ADD . /site
 
 RUN pip install -r /site/requirements.txt
 
-RUN useradd -ms /bin/bash rogue
-RUN chown -R rogue:rogue /site
-USER rogue
-
-
 EXPOSE 6543
 
 ENTRYPOINT uvicorn --host 0.0.0.0 --port 6543 --factory rogue:create_app --reload
