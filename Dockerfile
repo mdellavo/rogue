@@ -14,7 +14,9 @@ ADD . /site
 RUN pip install -r /site/requirements.txt
 
 RUN useradd -ms /bin/bash rogue
+RUN chown -R rogue:rogue /site
 USER rogue
+
 
 EXPOSE 6543
 
