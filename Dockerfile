@@ -1,4 +1,4 @@
-FROM python:3.9
+FROM python:3.12
 
 ENV DEBIAN_FRONTEND noninteractive
 ENV HOME /site
@@ -8,8 +8,10 @@ ENV PYTHONBUFFERED 1
 WORKDIR /site
 
 RUN pip install --upgrade pip
-COPY ./requirements.txt /tmp
-RUN pip install -r /tmp/requirements.txt
+
+ADD . /site
+
+RUN pip install -r /site/requirements.txt
 
 RUN useradd -ms /bin/bash rogue
 USER rogue

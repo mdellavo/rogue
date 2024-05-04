@@ -1,13 +1,9 @@
 version: "3"
 services:
-  app:
-    container_name: app
+  rogue:
+    container_name: rogue
     build:
       context: .
       dockerfile: Dockerfile
-    volumes:
-      - .:/site
     ports:
       - 6543:6543
-    env_file:
-      - ./local.env
