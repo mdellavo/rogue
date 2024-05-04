@@ -10,10 +10,10 @@ WORKDIR /site
 
 RUN pip install --upgrade pip
 
-ADD . /site/rogue
+ADD . /site
 
-RUN pip install -r /site/rogue/requirements.txt
+RUN pip install -r /site/requirements.txt
 
 EXPOSE 6543
 
-ENTRYPOINT uvicorn --host 0.0.0.0 --port 6543 --factory rogue:create_app --reload
+ENTRYPOINT uvicorn --host 0.0.0.0 --port 6543 --factory rogue:main.create_app --reload
