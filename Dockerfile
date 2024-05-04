@@ -9,7 +9,7 @@ WORKDIR /site
 
 RUN pip install --upgrade pip
 
-ADD . /site
+ADD . /site/rogue
 
 RUN pip install -r /site/requirements.txt
 
